@@ -1,0 +1,23 @@
+<resources>
+
+<abbr tag='test' repl='http://purl.org/xml3k/dendrite/test1'/>
+<abbr tag='uo' repl='http://uche.ogbuji.net/data'/>
+<abbr tag='name' repl='$test/name'/>
+<abbr tag='temporal' repl='$test/temporal-assertion'/>
+<abbr tag='works-at' repl='$test/works-at'/>
+<abbr tag='webaddress' repl='$test/webaddress'/>
+<abbr tag='form' repl='$test/form'/>
+
+<context id='$test/'>
+  <resource id='$uo#uche.ogbuji' isa='$test/person'>
+    <name form='familiar'>Uche Ogbuji</name>
+    <works-at value='$uo#zepheira' temporal='2007-'/>
+  </resource>
+  <resource id='$uo#zepheira' isa='$test/organization'>
+    <name form='familiar'>Zepheira</name>
+    <name form='legal'>Zepheira LLC</name>
+    <webaddress value='http://zepheira.com'/>
+  </resource>
+</context>
+
+</resources>

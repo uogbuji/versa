@@ -1,0 +1,5 @@
+amara==2.0.0a6
+Markdown
+nose
+nose-testconfig
+psycopg2
