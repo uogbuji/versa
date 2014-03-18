@@ -24,12 +24,13 @@ class connection(connection_base):
         '''
         self.create_space()
         self._baseuri = baseuri
+        self._id_counter = 1
         self._logger = logger or logging
         return
 
     def create_space(self):
         '''Set up a new table space for the first time'''
-        self._statements = tuple()
+        self._relationships = {}
         return
 
     def drop_space(self):
@@ -42,7 +43,7 @@ class connection(connection_base):
         raise NotImplementedError
 
     def __iter__(self):
-        for stmt in self._statements: yield stmt
+        for rid, rel in self._relationships.iteritems(): yield rid, rel
 
     def match(self, subj=None, pred=None, obj=None, attrs=None):
         '''
@@ -54,76 +55,20 @@ class connection(connection_base):
         attrs - optional attribute mapping of relationship metadata, i.e. {attrname1: attrval1, attrname2: attrval2}. If any attribute is specified, an exact match is made (i.e. the attribute name and value must match).
 
         '''
-        cur = self._conn.cursor()
-        conditions = u""
-        and_placeholder = u""
-        tables = u"relationship"
-        params = []
-        if subj:
-            conditions += u"relationship.subj = ?"
-            params.append(subj)
-            and_placeholder = u" AND "
-        if obj:
-            conditions += and_placeholder + u"relationship.obj = ?"
-            params.append(obj)
-            and_placeholder = u" AND "
-        if pred:
-            conditions += and_placeholder + u"relationship.pred = ?"
-            params.append(pred)
-            and_placeholder = u" AND "
-        if attrs:
-            tables = u"relationship, attribute"
-            for a_name, a_val in attrs.iteritems():
-                conditions += and_placeholder + u"EXISTS (SELECT 1 from attribute AS subattr WHERE subattr.rawid = relationship.rawid AND subattr.name = ? AND subattr.value = ?)"
-                params.extend((a_name, a_val))
-                and_placeholder = u" AND "
-        #querystr = u"SELECT relationship.rawid, relationship.subj, relationship.pred, relationship.obj, attribute.name, attribute.value FROM {0} WHERE {1} ORDER BY relationship.rawid;".format(tables, conditions)
-        #SELECT relationship.rawid, attribute.rawid, relationship.subj, relationship.pred, relationship.obj, attribute.name, attribute.value FROM relationship FULL JOIN attribute ON relationship.rawid = attribute.rawid WHERE relationship.subj = 'http://uche.ogbuji.net' AND EXISTS (SELECT 1 from attribute AS subattr WHERE subattr.rawid = relationship.rawid AND subattr.name = '@context' AND subattr.value = 'http://uche.ogbuji.net#_metadata') AND EXISTS (SELECT 1 from attribute AS subattr WHERE subattr.rawid = relationship.rawid AND subattr.name = '@lang' AND subattr.value = 'ig') ORDER BY relationship.rawid;
-        #querystr = u"SELECT relationship.rawid, relationship.subj, relationship.pred, relationship.obj, attribute.name, attribute.value FROM relationship FULL JOIN attribute ON relationship.rawid = attribute.rawid WHERE {1} ORDER BY relationship.rawid;".format(tables, conditions)
-        #Need to simulate a FULL OUTER JOIN
-        querystr = u"""\
-SELECT relationship.rawid, relationship.subj, relationship.pred, relationship.obj, attribute.name, attribute.value
-FROM relationship LEFT JOIN attribute ON relationship.rawid = attribute.rawid
-UNION ALL
-SELECT relationship.rawid, relationship.subj, relationship.pred, relationship.obj, attribute.name, attribute.value
-FROM relationship LEFT JOIN attribute ON relationship.rawid = attribute.rawid
-WHERE {1}
-ORDER BY relationship.rawid;""".format(tables, conditions)
-        #self._logger.debug(x.format(url))
-        self._logger.debug(repr((querystr, params)))
-        cur.execute(querystr, params)
-        #Use groupby to batch up the returning statements acording to rawid then rol up the attributes
-        #return ( (s, p, o, dict([(n,v) for n,v in xxx])) for s, p, o in yyy)
-        #cur.fetchone()
-        #cur.close()
-        return self._process_db_rows_iter(cur)
-
-    def _process_db_rows_iter(self, cursor):
-        '''
-        Turn the low-level rows from the result of a standard query join
-        into higher-level statements, yielded iteratively. Note this might lead to
-        idle transaction errors?
-
-        '''
-        #Be aware of: http://packages.python.org/psycopg2/faq.html#problems-with-transactions-handling
-        #The results will come back grouped by the raw relationship IDs, in order
-        for relid, relgroup in groupby(cursor, itemgetter(0)):
-            rel = None
-            attrs = None
-            #Each relgroup are the DB rows corresponding to a single relationship,
-            #With redundant subject/predicate/object but the sequence of attributes
-            for row in relgroup:
-                (rawid, subj, pred, obj, a_name, a_val) = row
-                #self._logger.debug('Row: {0}'.format(repr(row)))
-                if not rel: rel = (subj, pred, obj)
-                if a_name:
-                    if not attrs:
-                        attrs = {}
-                        rel = (subj, pred, obj, attrs)
-                    attrs[a_name] = a_val
-            yield rel
-        cursor.close()
-        self._conn.rollback() #Finish with the transaction
+        for rid, rel in self._relationships.iteritems():
+            matches = True
+            if subj and subj != rel[0]:
+                matches = False
+            if pred and pred != rel[1]:
+                matches = False
+            if obj and obj != rel[2]:
+                matches = False
+            if attrs:
+                for k, v in attrs:
+                    if k in rel[3] and rel[3][k] == v:
+                        matches = False
+            if matches:
+                yield rid, rel
         return
 
     def add(self, subj, pred, obj, attrs=None, rid=None):
@@ -135,25 +80,13 @@ ORDER BY relationship.rawid;""".format(tables, conditions)
         obj - object of the relationship, a boolean, floating point or unicode object
         attrs - optional attribute mapping of relationship metadata, i.e. {attrname1: attrval1, attrname2: attrval2}
         rid - optional ID for the relationship in IRI form. If not specified one will be generated.
-
-        returns an ID (IRI) for the resulting relationship
         '''
-        cur = self._conn.cursor()
-        #relationship.
-        if rid:
-            querystr = u"INSERT INTO relationship (subj, pred, obj, rid) VALUES (?, ?, ?, ?);"
-            cur.execute(querystr, (subj, pred, obj, rid))
-        else:
-            querystr = u"INSERT INTO relationship (subj, pred, obj) VALUES (?, ?, ?);"
-            cur.execute(querystr, (subj, pred, obj))
-        rawid = cur.lastrowid
-        for a_name, a_val in attrs.iteritems():
-            querystr = u"INSERT INTO attribute (rawid, name, value) VALUES (?, ?, ?);"
-            cur.execute(querystr, (rawid, a_name, a_val))
-        self._conn.commit()
-        cur.close()
+        #FIXME: return an ID (IRI) for the resulting relationship?
+        if rid is None:
+            rid = str(self._id_counter)
+            self._id_counter += 1
+        self._relationships[rid] = (subj, pred, obj, attrs)
         return
-
 
     def add_many(self, rels):
         '''
@@ -174,7 +107,17 @@ ORDER BY relationship.rawid;""".format(tables, conditions)
 
         returns a list of IDs (IRI), one for each resulting relationship, in order
         '''
-        raise NotImplementedError
+        for rel in rels:
+            attrs = {}
+            rid = None
+            if len(rel) == 3:
+                subj, pred, obj = rel
+            elif len(rel) == 4:
+                subj, pred, obj, attrs = rel
+            elif len(rel) == 5:
+                subj, pred, obj, attrs, rid = rel
+            self.add(subj, pred, obj, attrs, ridNone)
+        return
 
     def delete(rids):
         '''
@@ -182,7 +125,11 @@ ORDER BY relationship.rawid;""".format(tables, conditions)
 
         rids - either a single ID or an sequence or iterator of IDs
         '''
-        raise NotImplementedError
+        if isinstance(rids, basestring):
+            del self._relationships[rids]
+        else:
+            for rid in rids:
+                del self._relationships[rid]
 
     def add_iri_prefix(prefix):
         '''
@@ -194,47 +141,6 @@ ORDER BY relationship.rawid;""".format(tables, conditions)
 
     def close(self):
         '''Set up a new table space for the first time'''
-        self._conn.close()
+        self._relationships = {}
         return
-
-
-SQL_MODEL = '''
-CREATE TABLE relationship (
-    rawid    INTEGER PRIMARY KEY AUTOINCREMENT,  -- a low level, internal ID purely for effieicnt referential integrity
-    id       TEXT UNIQUE,         --The higher level relationship ID
-    subj     TEXT NOT NULL,
-    pred     TEXT NOT NULL,
-    obj      TEXT NOT NULL
-);
-
-CREATE TABLE attribute (
-    rawid    INTEGER REFERENCES relationship (rawid),
-    name     TEXT,
-    value    TEXT
-);
-
-CREATE INDEX main_relationship_index ON relationship (subj, pred);
-
-CREATE INDEX main_attribute_index ON attribute (name, value);
-'''
-
-DROP_SQL_MODEL = '''
-DROP INDEX main_relationship_index;
-
-DROP INDEX main_attribute_index;
-
-DROP TABLE attribute;
-
-DROP TABLE relationship;
-'''
-
-#Some notes on arrays:
-# * http://fossplanet.com/f15/%5Bgeneral%5D-general-postgres-performance-tips-when-using-array-169307/
-
-"""
->>> import psycopg2
->>> conn = psycopg2.connect("dbname=test user=postgres password=PeeeGeee")
-"""
-
-#cur.execute("CREATE TABLE test (id serial PRIMARY KEY, num integer, data varchar);")
 
