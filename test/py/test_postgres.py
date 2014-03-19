@@ -84,6 +84,7 @@ from testconfig import config
 
 from versa.driver import postgres
 
+#If you do this you also need --nologcapture
 #Handle  --tc=debug:y option
 if config.get('debug', 'n').startswith('y'):
     logging.basicConfig(level=logging.DEBUG)

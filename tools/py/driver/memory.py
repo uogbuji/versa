@@ -45,7 +45,7 @@ class connection(connection_base):
     def __iter__(self):
         for rid, rel in self._relationships.iteritems(): yield rid, rel
 
-    def match(self, subj=None, pred=None, obj=None, attrs=None):
+    def match(self, subj=None, pred=None, obj=None, attrs=None, include_ids=False):
         '''
         Retrieve an iterator of relationship IDs that match a pattern of components
 
@@ -64,11 +64,14 @@ class connection(connection_base):
             if obj and obj != rel[2]:
                 matches = False
             if attrs:
-                for k, v in attrs:
-                    if k in rel[3] and rel[3][k] == v:
+                for k, v in attrs.iteritems():
+                    if k not in rel[3] or rel[3].get(k) != v:
                         matches = False
             if matches:
-                yield rid, rel
+                if include_ids:
+                    yield rid, rel
+                else:
+                    yield rel
         return
 
     def add(self, subj, pred, obj, attrs=None, rid=None):
@@ -116,6 +119,8 @@ class connection(connection_base):
                 subj, pred, obj, attrs = rel
             elif len(rel) == 5:
                 subj, pred, obj, attrs, rid = rel
+            else:
+                raise ValueError
             self.add(subj, pred, obj, attrs, ridNone)
         return
 
