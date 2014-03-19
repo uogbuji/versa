@@ -85,6 +85,7 @@ class connection(connection_base):
         rid - optional ID for the relationship in IRI form. If not specified one will be generated.
         '''
         #FIXME: return an ID (IRI) for the resulting relationship?
+        attrs = attrs or {}
         if rid is None:
             rid = str(self._id_counter)
             self._id_counter += 1

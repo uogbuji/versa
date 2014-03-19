@@ -13,12 +13,15 @@ For example:
 import re
 
 import markdown
-from amara.lib.iri import absolutize, matches_uri_syntax
+from amara.lib import iri #for absolutize & matches_uri_syntax
 from amara.lib import U, inputsource
 from amara.bindery import html
+from amara import namespaces
+
+RDFTYPE = namespaces.RDF_NAMESPACE + 'type'
 
 #Does not support the empty URL <> as a property name
-REL_PAT = re.compile('(<[.+]>|\\w+):(.*)')
+REL_PAT = re.compile('(<[.+]>|[@\\-_\\w]+):(.*)')
 
 #FIXME: Isn't this just itertools.islice?
 def results_until(items, end_criteria):
@@ -29,7 +32,7 @@ def results_until(items, end_criteria):
             yield node
 
 
-def from_markdown(md, output, encoding='utf-8'):
+def from_markdown(md, output, encoding='utf-8', config=None):
     """
     Translate the Versa Markdown syntax into Versa model relationships
 
@@ -39,6 +42,11 @@ def from_markdown(md, output, encoding='utf-8'):
 
     No return value
     """
+    config = config or {}
+    typemap = {}
+    if config.get('autotype-h1'): typemap[u'h1'] = config.get('autotype-h1')
+    if config.get('autotype-h2'): typemap[u'h2'] = config.get('autotype-h2')
+    if config.get('autotype-h3'): typemap[u'h3'] = config.get('autotype-h3')
     h = markdown.markdown(md.decode(encoding))
 
     doc = html.markup_fragment(inputsource.text(h.encode('utf-8')))
@@ -49,16 +57,19 @@ def from_markdown(md, output, encoding='utf-8'):
     sections = doc.xml_select(u'//h1[not(.="@docheader")]')
 
     def fields(sect):
-        import logging; logging.debug(repr(sect))
-        sect_body_items = results_until(sect.xml_select(u'ul/li'), u'self::h1|self::h2|self::h3')
+        #import logging; logging.debug(repr(sect))
+        sect_body_items = results_until(sect.xml_select(u'following-sibling::*'), u'self::h1|self::h2|self::h3')
         #field_list = [ U(li) for ul in sect.xml_select(u'following-sibling::ul') for li in ul.xml_select(u'./li') ]
-        field_list = [ U(li) for li in sect_body_items ]
+        field_list = [ U(li) for elem in sect_body_items for li in elem.xml_select(u'li') ]
         for field in field_list:
             if field.strip():
                 m = REL_PAT.match(field)
-                prop = m.group(1)
-                val = m.group(2)
+                if not m:
+                    raise ValueError(_(u'Syntax error in relationship expression: {0}'.format(field)))
+                prop = m.group(1).strip()
+                val = m.group(2).strip()
                 #prop, val = [ part.strip() for part in U(li.xml_select(u'string(.)')).split(u':', 1) ]
+                #import logging; logging.debug(repr((prop, val)))
                 yield (prop, val)
 
     #Gather the document-level metadata
@@ -77,6 +88,9 @@ def from_markdown(md, output, encoding='utf-8'):
     for sect in sections:
         #The resource ID is the header itself
         rid = U(sect)
+        rtype = typemap.get(sect.xml_local)
+        if rtype:
+            output.add(rid, RDFTYPE, rtype)
         for prop, val in fields(sect):
             output.add(rid, iri.absolutize(prop, propbase), val)
 

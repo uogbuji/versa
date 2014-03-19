@@ -1,6 +1,7 @@
 import logging
+from amara.lib import U, inputsource
 
-from versa.driver.sqlite import connection
+from versa.driver import memory
 
 #logging.basicConfig(level=logging.DEBUG)
 
@@ -13,7 +14,7 @@ def module_path(local_function):
    return os.path.abspath(inspect.getsourcefile(local_function))
 
 #hack to locate test resource (data) files regardless of from where nose was run
-RESOURCEPATH = os.path.normpath(os.path.join(module_path(lambda _: None), '../../resource/'))
+RESOURCEPATH = os.path.normpath(os.path.join(module_path(lambda _: None), '../../py/resource/'))
 
 VERSA_LITERATE1 = """<!--
 Test Versa literate model
@@ -33,8 +34,8 @@ Test Versa literate model
 
 """
 
-def test_versa_syntax1():
-    import os
+
+def Xtest_versa_syntax1():
     from versa.mdsyntax import from_markdown
 
     #logging.debug(recs)
@@ -47,4 +48,23 @@ def test_versa_syntax1():
         logging.debug('Result: {0}'.format(repr(stmt)))
         #assert result == ()
     #assert results == None, "Boo! "
+
+
+from versa.mdsyntax import from_markdown
+
+def test_versa_syntax1():
+    config = {
+        'autotype-h1': 'http://example.org/r1',
+        'autotype-h2': 'http://example.org/r2'
+    }
+
+    m = memory.connection()
+    #from_markdown(VERSA_LITERATE1, m, encoding='utf-8')
+    doc = open(os.path.join(RESOURCEPATH, 'ubibframe.md')).read()
+    from_markdown(doc, m, config=config)
+    logging.debug('VERSA LITERATE EXAMPLE 1')
+    for stmt in m.match():
+        logging.debug('Result: {0}'.format(repr(stmt)))
+        #assert result == ()
+    assert results == None, "Boo! "
 

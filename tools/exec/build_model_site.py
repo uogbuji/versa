@@ -5,6 +5,7 @@
 import os
 import re
 
+#pip install amara==2.0.0a6
 from amara import bindery
 from amara.lib import U, inputsource
 from amara.lib.iri import absolutize
@@ -210,7 +211,7 @@ def run(modelsource=None, output=None, base=''):
     #Collect all the property refinements
     refinements = {}
     for prop in indoc.xml_select(u'//*[@refines]'):
-        prop.xml_parent 
+        prop.xml_parent()
         source_cls, source_prop = prop.xml_parent.id, prop.id
         target = prop.refines.split(u'/', 1)
         #Target class is the same as source if not specified
