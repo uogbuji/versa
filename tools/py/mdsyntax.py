@@ -18,10 +18,28 @@ from amara.lib import U, inputsource
 from amara.bindery import html
 from amara import namespaces
 
+from versa import VERSA_BASEIRI
+
 RDFTYPE = namespaces.RDF_NAMESPACE + 'type'
 
 #Does not support the empty URL <> as a property name
 REL_PAT = re.compile('(<[.+]>|[@\\-_\\w]+):(.*)')
+
+def handleiriset(ltext, **kwargs):
+    fullprop=kwargs.get('fullprop')
+    base=kwargs.get('base', VERSA_BASEIRI)
+    model=kwargs.get('model')
+    iris = ltext.strip().split()
+    newset = model.generate_resource()
+    for i in iris:
+        model.add(newset, VERSA_BASEIRI + 'item', iri.absolutize(i, base))
+    return newset
+
+PREP_METHODS = {
+    VERSA_BASEIRI + 'text': lambda x, **kwargs: x,
+    VERSA_BASEIRI + 'iri': lambda x, base=VERSA_BASEIRI, **kwargs: iri.absolutize(x, base),
+    VERSA_BASEIRI + 'iriset': handleiriset,
+}
 
 #FIXME: Isn't this just itertools.islice?
 def results_until(items, end_criteria):
@@ -42,11 +60,22 @@ def from_markdown(md, output, encoding='utf-8', config=None):
 
     No return value
     """
+    #Set up configuration to interpret the conventions for the Markdown
     config = config or {}
-    typemap = {}
-    if config.get('autotype-h1'): typemap[u'h1'] = config.get('autotype-h1')
-    if config.get('autotype-h2'): typemap[u'h2'] = config.get('autotype-h2')
-    if config.get('autotype-h3'): typemap[u'h3'] = config.get('autotype-h3')
+    syntaxtypemap = {}
+    if config.get('autotype-h1'): syntaxtypemap[u'h1'] = config.get('autotype-h1')
+    if config.get('autotype-h2'): syntaxtypemap[u'h2'] = config.get('autotype-h2')
+    if config.get('autotype-h3'): syntaxtypemap[u'h3'] = config.get('autotype-h3')
+    interp = config.get('interpretations', {})
+    #Map the interpretation IRIs to functions to do the data prep
+    for prop, interp_key in interp.iteritems():
+        if interp_key in PREP_METHODS:
+            interp[prop] = PREP_METHODS[interp_key]
+        else:
+            #just use the identity, i.e. no-op
+            interp[prop] = lambda x, **kwargs: x
+
+    #Parse the Markdown
     h = markdown.markdown(md.decode(encoding))
 
     doc = html.markup_fragment(inputsource.text(h.encode('utf-8')))
@@ -88,11 +117,14 @@ def from_markdown(md, output, encoding='utf-8', config=None):
     for sect in sections:
         #The resource ID is the header itself
         rid = U(sect)
-        rtype = typemap.get(sect.xml_local)
+        rtype = syntaxtypemap.get(sect.xml_local)
         if rtype:
             output.add(rid, RDFTYPE, rtype)
         for prop, val in fields(sect):
-            output.add(rid, iri.absolutize(prop, propbase), val)
+            fullprop = iri.absolutize(prop, propbase)
+            if fullprop in interp:
+                val = interp[fullprop](val, fullprop=fullprop, base=VERSA_BASEIRI, model=output)
+            output.add(rid, fullprop, val)
 
         continue
         to_remove = []

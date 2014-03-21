@@ -52,13 +52,21 @@ def Xtest_versa_syntax1():
 
 from versa.mdsyntax import from_markdown
 
+VERSA_BASEIRI = 'http://bibfra.me/purl/versa/'
+
+
 def test_versa_syntax1():
     config = {
         'autotype-h1': 'http://example.org/r1',
-        'autotype-h2': 'http://example.org/r2'
+        'autotype-h2': 'http://example.org/r2',
+        'interpretations': {
+            VERSA_BASEIRI + 'refines': VERSA_BASEIRI + 'iri',
+            VERSA_BASEIRI + 'properties': VERSA_BASEIRI + 'iriset',
+            VERSA_BASEIRI + 'synonyms': VERSA_BASEIRI + 'iriset'
+        }
     }
 
-    m = memory.connection()
+    m = memory.connection(baseuri='http://example.org/')
     #from_markdown(VERSA_LITERATE1, m, encoding='utf-8')
     doc = open(os.path.join(RESOURCEPATH, 'ubibframe.md')).read()
     from_markdown(doc, m, config=config)

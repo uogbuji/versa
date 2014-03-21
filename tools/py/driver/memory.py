@@ -13,8 +13,9 @@ The optional attributes are metadata bound to the statement itself
 #Reportedly PyPy/pg8000 is faster than CPython/psycopg2
 
 import logging
-from itertools import groupby
-from operator import itemgetter
+#from itertools import groupby
+#from operator import itemgetter
+from amara.lib import iri #for absolutize & matches_uri_syntax
 
 from versa.driver import connection_base
 
@@ -37,6 +38,12 @@ class connection(connection_base):
         '''Dismantle an existing table space'''
         create_space(self)
         return
+
+    def generate_resource(self):
+        if self._baseuri:
+            return iri.absolutize(str(self._id_counter), self._baseuri)
+        else:
+            return str(self._id_counter)
 
     def query(self, expr):
         '''Execute a Versa query'''
@@ -87,7 +94,7 @@ class connection(connection_base):
         #FIXME: return an ID (IRI) for the resulting relationship?
         attrs = attrs or {}
         if rid is None:
-            rid = str(self._id_counter)
+            rid = self.generate_resource()
             self._id_counter += 1
         self._relationships[rid] = (subj, pred, obj, attrs)
         return

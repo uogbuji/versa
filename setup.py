@@ -12,6 +12,6 @@ setup(name = "versa",
       url='http://uche.ogbuji.net',
       package_dir={'versa': 'tools/py'},
       packages=['versa', 'versa.driver'],
-      #scripts=['ingest','fetch_catalogs','nightly'],
+      scripts=['tools/exec/build_model_site'],
       #package_data={'akara': ["akara.conf"]},
       )

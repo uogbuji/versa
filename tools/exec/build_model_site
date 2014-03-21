@@ -4,11 +4,15 @@
 
 import os
 import re
+import argparse
 
 #pip install amara==2.0.0a6
-from amara import bindery
-from amara.lib import U, inputsource
-from amara.lib.iri import absolutize
+#from amara.lib import U
+#from amara.lib import iri #for absolutize & matches_uri_syntax
+from amara import namespaces
+
+from versa.driver import memory
+from versa.mdsyntax import from_markdown
 
 LINK_PAT = re.compile('@(\w+)')
 
@@ -191,51 +195,48 @@ AT0 = '''<!DOCTYPE html>
 '''#.format(annotations)
 
 
-CLASSES = {}
+VERSA_BASEIRI = 'http://bibfra.me/purl/versa/'
+VERSA_BASEIRI_LEN = len(VERSA_BASEIRI)
+
+RDFTYPE = namespaces.RDF_NAMESPACE + 'type'
 
 def run(modelsource=None, output=None, base=''):
-    modelsource = inputsource(modelsource)
-    indoc = bindery.parse(modelsource)
-    annotations = {}
-    #First find the annotation files
-    for annfile in indoc.model.annotations:
-        #print modelsource.resolver.absolutize(U(annfile.path))
-        anndoc = bindery.parse(modelsource.resolve(U(annfile.path), indoc.xml_base))
-        for ann in anndoc.annotations.annotation:
-            target = ann.on.split(u'/', 1)
-            target_cls, target_prop = (target[0], None) if len(target) == 1 else target
-            #Build the HTML from the children of the annotation element
-            htmlfromchildren = ''.join([ a.xml_encode() for a in ann.xml_children ])
-            annotations.setdefault((target_cls, target_prop), []).append(htmlfromchildren)
+    config = {
+        'autotype-h1': VERSA_BASEIRI + 'Resource',
+        'autotype-h2': VERSA_BASEIRI + 'Property'
+    }
 
-    #Collect all the property refinements
+    m = memory.connection()
+    modelsource = open(modelsource).read()
+    from_markdown(modelsource, m, config=config)
+
+    #Collect all the refinements
     refinements = {}
-    for prop in indoc.xml_select(u'//*[@refines]'):
-        prop.xml_parent()
-        source_cls, source_prop = prop.xml_parent.id, prop.id
-        target = prop.refines.split(u'/', 1)
-        #Target class is the same as source if not specified
-        target_cls, target_prop = (source_cls, target[0]) if len(target) == 1 else target
-        refinements.setdefault((target_cls, target_prop), []).append((source_cls, source_prop))
+    for stmt in m.match(None, VERSA_BASEIRI + 'refines'):
+        print stmt
+        narrower, r, broader = stmt[0:3]
+        refinements.setdefault(broader, []).append(narrower)
 
-    #Build a graph of the classes
-    for cls in indoc.model.class_:
-        CLASSES[cls.id] = (cls, U(cls.isa).split() if cls.isa else [])
-
-    #Now fix up all the parents, replacing IDs with the actual XML
-    for clsid, (cls, parents) in CLASSES.items():
-        parents = [ CLASSES[p][0] for p in parents ]
-        CLASSES[clsid] = (cls, parents)
+    #Map each class ID to its properties
+    classes = {}
+    for stmt in m.match(None, RDFTYPE, VERSA_BASEIRI + 'Resource'):
+        rclass = stmt[0]
+        rstmts = m.match(rclass)
+        classes[rclass] = dict([ (s[1][VERSA_BASEIRI_LEN:], s[2]) for s in rstmts if s[1].startswith(VERSA_BASEIRI) ])
 
     def handle_inline_links(text):
         '''
         Transform that takes inline links and expands them
         '''
         def replace(match):
-            eid = match.group(1)
-            return '<a href="{0}/{1}/index.html">{2}</a>'.format(base, eid, CLASSES[eid][0].label)
+            rid = match.group(1)
+            return '<a href="{0}/{1}/index.html">{2}</a>'.format(base, rid, classes[rid]['label'])
         return LINK_PAT.sub(replace, text)
 
+    import pprint
+    pprint.pprint(refinements)
+    pprint.pprint(classes)
+    return
 
     #Now build the pages
     for clsid, (maincls, parents) in CLASSES.items():
@@ -360,7 +361,6 @@ def run(modelsource=None, output=None, base=''):
 
 
 if __name__ == '__main__':
-    from akara.thirdparty import argparse #Yes! Yes! Import not at top
     #build_model.py --base=/vocab doc/bibframe.xml /tmp/bibframe
     parser = argparse.ArgumentParser()
     #parser.add_argument('-o', '--output')
