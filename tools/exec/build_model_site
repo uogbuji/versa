@@ -13,6 +13,7 @@ from amara import namespaces
 
 from versa.driver import memory
 from versa.mdsyntax import from_markdown
+from versa import ORIGIN, RELATIONSHIP, TARGET
 
 LINK_PAT = re.compile('@(\w+)')
 
@@ -194,35 +195,57 @@ AT0 = '''<!DOCTYPE html>
 </html>
 '''#.format(annotations)
 
+NON_ID_CHAR_PAT = re.compile('[^\\w\-_]')
 
 VERSA_BASEIRI = 'http://bibfra.me/purl/versa/'
 VERSA_BASEIRI_LEN = len(VERSA_BASEIRI)
 
 RDFTYPE = namespaces.RDF_NAMESPACE + 'type'
 
+import pprint
+
+
 def run(modelsource=None, output=None, base=''):
     config = {
         'autotype-h1': VERSA_BASEIRI + 'Resource',
-        'autotype-h2': VERSA_BASEIRI + 'Property'
+        'autotype-h2': VERSA_BASEIRI + 'Property',
+        'interpretations': {
+            VERSA_BASEIRI + 'refines': VERSA_BASEIRI + 'iri',
+            VERSA_BASEIRI + 'properties': VERSA_BASEIRI + 'iriset',
+            VERSA_BASEIRI + 'synonyms': VERSA_BASEIRI + 'iriset'
+        }
     }
 
-    m = memory.connection()
+    m = memory.connection(baseuri=base)
     modelsource = open(modelsource).read()
-    from_markdown(modelsource, m, config=config)
+    base = from_markdown(modelsource, m, config=config)
+
+    annotations = {}
 
     #Collect all the refinements
     refinements = {}
     for stmt in m.match(None, VERSA_BASEIRI + 'refines'):
-        print stmt
+        #print stmt
         narrower, r, broader = stmt[0:3]
         refinements.setdefault(broader, []).append(narrower)
 
-    #Map each class ID to its properties
+    #Map each class ID to its attributes
     classes = {}
     for stmt in m.match(None, RDFTYPE, VERSA_BASEIRI + 'Resource'):
-        rclass = stmt[0]
+        rclass = stmt[ORIGIN]
         rstmts = m.match(rclass)
-        classes[rclass] = dict([ (s[1][VERSA_BASEIRI_LEN:], s[2]) for s in rstmts if s[1].startswith(VERSA_BASEIRI) ])
+        #classes[rclass] = dict([ (s[1][VERSA_BASEIRI_LEN:], s[2]) for s in rstmts if s[1].startswith(VERSA_BASEIRI) ])
+        classes[rclass] = dict([ (s[RELATIONSHIP], s[TARGET]) for s in rstmts if s[RELATIONSHIP].startswith(VERSA_BASEIRI) ])
+    #pprint.pprint(classes)
+
+    #Map each property ID to its attributes
+    properties = {}
+    for stmt in m.match(None, RDFTYPE, VERSA_BASEIRI + 'Property'):
+        prop = stmt[ORIGIN]
+        pstmts = m.match(prop)
+        #classes[rclass] = dict([ (s[1][VERSA_BASEIRI_LEN:], s[2]) for s in rstmts if s[1].startswith(VERSA_BASEIRI) ])
+        properties[prop] = dict([ (s[RELATIONSHIP], s[TARGET]) for s in pstmts if s[RELATIONSHIP].startswith(VERSA_BASEIRI) ])
+    #pprint.pprint(properties)
 
     def handle_inline_links(text):
         '''
@@ -233,24 +256,34 @@ def run(modelsource=None, output=None, base=''):
             return '<a href="{0}/{1}/index.html">{2}</a>'.format(base, rid, classes[rid]['label'])
         return LINK_PAT.sub(replace, text)
 
-    import pprint
-    pprint.pprint(refinements)
-    pprint.pprint(classes)
-    return
+    #pprint.pprint(refinements)
+    #pprint.pprint(classes)
 
     #Now build the pages
-    for clsid, (maincls, parents) in CLASSES.items():
+    for clsid, clsinfo in classes.iteritems():
+        #Replace sets with the actual resources
+        set_props = [VERSA_BASEIRI + 'properties', VERSA_BASEIRI + 'synonyms']
+        for prop in set_props:
+            if prop in clsinfo:
+                clsinfo[prop] = [ s[TARGET] for s in m.match(clsinfo[prop], VERSA_BASEIRI + 'item') ]
+        #pprint.pprint((clsid, clsinfo))
         ancestors = []
-        def add_ancestors(cls):
-            for p in CLASSES[cls.id][1]:
+        def add_ancestors(startclsid):
+            for stmt in m.match(startclsid, VERSA_BASEIRI + 'refines'):
+                p = stmt[TARGET]
                 add_ancestors(p)
-            ancestors.append(cls)
+            ancestors.append(startclsid)
             return
-        add_ancestors(maincls)
-        basedir = os.path.join(output, U(maincls.id).encode('utf-8'))
+        add_ancestors(clsid)
+        #pprint.pprint((clsid, ancestors))
+
+        #Start to prepare the files to be written
+        fname = clsinfo.get(VERSA_BASEIRI + 'label', '')
+        basedir = os.path.join(output, NON_ID_CHAR_PAT.subn('_', fname or str(hash(clsid)))[0])
         if not os.path.exists(basedir):
             os.makedirs(basedir)
         outf = open(os.path.join(basedir, 'index.html'), 'w')
+        pprint.pprint(basedir)
 
         class_chunks = []
         breadcrumb_chunks = []
@@ -258,29 +291,27 @@ def run(modelsource=None, output=None, base=''):
         #Iterate over each ancestor class to inherit properties
         #for outcls in ancestors + [maincls]:
         for outcls in ancestors:
+            outclsinfo = classes[outcls]
             property_chunks = []
 
             #Check for reference to annotations at class level
             ann_html = ''
-            if (outcls.id, None) in annotations:
+            if outcls in annotations:
                 #ann_html = ' <a class="notes" data-toggle="modal" href="notes.html#{0}" data-target="#myModal">[*]</a>\n'.format(U(outcls.id))
                 ann_html = ' <button class="btn btn-mini notes" data-toggle="modal" href="notes.html" data-target="#myModal"><i class="icon-comment"></i></button>\n'.format(U(outcls.id))
 
-            for prop in (outcls.property or []):
-                typedesc = handle_inline_links(U(prop.typedesc))
-                description = handle_inline_links(U(prop.description))
+            for prop in (clsinfo.get(VERSA_BASEIRI + 'properties', [])):
+                print prop
+                propinfo = properties[prop]
+                vdesc = handle_inline_links(propinfo.get(VERSA_BASEIRI + 'value', ''))
+                description = handle_inline_links(propinfo.get(VERSA_BASEIRI + 'description', ''))
 
-                #Check for reference to annotations at property level
                 prop_ann_html = ''
-                if (outcls.id, prop.id) in annotations:
+                if prop in annotations:
                     #prop_ann_html = ' <a class="notes" data-toggle="modal" href="notes.html#{0}.{1}" data-target="#myModal">[*]</a>\n'.format(outcls.id, prop.id)
-                    prop_ann_html = ' <button class="btn btn-mini notes" data-toggle="modal" href="notes.html" data-target="#myModal"><i class="icon-comment"></i></button>\n'.format(outcls.id, prop.id)
-
+                    prop_ann_html = ' <button class="btn btn-mini notes" data-toggle="modal" href="notes.html" data-target="#myModal"><i class="icon-comment"></i></button>\n'.format(outcls, prop)
                 #Check for refinements of the property
                 prop_refines_html = ''
-                if prop.refines:
-                    continue
-
                 #if prop.refines:
                 #    target = prop.refines.split(u'/', 1)
                 #    target_cls, target_prop = (None, target[0]) if len(target) == 1 else target
@@ -291,9 +322,9 @@ def run(modelsource=None, output=None, base=''):
                 #        prop_refines_html = '<br> (refines {0})\n'.format(prop.refines)
 
                 prop_refinements_html = ''
-                refs = refinements.get((outcls.id, prop.id))
+                refs = refinements.get(prop)
                 if refs:
-                    refs_html = ''.join(['<tr><td>{0}</td></tr>'.format(source_prop if outcls.id == source_cls else source_cls + '/' + source_prop) for (source_cls, source_prop) in refs])
+                    refs_html = ''.join(['<tr><td>{0}</td></tr>'.format(propinfo.get(VERSA_BASEIRI + 'label', ''))])
                     prop_refinements_html = '''\
                 <button type="button" class="btn btn-mini" data-toggle="collapse" data-target="#refine-{0}"><i class="icon-plus"></i></button>
 
@@ -301,34 +332,36 @@ def run(modelsource=None, output=None, base=''):
                     <table class="table">
                          {1}
                     </table>
-                </div>'''.format(U(prop.label), refs_html)
+                </div>'''.format(propinfo[VERSA_BASEIRI + 'label'], refs_html)
 
                 property_chunks.append(T2.format(
-                    U(prop.label),
+                    propinfo[VERSA_BASEIRI + 'label'],
                     prop_ann_html,
                     prop_refines_html,
                     prop_refinements_html,
-                    typedesc,
+                    vdesc,
                     description,
-                    U(prop.marcref),
-                    U(prop.rdaref)))
+                    #U(prop.marcref),
+                    #U(prop.rdaref)))
+                    '',
+                    ''))
 
-            header = 'Properties from <A href="../{0}/index.html">{1}</a>'.format(U(outcls.id), U(outcls.label))
+            header = 'Properties from <A href="../{0}/index.html">{1}</a>'.format(outcls, outclsinfo.get(VERSA_BASEIRI + 'label', ''))
             class_chunks.append(T1.format(header, ann_html, ''.join(property_chunks)))
-            if outcls == maincls:
-                breadcrumb_chunks.append('<li class="active">{0}</li>'.format(U(outcls.label)))
+            if outcls == clsid:
+                breadcrumb_chunks.append('<li class="active">{0}</li>'.format(outclsinfo.get(VERSA_BASEIRI + 'label', '')))
             else:
-                breadcrumb_chunks.append('<li><a href="../{0}/index.html">{1}</a> <span class="divider">/</span></li>'.format(U(outcls.id), U(outcls.label)))
+                breadcrumb_chunks.append('<li><a href="../{0}/index.html">{1}</a> <span class="divider">/</span></li>'.format(outcls, outclsinfo.get(VERSA_BASEIRI + 'label', '')))
 
-        childclasses = [ cls for (clsid, (cls, parents)) in CLASSES.items() if maincls in parents ]
+        childclasses = [ clsid for clsid in classes if clsid in ancestors ]
 
-        specific_chunks = [ '<li><a href="../{0}/index.html">{1}</a></li>\n'.format(U(cls.id), U(cls.label)) for cls in childclasses ]
+        specific_chunks = [ '<li><a href="../{0}/index.html">{1}</a></li>\n'.format(clsid, clsinfo.get(VERSA_BASEIRI + 'label', '')) for cls in childclasses ]
 
         outf.write(T0.format(
             base=base,
             breadcrumbs=''.join(breadcrumb_chunks),
-            clslabel=maincls.label,
-            clstag=maincls.tagline,
+            clslabel=clsinfo.get(VERSA_BASEIRI + 'label', ''),
+            clstag=clsinfo.get(VERSA_BASEIRI + 'description', ''),
             tables=''.join(class_chunks),
             specifictypes=(''.join(specific_chunks if specific_chunks else '(None)')),
             ))
@@ -339,20 +372,20 @@ def run(modelsource=None, output=None, base=''):
         current_annotations = []
         for outcls in ancestors:
             #Is there an annotation for this class?
-            if (outcls.id, None) in annotations:
+            if outcls in annotations:
                 #Build the accumulated HTML annotations into one chunk
                 htmlchunk = '\n'.join(annotations[(outcls.id, None)])
                 #Then format it for the notes.html
                 ann_html = '<div class="annotations"><a class="annotationTitle" name="{0}">{0}</a>{1}</div>\n'.format(U(outcls.id), htmlchunk)
                 current_annotations.append(ann_html)
             #Is there an annotation for any of its properties?
-            for prop in (outcls.property or []):
-                if (outcls.id, prop.id) in annotations:
+            #for prop in (outcls.property or []):
+            #    if (outcls.id, prop.id) in annotations:
                     #Build the accumulated HTML annotations into one chunk
-                    htmlchunk = '\n'.join(annotations[(outcls.id, prop.id)])
+            #        htmlchunk = '\n'.join(annotations[(outcls.id, prop.id)])
                     #Then format it for the notes.html
-                    ann_html = '<div class="annotations"><a class="annotationTitle" name="{0}.{1}">{0}.{1}</a>{2}</div>\n'.format(U(outcls.id), prop.id, htmlchunk)
-                    current_annotations.append(ann_html)
+            #        ann_html = '<div class="annotations"><a class="annotationTitle" name="{0}.{1}">{0}.{1}</a>{2}</div>\n'.format(U(outcls.id), prop.id, htmlchunk)
+            #        current_annotations.append(ann_html)
 
         if current_annotations:
             annf = open(os.path.join(basedir, 'notes.html'), 'w')

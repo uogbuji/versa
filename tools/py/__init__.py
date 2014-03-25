@@ -5,6 +5,10 @@ import logging
 
 VERSA_BASEIRI = 'http://bibfra.me/purl/versa/'
 
+ORIGIN = RESOURCE = 0
+RELATIONSHIP = 1
+TARGET = 2
+
 def init_localization():
   '''prepare l10n'''
   locale.setlocale(locale.LC_ALL, '') # User's preferred locale, according to environment

@@ -30,7 +30,7 @@ The meta-properties in this file are actually defined by the Versa data model to
 @resource-base is another possible override, for resource headers, but not used here
 -->
 * @base: http://bibfra.me/vocab/
-* @property-base: http://bibfra.me/purl/versa/support
+* @property-base: http://bibfra.me/purl/versa/
 
 # Resource
 
@@ -91,7 +91,7 @@ The meta-properties in this file are actually defined by the Versa data model to
 * label: Work
 * refines: Resource
 * description: Most generic kind of creative work, including bibliographic resources, movies, photographs, software programs, etc.
-* properties: creator title description subject note
+* properties: creator title description note
 
 ## title
 
@@ -132,6 +132,7 @@ The meta-properties in this file are actually defined by the Versa data model to
 
 # Annotation
 
+* label: Annotation
 * refines: Resource
 * description: Annotation, provides for loosely attached information about a resource
 * properties: annotated annotator body target

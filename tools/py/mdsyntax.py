@@ -83,7 +83,7 @@ def from_markdown(md, output, encoding='utf-8', config=None):
     top_section_fields = results_until(doc.xml_select(u'//h1[1]/following-sibling::h2'), u'self::h1')
 
     docheader = doc.xml_select(u'//h1[.="@docheader"]')[0]
-    sections = doc.xml_select(u'//h1[not(.="@docheader")]')
+    sections = doc.xml_select(u'//h1|h2|h3[not(.="@docheader")]')
 
     def fields(sect):
         #import logging; logging.debug(repr(sect))
@@ -116,24 +116,15 @@ def from_markdown(md, output, encoding='utf-8', config=None):
     #Go through the resources expressed in remaining sections
     for sect in sections:
         #The resource ID is the header itself
-        rid = U(sect)
+        rid = iri.absolutize(U(sect), base)
         rtype = syntaxtypemap.get(sect.xml_local)
         if rtype:
             output.add(rid, RDFTYPE, rtype)
         for prop, val in fields(sect):
             fullprop = iri.absolutize(prop, propbase)
             if fullprop in interp:
-                val = interp[fullprop](val, fullprop=fullprop, base=VERSA_BASEIRI, model=output)
+                val = interp[fullprop](val, fullprop=fullprop, base=base, model=output)
             output.add(rid, fullprop, val)
 
-        continue
-        to_remove = []
-        for k, v in fields:
-            if k == u'id':
-                rid = absolutize(v, TEST_ID_BASE)
-                to_remove.append((k, v))
-        for pair in to_remove:
-            fields.remove(pair)
-
-    return
+    return base
 
