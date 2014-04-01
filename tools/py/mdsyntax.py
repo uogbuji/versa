@@ -23,7 +23,27 @@ from versa import VERSA_BASEIRI
 RDFTYPE = namespaces.RDF_NAMESPACE + 'type'
 
 #Does not support the empty URL <> as a property name
-REL_PAT = re.compile('(<[.+]>|[@\\-_\\w]+):(.*)')
+REL_PAT = re.compile('(<.+>|[@\\-_\\w]+):(.*)')
+
+#Does not support the empty URL <> as a property name
+HEADER_PAT = re.compile('([^\s\\[\\]]+)?\s?(\\[([^\s\\[\\]]*?)\\])?')
+
+'''
+>>> import re
+>>> HEADER_PAT = re.compile('([^\s\\[\\]]+)?\s?(\\[([^\s\\[\\]]*?)\\])?')
+>>> m = HEADER_PAT.match("ResourceID")
+>>> m.groups()
+('ResourceID', None, None)
+>>> m = HEADER_PAT.match("[ResourceType]")
+>>> m.groups()
+(None, '[ResourceType]', 'ResourceType')
+>>> m = HEADER_PAT.match("ResourceID [ResourceType]")
+>>> m.groups()
+('ResourceID', '[ResourceType]', 'ResourceType')
+>>> m = HEADER_PAT.match("[]")
+>>> m.groups()
+(None, '[]', '')
+'''
 
 def handleiriset(ltext, **kwargs):
     fullprop=kwargs.get('fullprop')
@@ -92,11 +112,11 @@ def from_markdown(md, output, encoding='utf-8', config=None):
         field_list = [ U(li) for elem in sect_body_items for li in elem.xml_select(u'li') ]
         for field in field_list:
             if field.strip():
-                m = REL_PAT.match(field)
-                if not m:
+                matched = REL_PAT.match(field)
+                if not matched:
                     raise ValueError(_(u'Syntax error in relationship expression: {0}'.format(field)))
-                prop = m.group(1).strip()
-                val = m.group(2).strip()
+                prop = matched.group(1).strip()
+                val = matched.group(2).strip()
                 #prop, val = [ part.strip() for part in U(li.xml_select(u'string(.)')).split(u':', 1) ]
                 #import logging; logging.debug(repr((prop, val)))
                 yield (prop, val)
@@ -115,9 +135,22 @@ def from_markdown(md, output, encoding='utf-8', config=None):
 
     #Go through the resources expressed in remaining sections
     for sect in sections:
-        #The resource ID is the header itself
-        rid = iri.absolutize(U(sect), base)
-        rtype = syntaxtypemap.get(sect.xml_local)
+        #The header can take one of 4 forms: "ResourceID" "ResourceID [ResourceType]" "[ResourceType]" or "[]"
+        #The 3rd form is for an anonymous resource with specified type and the 4th an anonymous resource with unspecified type
+        matched = HEADER_PAT.match(U(sect))
+        if not matched:
+            raise ValueError(_(u'Syntax error in resource header: {0}'.format(U(sect))))
+        rid = matched.group(1)
+        rtype = matched.group(3)
+        if rid:
+            rid = iri.absolutize(rid, base)
+        if not rid:
+            rid = iri.absolutize(output.generate_resource(), base)
+        if rtype:
+            rtype = iri.absolutize(rtype, base)
+        #Resource type might be set by syntax config
+        if not rtype:
+            rtype = syntaxtypemap.get(sect.xml_local)
         if rtype:
             output.add(rid, RDFTYPE, rtype)
         for prop, val in fields(sect):

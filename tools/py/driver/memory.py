@@ -12,12 +12,14 @@ The optional attributes are metadata bound to the statement itself
 #Note: for PyPy support port to pg8000 <http://pybrary.net/pg8000/>
 #Reportedly PyPy/pg8000 is faster than CPython/psycopg2
 
+from copy import deepcopy
 import logging
 #from itertools import groupby
 #from operator import itemgetter
 from amara.lib import iri #for absolutize & matches_uri_syntax
 
 from versa.driver import connection_base
+from versa import ORIGIN, RELATIONSHIP, TARGET, ATTRIBUTES
 
 class connection(connection_base):
     def __init__(self, baseuri=None, logger=None):
@@ -50,7 +52,7 @@ class connection(connection_base):
         raise NotImplementedError
 
     def __iter__(self):
-        for rid, rel in self._relationships.iteritems(): yield rid, rel
+        for rid, rel in self._relationships.iteritems(): yield rid, deepcopy(rel)
 
     def match(self, subj=None, pred=None, obj=None, attrs=None, include_ids=False):
         '''
@@ -64,21 +66,21 @@ class connection(connection_base):
         '''
         for rid, rel in self._relationships.iteritems():
             matches = True
-            if subj and subj != rel[0]:
+            if subj and subj != rel[ORIGIN]:
                 matches = False
-            if pred and pred != rel[1]:
+            if pred and pred != rel[RELATIONSHIP]:
                 matches = False
-            if obj and obj != rel[2]:
+            if obj and obj != rel[TARGET]:
                 matches = False
             if attrs:
                 for k, v in attrs.iteritems():
-                    if k not in rel[3] or rel[3].get(k) != v:
+                    if k not in rel[ATTRIBUTES] or rel[ATTRIBUTES].get(k) != v:
                         matches = False
             if matches:
                 if include_ids:
-                    yield rid, rel
+                    yield rid, deepcopy(rel)
                 else:
-                    yield rel
+                    yield deepcopy(rel)
         return
 
     def add(self, subj, pred, obj, attrs=None, rid=None):

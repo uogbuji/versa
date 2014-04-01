@@ -5,9 +5,10 @@ import logging
 
 VERSA_BASEIRI = 'http://bibfra.me/purl/versa/'
 
-ORIGIN = RESOURCE = 0
+ORIGIN = RESOURCE = SUBJECT = 0
 RELATIONSHIP = 1
-TARGET = 2
+TARGET = VALUE = 2
+ATTRIBUTES = 3
 
 def init_localization():
   '''prepare l10n'''
