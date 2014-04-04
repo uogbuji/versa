@@ -3,12 +3,11 @@ import gettext
 import locale
 import logging
 
-VERSA_BASEIRI = 'http://bibfra.me/purl/versa/'
-
 ORIGIN = RESOURCE = SUBJECT = 0
 RELATIONSHIP = 1
 TARGET = VALUE = 2
 ATTRIBUTES = 3
+
 
 def init_localization():
   '''prepare l10n'''
@@ -25,4 +24,9 @@ def init_localization():
     trans = gettext.NullTranslations()
 
   trans.install()
+
+
+from versa.iriref import iriref as I
+
+VERSA_BASEIRI = I('http://bibfra.me/purl/versa/')
 

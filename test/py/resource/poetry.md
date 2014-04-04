@@ -14,14 +14,15 @@
 * author_name: Uche Ogbuji
 * author_link: http://uche.ogbuji.net
 * author_addr: uche@ogbuji.net
-* summary: It's as if that vengeful god has called;<!--
+* summary: It's as if that vengeful god has called;
 He's up the sky soon to be burst with terrors
 That serve us right for existential crime;
 Not satisfied with nasty, brutish, short,
 He's fashioned out a fathomless device
 And rigged it to the doomsday clock's last chime.
 They sing: 'God gave Noah the rainbow sign,
-Warning: No more water, but fire next time!'-->
+Warning: No more water, but fire next time!'
+<!-- Test comment -->
   
 # [Poem]
 
@@ -33,11 +34,10 @@ Warning: No more water, but fire next time!'-->
 * author_name: Uche Ogbuji
 * author_link: http://uche.ogbuji.net
 * author_addr: uche@ogbuji.net
-* summary: So what are you saying?<!--
+* summary: So what are you saying?
 We are all cowards in this village?
     A chalk-man of cassava flesh
     ignoring the mighty leopard men of Amaraku
     laying an iron path through our own yam plots
     terrifying us with his blockhead beasts?
-        -->
 

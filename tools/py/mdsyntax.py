@@ -23,7 +23,7 @@ from versa import VERSA_BASEIRI
 RDFTYPE = namespaces.RDF_NAMESPACE + 'type'
 
 #Does not support the empty URL <> as a property name
-REL_PAT = re.compile('(<.+>|[@\\-_\\w]+):(.*)')
+REL_PAT = re.compile('(<.+>|[@\\-_\\w]+):(.*)', re.DOTALL)
 
 #Does not support the empty URL <> as a property name
 HEADER_PAT = re.compile('([^\s\\[\\]]+)?\s?(\\[([^\s\\[\\]]*?)\\])?')
@@ -117,6 +117,7 @@ def from_markdown(md, output, encoding='utf-8', config=None):
                     raise ValueError(_(u'Syntax error in relationship expression: {0}'.format(field)))
                 prop = matched.group(1).strip()
                 val = matched.group(2).strip()
+                print val
                 #prop, val = [ part.strip() for part in U(li.xml_select(u'string(.)')).split(u':', 1) ]
                 #import logging; logging.debug(repr((prop, val)))
                 yield (prop, val)
