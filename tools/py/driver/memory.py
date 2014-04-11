@@ -34,6 +34,7 @@ class connection(connection_base):
     def create_space(self):
         '''Set up a new table space for the first time'''
         self._relationships = {}
+        self._id_counter = 1
         return
 
     def drop_space(self):
@@ -64,7 +65,8 @@ class connection(connection_base):
         attrs - optional attribute mapping of relationship metadata, i.e. {attrname1: attrval1, attrname2: attrval2}. If any attribute is specified, an exact match is made (i.e. the attribute name and value must match).
 
         '''
-        for rid, rel in self._relationships.iteritems():
+        for rid, rel in self._relationships.items(): #Can't use iteritems or we risk RuntimeError: dictionary changed size during iteration
+
             matches = True
             if subj and subj != rel[ORIGIN]:
                 matches = False
@@ -73,7 +75,7 @@ class connection(connection_base):
             if obj and obj != rel[TARGET]:
                 matches = False
             if attrs:
-                for k, v in attrs.iteritems():
+                for k, v in attrs.items():
                     if k not in rel[ATTRIBUTES] or rel[ATTRIBUTES].get(k) != v:
                         matches = False
             if matches:

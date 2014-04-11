@@ -26,7 +26,7 @@ class iriref(unicode):
     '''
     def __new__(cls, value):
         if not iri.matches_uri_ref_syntax(value):
-            raise ValueError(_(u'Invalid IRI reference: {0}'.format(value)))
+            raise ValueError(_(u'Invalid IRI reference: "{0}"'.format(value)))
         self = super(iriref, cls).__new__(cls, value)
         #self = unicode, cls).__new__(cls, value)
         # optionally do stuff to self here

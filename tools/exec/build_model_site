@@ -12,7 +12,7 @@ import argparse
 from amara import namespaces
 
 from versa.driver import memory
-from versa.mdsyntax import from_markdown
+from versa.reader.md import from_markdown
 from versa import ORIGIN, RELATIONSHIP, TARGET
 
 LINK_PAT = re.compile('@(\w+)')

@@ -2,6 +2,7 @@ import logging
 from amara.lib import U, inputsource
 
 from versa.driver import memory
+from versa.reader.md import from_markdown
 
 #logging.basicConfig(level=logging.DEBUG)
 
@@ -15,6 +16,8 @@ def module_path(local_function):
 
 #hack to locate test resource (data) files regardless of from where nose was run
 RESOURCEPATH = os.path.normpath(os.path.join(module_path(lambda _: None), '../../py/resource/'))
+
+VERSA_BASEIRI = 'http://bibfra.me/purl/versa/'
 
 VERSA_LITERATE1 = """<!--
 Test Versa literate model
@@ -36,8 +39,6 @@ Test Versa literate model
 
 
 def Xtest_versa_syntax1():
-    from versa.mdsyntax import from_markdown
-
     #logging.debug(recs)
     m = connection()
     m.create_space()
@@ -48,11 +49,6 @@ def Xtest_versa_syntax1():
         logging.debug('Result: {0}'.format(repr(stmt)))
         #assert result == ()
     #assert results == None, "Boo! "
-
-
-from versa.mdsyntax import from_markdown
-
-VERSA_BASEIRI = 'http://bibfra.me/purl/versa/'
 
 
 def test_versa_syntax1():

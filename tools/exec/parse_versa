@@ -21,7 +21,7 @@ import logging
 
 from versa.driver import memory
 from versa import VERSA_BASEIRI
-from versa.mdsyntax import from_markdown
+from versa.reader.md import from_markdown
 from versa import ORIGIN, RELATIONSHIP, TARGET, ATTRIBUTES
 
 def run(inputs=None, base=None, config=None, out=None, verbose=False):
