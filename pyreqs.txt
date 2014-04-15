@@ -1,5 +1,6 @@
-amara==2.0.0a6
+amara==2
 Markdown
 nose
 nose-testconfig
 psycopg2
+jinja2

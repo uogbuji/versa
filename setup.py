@@ -11,7 +11,7 @@ setup(name = "versa",
       author_email='uche@ogbuji.net',
       url='http://uche.ogbuji.net',
       package_dir={'versa': 'tools/py'},
-      packages=['versa', 'versa.driver'],
+      packages=['versa', 'versa.driver', 'versa.reader', 'versa.writer'],
       scripts=['tools/exec/build_model_site', 'tools/exec/parse_versa'],
       #package_data={'akara': ["akara.conf"]},
       )
