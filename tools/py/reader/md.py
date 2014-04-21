@@ -18,7 +18,7 @@ from amara.lib import U, inputsource
 from amara.bindery import html
 from amara import namespaces
 
-from versa import VERSA_BASEIRI
+from versa import I, VERSA_BASEIRI
 
 RDFTYPE = namespaces.RDF_NAMESPACE + 'type'
 
@@ -45,19 +45,28 @@ HEADER_PAT = re.compile('([^\s\\[\\]]+)?\s?(\\[([^\s\\[\\]]*?)\\])?')
 (None, '[]', '')
 '''
 
-def handleiriset(ltext, **kwargs):
-    fullprop=kwargs.get('fullprop')
+def handleirilist(ltext, **kwargs):
     base=kwargs.get('base', VERSA_BASEIRI)
     model=kwargs.get('model')
     iris = ltext.strip().split()
-    newset = model.generate_resource()
+    newlist = model.generate_resource()
     for i in iris:
-        model.add(newset, VERSA_BASEIRI + 'item', iri.absolutize(i, base))
-    return newset
+        model.add(newlist, VERSA_BASEIRI + 'item', I(iri.absolutize(i, base)))
+    return newlist
+
+def handleiriset(ltext, **kwargs):
+    fullprop=kwargs.get('fullprop')
+    rid=kwargs.get('rid')
+    base=kwargs.get('base', VERSA_BASEIRI)
+    model=kwargs.get('model')
+    iris = ltext.strip().split()
+    for i in iris:
+        model.add(rid, fullprop, I(iri.absolutize(i, base)))
+    return None
 
 PREP_METHODS = {
     VERSA_BASEIRI + 'text': lambda x, **kwargs: x,
-    VERSA_BASEIRI + 'iri': lambda x, base=VERSA_BASEIRI, **kwargs: iri.absolutize(x, base),
+    VERSA_BASEIRI + 'iri': lambda x, base=VERSA_BASEIRI, **kwargs: I(iri.absolutize(x, base)),
     VERSA_BASEIRI + 'iriset': handleiriset,
 }
 
@@ -144,21 +153,23 @@ def from_markdown(md, output, encoding='utf-8', config=None):
         rid = matched.group(1)
         rtype = matched.group(3)
         if rid:
-            rid = iri.absolutize(rid, base)
+            rid = I(iri.absolutize(rid, base))
         if not rid:
-            rid = iri.absolutize(output.generate_resource(), base)
+            rid = I(iri.absolutize(output.generate_resource(), base))
         if rtype:
-            rtype = iri.absolutize(rtype, base)
+            rtype = I(iri.absolutize(rtype, base))
         #Resource type might be set by syntax config
         if not rtype:
             rtype = syntaxtypemap.get(sect.xml_local)
         if rtype:
             output.add(rid, RDFTYPE, rtype)
         for prop, val in fields(sect):
-            fullprop = iri.absolutize(prop, propbase)
+            fullprop = I(iri.absolutize(prop, propbase))
             if fullprop in interp:
-                val = interp[fullprop](val, fullprop=fullprop, base=base, model=output)
-            output.add(rid, fullprop, val)
+                val = interp[fullprop](val, rid=rid, fullprop=fullprop, base=base, model=output)
+                if val is not None: output.add(rid, fullprop, val)
+            else:
+                output.add(rid, fullprop, val)
 
     return base
 
