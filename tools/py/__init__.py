@@ -12,9 +12,11 @@ ATTRIBUTES = 3
 def init_localization():
   '''prepare l10n'''
   locale.setlocale(locale.LC_ALL, '') # User's preferred locale, according to environment
-  # Use first two characters of country code
+
+  # Use first two characters of country code, defaulting to 'en' in the absence of a preference
   loc = locale.getlocale()
-  filename = "res/messages_%s.mo" % locale.getlocale()[0][0:2]
+  lang = loc[0][0:2] if loc[0] else 'en'
+  filename = "res/messages_%s.mo" % lang
 
   try:
     logging.debug( "Opening message file %s for locale %s", filename, loc[0] )
@@ -29,4 +31,3 @@ def init_localization():
 from versa.iriref import iriref as I
 
 VERSA_BASEIRI = I('http://bibfra.me/purl/versa/')
-
