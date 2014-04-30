@@ -26,21 +26,23 @@ RDFTYPE = namespaces.RDF_NAMESPACE + 'type'
 REL_PAT = re.compile('(<.+>|[@\\-_\\w]+):(.*)', re.DOTALL)
 
 #Does not support the empty URL <> as a property name
-HEADER_PAT = re.compile('([^\s\\[\\]]+)?\s?(\\[([^\s\\[\\]]*?)\\])?')
+RESOURCE_STR = '([^\s\\[\\]]+)?\s?(\\[([^\s\\[\\]]*?)\\])?'
+RESOURCE_PAT = re.compile(RESOURCE_STR)
+AB_RESOURCE_PAT = re.compile('<\s*' + RESOURCE_STR + '\s*>')
 
 '''
 >>> import re
->>> HEADER_PAT = re.compile('([^\s\\[\\]]+)?\s?(\\[([^\s\\[\\]]*?)\\])?')
->>> m = HEADER_PAT.match("ResourceID")
+>>> RESOURCE_PAT = re.compile('([^\s\\[\\]]+)?\s?(\\[([^\s\\[\\]]*?)\\])?')
+>>> m = RESOURCE_PAT.match("ResourceID")
 >>> m.groups()
 ('ResourceID', None, None)
->>> m = HEADER_PAT.match("[ResourceType]")
+>>> m = RESOURCE_PAT.match("[ResourceType]")
 >>> m.groups()
 (None, '[ResourceType]', 'ResourceType')
->>> m = HEADER_PAT.match("ResourceID [ResourceType]")
+>>> m = RESOURCE_PAT.match("ResourceID [ResourceType]")
 >>> m.groups()
 ('ResourceID', '[ResourceType]', 'ResourceType')
->>> m = HEADER_PAT.match("[]")
+>>> m = RESOURCE_PAT.match("[]")
 >>> m.groups()
 (None, '[]', '')
 '''
@@ -118,22 +120,36 @@ def from_markdown(md, output, encoding='utf-8', config=None):
         #import logging; logging.debug(repr(sect))
         sect_body_items = results_until(sect.xml_select(u'following-sibling::*'), u'self::h1|self::h2|self::h3')
         #field_list = [ U(li) for ul in sect.xml_select(u'following-sibling::ul') for li in ul.xml_select(u'./li') ]
-        field_list = [ U(li) for elem in sect_body_items for li in elem.xml_select(u'li') ]
-        for field in field_list:
-            if field.strip():
-                matched = REL_PAT.match(field)
+        field_list = [ li for elem in sect_body_items for li in elem.xml_select(u'li') ]
+
+        def parse_pair(pair):
+            if pair.strip():
+                matched = REL_PAT.match(pair)
                 if not matched:
                     raise ValueError(_(u'Syntax error in relationship expression: {0}'.format(field)))
                 prop = matched.group(1).strip()
                 val = matched.group(2).strip()
-                print val
                 #prop, val = [ part.strip() for part in U(li.xml_select(u'string(.)')).split(u':', 1) ]
                 #import logging; logging.debug(repr((prop, val)))
-                yield (prop, val)
+                return prop, val
+            return None, None
+
+        for li in field_list:
+            if li.xml_select(u'ul'):
+                main = ''.join([ U(node) for node in results_until(li.xml_select(u'node()'), u'self::ul') ])
+                #main = li.xml_select(u'string(ul/preceding-sibling::node())')
+                prop, val = parse_pair(main)
+                subfield_list = [ sli for sli in li.xml_select(u'ul/li') ]
+                subfield_dict = dict([ parse_pair(U(pair)) for pair in subfield_list ])
+                if None in subfield_dict: del subfield_dict[None]
+                yield prop, val, subfield_dict
+            else:
+                prop, val = parse_pair(U(li))
+                if prop: yield prop, val, None
 
     #Gather the document-level metadata
     base = propbase = rbase = None
-    for prop, val in fields(docheader):
+    for prop, val, subfield_dict in fields(docheader):
         if prop == '@base':
             base = val
         if prop == '@property-base':
@@ -147,7 +163,7 @@ def from_markdown(md, output, encoding='utf-8', config=None):
     for sect in sections:
         #The header can take one of 4 forms: "ResourceID" "ResourceID [ResourceType]" "[ResourceType]" or "[]"
         #The 3rd form is for an anonymous resource with specified type and the 4th an anonymous resource with unspecified type
-        matched = HEADER_PAT.match(U(sect))
+        matched = RESOURCE_PAT.match(U(sect))
         if not matched:
             raise ValueError(_(u'Syntax error in resource header: {0}'.format(U(sect))))
         rid = matched.group(1)
@@ -163,13 +179,20 @@ def from_markdown(md, output, encoding='utf-8', config=None):
             rtype = syntaxtypemap.get(sect.xml_local)
         if rtype:
             output.add(rid, RDFTYPE, rtype)
-        for prop, val in fields(sect):
+        for prop, val, subfield_dict in fields(sect):
+            attrs = subfield_dict or {}
             fullprop = I(iri.absolutize(prop, propbase))
+            resinfo = AB_RESOURCE_PAT.match(val)
+            if resinfo:
+                val = resinfo.group(1)
+                valtype = resinfo.group(3)
+                if not val: val = output.generate_resource()
+                if valtype: attrs[RDFTYPE] = valtype
             if fullprop in interp:
                 val = interp[fullprop](val, rid=rid, fullprop=fullprop, base=base, model=output)
                 if val is not None: output.add(rid, fullprop, val)
             else:
-                output.add(rid, fullprop, val)
+                output.add(rid, fullprop, val, attrs)
 
     return base
 
