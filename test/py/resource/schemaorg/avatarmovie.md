@@ -9,7 +9,7 @@
 * @interpretations:
  * label: @text
 <!-- If the following are uncommented then you can omit "" from simple text values and <> from IRI values in the main resource descriptions
- * director: @iri
+ * director: @resource
  * genre: @text
  * birthDate: @text -->
 

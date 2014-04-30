@@ -48,6 +48,9 @@ AB_RESOURCE_PAT = re.compile('<\s*' + RESOURCE_STR + '\s*>')
 '''
 
 def handleirilist(ltext, **kwargs):
+    '''
+    A helper that converts lists of resources from a textual format such as Markdown, including absolutizing relative IRIs
+    '''
     base=kwargs.get('base', VERSA_BASEIRI)
     model=kwargs.get('model')
     iris = ltext.strip().split()
@@ -57,6 +60,9 @@ def handleirilist(ltext, **kwargs):
     return newlist
 
 def handleiriset(ltext, **kwargs):
+    '''
+    A helper that converts sets of resources from a textual format such as Markdown, including absolutizing relative IRIs
+    '''
     fullprop=kwargs.get('fullprop')
     rid=kwargs.get('rid')
     base=kwargs.get('base', VERSA_BASEIRI)
@@ -68,8 +74,8 @@ def handleiriset(ltext, **kwargs):
 
 PREP_METHODS = {
     VERSA_BASEIRI + 'text': lambda x, **kwargs: x,
-    VERSA_BASEIRI + 'iri': lambda x, base=VERSA_BASEIRI, **kwargs: I(iri.absolutize(x, base)),
-    VERSA_BASEIRI + 'iriset': handleiriset,
+    VERSA_BASEIRI + 'resource': lambda x, base=VERSA_BASEIRI, **kwargs: I(iri.absolutize(x, base)),
+    VERSA_BASEIRI + 'resourceset': handleiriset,
 }
 
 #FIXME: Isn't this just itertools.islice?
@@ -93,6 +99,7 @@ def from_markdown(md, output, encoding='utf-8', config=None):
     """
     #Set up configuration to interpret the conventions for the Markdown
     config = config or {}
+    #This mapping takes syntactical elements such as the various header levels in Markdown and associates a resource type with the specified resources
     syntaxtypemap = {}
     if config.get('autotype-h1'): syntaxtypemap[u'h1'] = config.get('autotype-h1')
     if config.get('autotype-h2'): syntaxtypemap[u'h2'] = config.get('autotype-h2')
@@ -117,12 +124,22 @@ def from_markdown(md, output, encoding='utf-8', config=None):
     sections = doc.xml_select(u'//h1|h2|h3[not(.="@docheader")]')
 
     def fields(sect):
+        '''
+        Each section represents a resource and contains a list with its properties
+        This generator parses the list and yields the key value pairs representing the properties
+        Some properties have attributes, expressed in markdown as a nested list. If present these attributes
+        Are yielded as well, else None is yielded
+        '''
         #import logging; logging.debug(repr(sect))
+        #Pull all the list elements until the next header. This accommodates multiple lists in a section
         sect_body_items = results_until(sect.xml_select(u'following-sibling::*'), u'self::h1|self::h2|self::h3')
         #field_list = [ U(li) for ul in sect.xml_select(u'following-sibling::ul') for li in ul.xml_select(u'./li') ]
         field_list = [ li for elem in sect_body_items for li in elem.xml_select(u'li') ]
 
         def parse_pair(pair):
+            '''
+            Parse each list item into a property pair
+            '''
             if pair.strip():
                 matched = REL_PAT.match(pair)
                 if not matched:
@@ -134,7 +151,9 @@ def from_markdown(md, output, encoding='utf-8', config=None):
                 return prop, val
             return None, None
 
+        #Go through each list item
         for li in field_list:
+            #Is there a nested list, which expresses attributes on a property
             if li.xml_select(u'ul'):
                 main = ''.join([ U(node) for node in results_until(li.xml_select(u'node()'), u'self::ul') ])
                 #main = li.xml_select(u'string(ul/preceding-sibling::node())')
@@ -143,6 +162,7 @@ def from_markdown(md, output, encoding='utf-8', config=None):
                 subfield_dict = dict([ parse_pair(U(pair)) for pair in subfield_list ])
                 if None in subfield_dict: del subfield_dict[None]
                 yield prop, val, subfield_dict
+            #Just a regular, unadorned property
             else:
                 prop, val = parse_pair(U(li))
                 if prop: yield prop, val, None
@@ -179,6 +199,7 @@ def from_markdown(md, output, encoding='utf-8', config=None):
             rtype = syntaxtypemap.get(sect.xml_local)
         if rtype:
             output.add(rid, RDFTYPE, rtype)
+        #Add the property 
         for prop, val, subfield_dict in fields(sect):
             attrs = subfield_dict or {}
             fullprop = I(iri.absolutize(prop, propbase))

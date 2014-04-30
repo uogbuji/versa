@@ -210,9 +210,9 @@ def run(modelsource=None, output=None, base=''):
         'autotype-h1': VERSA_BASEIRI + 'Resource',
         'autotype-h2': VERSA_BASEIRI + 'Property',
         'interpretations': {
-            VERSA_BASEIRI + 'refines': VERSA_BASEIRI + 'iri',
-            VERSA_BASEIRI + 'properties': VERSA_BASEIRI + 'iriset',
-            VERSA_BASEIRI + 'synonyms': VERSA_BASEIRI + 'iriset'
+            VERSA_BASEIRI + 'refines': VERSA_BASEIRI + 'resource',
+            VERSA_BASEIRI + 'properties': VERSA_BASEIRI + 'resourceset',
+            VERSA_BASEIRI + 'synonyms': VERSA_BASEIRI + 'resourceset'
         }
     }
 

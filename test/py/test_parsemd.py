@@ -56,9 +56,9 @@ def test_versa_syntax1():
         'autotype-h1': 'http://example.org/r1',
         'autotype-h2': 'http://example.org/r2',
         'interpretations': {
-            VERSA_BASEIRI + 'refines': VERSA_BASEIRI + 'iri',
-            VERSA_BASEIRI + 'properties': VERSA_BASEIRI + 'iriset',
-            VERSA_BASEIRI + 'synonyms': VERSA_BASEIRI + 'iriset'
+            VERSA_BASEIRI + 'refines': VERSA_BASEIRI + 'resource',
+            VERSA_BASEIRI + 'properties': VERSA_BASEIRI + 'resourceset',
+            VERSA_BASEIRI + 'synonyms': VERSA_BASEIRI + 'resourceset'
         }
     }
 
