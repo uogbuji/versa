@@ -1,5 +1,10 @@
-*.py[cod]
 scratch
+#PyCharm
+.idea
+
+#----
+
+*.py[cod]
 
 # C extensions
 *.so

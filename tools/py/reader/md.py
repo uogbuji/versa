@@ -47,7 +47,7 @@ AB_RESOURCE_PAT = re.compile('<\s*' + RESOURCE_STR + '\s*>')
 (None, '[]', '')
 '''
 
-def handleirilist(ltext, **kwargs):
+def handle_resourcelist(ltext, **kwargs):
     '''
     A helper that converts lists of resources from a textual format such as Markdown, including absolutizing relative IRIs
     '''
@@ -59,7 +59,7 @@ def handleirilist(ltext, **kwargs):
         model.add(newlist, VERSA_BASEIRI + 'item', I(iri.absolutize(i, base)))
     return newlist
 
-def handleiriset(ltext, **kwargs):
+def handle_resourceset(ltext, **kwargs):
     '''
     A helper that converts sets of resources from a textual format such as Markdown, including absolutizing relative IRIs
     '''
@@ -75,7 +75,7 @@ def handleiriset(ltext, **kwargs):
 PREP_METHODS = {
     VERSA_BASEIRI + 'text': lambda x, **kwargs: x,
     VERSA_BASEIRI + 'resource': lambda x, base=VERSA_BASEIRI, **kwargs: I(iri.absolutize(x, base)),
-    VERSA_BASEIRI + 'resourceset': handleiriset,
+    VERSA_BASEIRI + 'resourceset': handle_resourceset,
 }
 
 #FIXME: Isn't this just itertools.islice?
@@ -121,7 +121,8 @@ def from_markdown(md, output, encoding='utf-8', config=None):
     top_section_fields = results_until(doc.xml_select(u'//h1[1]/following-sibling::h2'), u'self::h1')
 
     docheader = doc.xml_select(u'//h1[.="@docheader"]')[0]
-    sections = doc.xml_select(u'//h1|h2|h3[not(.="@docheader")]')
+    sections = doc.xml_select(u'//h1[not(.="@docheader")]|h2[not(.="@docheader")]|h3[not(.="@docheader")]')
+    #sections = doc.xml_select(u'//h1|h2|h3')
 
     def fields(sect):
         '''
@@ -181,6 +182,7 @@ def from_markdown(md, output, encoding='utf-8', config=None):
 
     #Go through the resources expressed in remaining sections
     for sect in sections:
+        #if U(sect) == u'@docheader': continue #Not needed because excluded by ss
         #The header can take one of 4 forms: "ResourceID" "ResourceID [ResourceType]" "[ResourceType]" or "[]"
         #The 3rd form is for an anonymous resource with specified type and the 4th an anonymous resource with unspecified type
         matched = RESOURCE_PAT.match(U(sect))
@@ -199,7 +201,7 @@ def from_markdown(md, output, encoding='utf-8', config=None):
             rtype = syntaxtypemap.get(sect.xml_local)
         if rtype:
             output.add(rid, RDFTYPE, rtype)
-        #Add the property 
+        #Add the property
         for prop, val, subfield_dict in fields(sect):
             attrs = subfield_dict or {}
             fullprop = I(iri.absolutize(prop, propbase))
