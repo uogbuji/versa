@@ -32,3 +32,5 @@ class iriref(unicode):
         # optionally do stuff to self here
         return self
 
+    def __repr__(self):
+        return u'I(' + unicode(self) + ')'

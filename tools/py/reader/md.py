@@ -104,14 +104,21 @@ def from_markdown(md, output, encoding='utf-8', config=None):
     if config.get('autotype-h1'): syntaxtypemap[u'h1'] = config.get('autotype-h1')
     if config.get('autotype-h2'): syntaxtypemap[u'h2'] = config.get('autotype-h2')
     if config.get('autotype-h3'): syntaxtypemap[u'h3'] = config.get('autotype-h3')
-    interp = config.get('interpretations', {})
-    #Map the interpretation IRIs to functions to do the data prep
-    for prop, interp_key in interp.iteritems():
-        if interp_key in PREP_METHODS:
-            interp[prop] = PREP_METHODS[interp_key]
-        else:
-            #just use the identity, i.e. no-op
-            interp[prop] = lambda x, **kwargs: x
+    interp_stanza = config.get('interpretations', {})
+    interpretations = {}
+
+    def setup_interpretations(interp):
+        #Map the interpretation IRIs to functions to do the data prep
+        for prop, interp_key in interp.iteritems():
+            if interp_key.startswith(u'@'):
+                interp_key = iri.absolutize(interp_key[1:], VERSA_BASEIRI)
+            if interp_key in PREP_METHODS:
+                interpretations[prop] = PREP_METHODS[interp_key]
+            else:
+                #just use the identity, i.e. no-op
+                interpretations[prop] = lambda x, **kwargs: x
+
+    setup_interpretations(interp_stanza)
 
     #Parse the Markdown
     h = markdown.markdown(md.decode(encoding))
@@ -169,14 +176,23 @@ def from_markdown(md, output, encoding='utf-8', config=None):
                 if prop: yield prop, val, None
 
     #Gather the document-level metadata
-    base = propbase = rbase = None
+    base = propbase = rbase = interp_from_instance = None
     for prop, val, subfield_dict in fields(docheader):
         if prop == '@base':
-            base = val
+            base = propbase = rbase = val
         if prop == '@property-base':
             propbase = val
         if prop == '@resource-base':
             rbase = val
+        if prop == '@interpretations':
+            interp_from_instance = subfield_dict
+
+    if interp_from_instance:
+        interp = {}
+        for k in interp_from_instance:
+            interp[I(iri.absolutize(k, rbase))] = interp_from_instance[k]
+        setup_interpretations(interp)
+
     if not propbase: propbase = base
     if not rbase: rbase = base
 
@@ -212,7 +228,7 @@ def from_markdown(md, output, encoding='utf-8', config=None):
                 if not val: val = output.generate_resource()
                 if valtype: attrs[RDFTYPE] = valtype
             if fullprop in interp:
-                val = interp[fullprop](val, rid=rid, fullprop=fullprop, base=base, model=output)
+                val = interpretations[fullprop](val, rid=rid, fullprop=fullprop, base=base, model=output)
                 if val is not None: output.add(rid, fullprop, val)
             else:
                 output.add(rid, fullprop, val, attrs)
