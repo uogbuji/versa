@@ -2,9 +2,17 @@
 
 # @docheader
 
-* @base: http://example.org/classics/      <!-- Because of this avatar-movie is resolved to http://example.org/movies/avatar-movie etc. -->
-* @resource-type-base: http://schema.org/  <!-- Because of this Movie is resolved to http://schema.org/Movie etc. -->
-* @property-base: http://schema.org/       <!-- Because of this name is resolved to http://schema.org/name etc. -->
+<!-- Because of this avatar-movie is resolved to http://example.org/movies/avatar-movie etc. -->
+
+* @base: http://example.org/classics/
+
+<!-- Because of this Movie is resolved to http://schema.org/Movie etc. -->
+
+* @resource-type-base: http://schema.org/
+
+<!-- Because of this name is resolved to http://schema.org/name etc. -->
+
+* @property-base: http://schema.org/
 
 # catcher-in-the-rye [Book]
 
@@ -12,11 +20,10 @@
 * image: <catcher-in-the-rye-book-cover.jpg>
 * bookFormat: <http://schema.org/Paperback>
 * author: <http://example.org/author/jd_salinger.html>
-* aggregateRating: <[AggregateRating]>
-    * ratingValue: 4
+* aggregateRating: 4
     * reviewCount: 3077
-* offers: <[Offer]>
-    * price: $6.99
+* offers: $6.99
+    * price: 6.99
     * priceCurrency: USD
     * availability: <http://schema.org/InStock>
 * numberOfPages: 224
@@ -24,13 +31,13 @@
 * datePublished: 2006-05-04
 * inLanguage: en
 * isbn: 0316769487
-* review: <[Review]>
+* review:
     * reviewRating: 5
     * name: A masterpiece of literature
     * author: John Doe
     * datePublished: 2006-05-04
     * reviewBody: I really enjoyed this book. It captures the essential challenge people face as they try make sense of their lives and grow to adulthood.
-* review: <[Review]>
+* review:
     * reviewRating: 4
     * name: A good read.
     * author: Bob Smith

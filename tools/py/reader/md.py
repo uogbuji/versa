@@ -20,10 +20,12 @@ from amara import namespaces
 
 from versa import I, VERSA_BASEIRI
 
+TEXT_VAL, RES_VAL, UNKNOWN_VAL = 1, 2, 3
+
 RDFTYPE = namespaces.RDF_NAMESPACE + 'type'
 
 #Does not support the empty URL <> as a property name
-REL_PAT = re.compile('(<.+>|[@\\-_\\w]+):(.*)', re.DOTALL)
+REL_PAT = re.compile('((<(.+)>)|([@\\-_\\w]+)):\s*((<(.+)>)|("(.*?)")|(\'(.*?)\')|(.*))', re.DOTALL)
 
 #Does not support the empty URL <> as a property name
 RESOURCE_STR = '([^\s\\[\\]]+)?\s?(\\[([^\s\\[\\]]*?)\\])?'
@@ -121,7 +123,11 @@ def from_markdown(md, output, encoding='utf-8', config=None):
     setup_interpretations(interp_stanza)
 
     #Parse the Markdown
-    h = markdown.markdown(md.decode(encoding))
+    #Alternately:
+    #from xml.sax.saxutils import escape, unescape
+    #h = markdown.markdown(escape(md.decode(encoding)), output_format='html5')
+    #Note: even using safe_mode this should not be presumed safe from tainted input
+    h = markdown.markdown(md.decode(encoding), safe_mode='escape', output_format='html5')
 
     doc = html.markup_fragment(inputsource.text(h.encode('utf-8')))
     #Each section contains one resource description, but the special one named @docheader contains info to help interpret the rest
@@ -144,7 +150,7 @@ def from_markdown(md, output, encoding='utf-8', config=None):
         #field_list = [ U(li) for ul in sect.xml_select(u'following-sibling::ul') for li in ul.xml_select(u'./li') ]
         field_list = [ li for elem in sect_body_items for li in elem.xml_select(u'li') ]
 
-        def parse_pair(pair):
+        def parse_li(pair):
             '''
             Parse each list item into a property pair
             '''
@@ -152,12 +158,28 @@ def from_markdown(md, output, encoding='utf-8', config=None):
                 matched = REL_PAT.match(pair)
                 if not matched:
                     raise ValueError(_(u'Syntax error in relationship expression: {0}'.format(field)))
-                prop = matched.group(1).strip()
-                val = matched.group(2).strip()
+                #print matched.groups()
+                if matched.group(3): prop = matched.group(3).strip()
+                if matched.group(4): prop = matched.group(4).strip()
+                if matched.group(7):
+                    val = matched.group(7).strip()
+                    typeindic = RES_VAL
+                elif matched.group(9):
+                    val = matched.group(9).strip()
+                    typeindic = TEXT_VAL
+                elif matched.group(11):
+                    val = matched.group(11).strip()
+                    typeindic = TEXT_VAL
+                elif matched.group(12):
+                    val = matched.group(12).strip()
+                    typeindic = UNKNOWN_VAL
+                else:
+                    val = u''
+                    typeindic = UNKNOWN_VAL
                 #prop, val = [ part.strip() for part in U(li.xml_select(u'string(.)')).split(u':', 1) ]
                 #import logging; logging.debug(repr((prop, val)))
-                return prop, val
-            return None, None
+                return prop, val, typeindic
+            return None, None, None
 
         #Go through each list item
         for li in field_list:
@@ -165,36 +187,35 @@ def from_markdown(md, output, encoding='utf-8', config=None):
             if li.xml_select(u'ul'):
                 main = ''.join([ U(node) for node in results_until(li.xml_select(u'node()'), u'self::ul') ])
                 #main = li.xml_select(u'string(ul/preceding-sibling::node())')
-                prop, val = parse_pair(main)
-                subfield_list = [ sli for sli in li.xml_select(u'ul/li') ]
-                subfield_dict = dict([ parse_pair(U(pair)) for pair in subfield_list ])
-                if None in subfield_dict: del subfield_dict[None]
-                yield prop, val, subfield_dict
+                prop, val, typeindic = parse_li(main)
+                subfield_list = [ parse_li(U(sli)) for sli in li.xml_select(u'ul/li') ]
+                subfield_list = [ (p, v, t) for (p, v, t) in subfield_list if p is not None ]
+                yield prop, val, typeindic, subfield_list
             #Just a regular, unadorned property
             else:
-                prop, val = parse_pair(U(li))
-                if prop: yield prop, val, None
+                prop, val, typeindic = parse_li(U(li))
+                if prop: yield prop, val, typeindic, None
 
     #Gather the document-level metadata
-    base = propbase = rbase = interp_from_instance = None
-    for prop, val, subfield_dict in fields(docheader):
+    base = propbase = rtbase = interp_from_instance = None
+    for prop, val, typeindic, subfield_list in fields(docheader):
         if prop == '@base':
-            base = propbase = rbase = val
+            base = propbase = rtbase = val
         if prop == '@property-base':
             propbase = val
-        if prop == '@resource-base':
-            rbase = val
+        if prop == '@resource-type-base':
+            rtbase = val
         if prop == '@interpretations':
-            interp_from_instance = subfield_dict
+            interp_from_instance = subfield_list
 
     if interp_from_instance:
         interp = {}
-        for k in interp_from_instance:
-            interp[I(iri.absolutize(k, rbase))] = interp_from_instance[k]
+        for k, v, x in interp_from_instance:
+            interp[I(iri.absolutize(k, rtbase))] = v
         setup_interpretations(interp)
 
     if not propbase: propbase = base
-    if not rbase: rbase = base
+    if not rtbase: rtbase = base
 
     #Go through the resources expressed in remaining sections
     for sect in sections:
@@ -218,20 +239,38 @@ def from_markdown(md, output, encoding='utf-8', config=None):
         if rtype:
             output.add(rid, RDFTYPE, rtype)
         #Add the property
-        for prop, val, subfield_dict in fields(sect):
-            attrs = subfield_dict or {}
+        for prop, val, typeindic, subfield_list in fields(sect):
+            attrs = {}
+            for (aprop, aval, atype) in subfield_list or ():
+                if atype == RES_VAL:
+                    attrs[aprop] = I(iri.absolutize(aval, rtbase))
+                elif atype == TEXT_VAL:
+                    attrs[aprop] = aval
+                elif atype == UNKNOWN_VAL:
+                    attrs[aprop] = aval
+                    if aprop in interpretations:
+                        aval = interpretations[aprop](aval, rid=rid, fullprop=aprop, base=base, model=output)
+                        if aval is not None: attrs[aprop] = aval
+                    else:
+                        attrs[aprop] = aval
             fullprop = I(iri.absolutize(prop, propbase))
-            resinfo = AB_RESOURCE_PAT.match(val)
-            if resinfo:
-                val = resinfo.group(1)
-                valtype = resinfo.group(3)
-                if not val: val = output.generate_resource()
-                if valtype: attrs[RDFTYPE] = valtype
-            if fullprop in interp:
-                val = interpretations[fullprop](val, rid=rid, fullprop=fullprop, base=base, model=output)
-                if val is not None: output.add(rid, fullprop, val)
-            else:
+            if typeindic == RES_VAL:
+                val = I(iri.absolutize(val, rtbase))
                 output.add(rid, fullprop, val, attrs)
+            elif typeindic == TEXT_VAL:
+                output.add(rid, fullprop, val, attrs)
+            elif typeindic == UNKNOWN_VAL:
+                if fullprop in interpretations:
+                    val = interpretations[fullprop](val, rid=rid, fullprop=fullprop, base=base, model=output)
+                    if val is not None: output.add(rid, fullprop, val)
+                else:
+                    output.add(rid, fullprop, val, attrs)
+            #resinfo = AB_RESOURCE_PAT.match(val)
+            #if resinfo:
+            #    val = resinfo.group(1)
+            #    valtype = resinfo.group(3)
+            #    if not val: val = output.generate_resource()
+            #    if valtype: attrs[RDFTYPE] = valtype
 
     return base
 
