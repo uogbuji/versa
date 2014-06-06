@@ -8,7 +8,7 @@ import argparse
 
 #pip install amara==2.0.0a6
 #from amara.lib import U
-#from amara.lib import iri #for absolutize & matches_uri_syntax
+#from amara3 import iri #for absolutize & matches_uri_syntax
 from amara import namespaces
 
 from versa.driver import memory
@@ -200,7 +200,7 @@ NON_ID_CHAR_PAT = re.compile('[^\\w\-_]')
 VERSA_BASEIRI = 'http://bibfra.me/purl/versa/'
 VERSA_BASEIRI_LEN = len(VERSA_BASEIRI)
 
-RDFTYPE = namespaces.RDF_NAMESPACE + 'type'
+TYPE_REL = I(iri.absolutize('type', BFZ))
 
 import pprint
 
@@ -231,7 +231,7 @@ def run(modelsource=None, output=None, base=''):
 
     #Map each class ID to its attributes
     classes = {}
-    for stmt in m.match(None, RDFTYPE, VERSA_BASEIRI + 'Resource'):
+    for stmt in m.match(None, TYPE_REL, VERSA_BASEIRI + 'Resource'):
         rclass = stmt[ORIGIN]
         rstmts = m.match(rclass)
         #classes[rclass] = dict([ (s[1][VERSA_BASEIRI_LEN:], s[2]) for s in rstmts if s[1].startswith(VERSA_BASEIRI) ])
@@ -240,7 +240,7 @@ def run(modelsource=None, output=None, base=''):
 
     #Map each property ID to its attributes
     properties = {}
-    for stmt in m.match(None, RDFTYPE, VERSA_BASEIRI + 'Property'):
+    for stmt in m.match(None, TYPE_REL, VERSA_BASEIRI + 'Property'):
         prop = stmt[ORIGIN]
         pstmts = m.match(prop)
         #classes[rclass] = dict([ (s[1][VERSA_BASEIRI_LEN:], s[2]) for s in rstmts if s[1].startswith(VERSA_BASEIRI) ])

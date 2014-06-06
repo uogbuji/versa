@@ -6,6 +6,8 @@ Utilities to help deal with constructs expressed in Versa
 #from amara.lib import iri
 #import logging
 
+import json
+
 from versa import ORIGIN, RELATIONSHIP, TARGET, VERSA_BASEIRI
 from versa import init_localization
 init_localization()
@@ -18,4 +20,23 @@ def simple_lookup(m, orig, rel):
     stmts = list(m.match(orig, rel))
     return stmts[0][TARGET] if stmts else None
 
+
+def jsonload(model, fp):
+    '''
+    Load Versa model dumped into JSON form
+    '''
+    dumped_list = json.load(fp)
+    for stmt in dumped_list:
+        sid, (s, p, o, a) = stmt
+        model.add(s, p, o, a)
+    return
+
+
+def jsondump(model, fp):
+    fp.write('[')
+    stmts_ser = []
+    for stmt in model:
+        stmts_ser.append(json.dumps(stmt))
+    fp.write(',\n'.join(stmts_ser))
+    fp.write(']')
 

@@ -13,7 +13,7 @@ For example:
 import re
 
 import markdown
-from amara.lib import iri #for absolutize & matches_uri_syntax
+from amara3 import iri #for absolutize & matches_uri_syntax
 from amara.lib import U, inputsource
 from amara.bindery import html
 from amara import namespaces
@@ -22,7 +22,7 @@ from versa import I, VERSA_BASEIRI
 
 TEXT_VAL, RES_VAL, UNKNOWN_VAL = 1, 2, 3
 
-RDFTYPE = namespaces.RDF_NAMESPACE + 'type'
+TYPE_REL = I(iri.absolutize('type', VERSA_BASEIRI))
 
 #Does not support the empty URL <> as a property name
 REL_PAT = re.compile('((<(.+)>)|([@\\-_\\w]+)):\s*((<(.+)>)|("(.*?)")|(\'(.*?)\')|(.*))', re.DOTALL)
@@ -111,7 +111,7 @@ def from_markdown(md, output, encoding='utf-8', config=None):
 
     def setup_interpretations(interp):
         #Map the interpretation IRIs to functions to do the data prep
-        for prop, interp_key in interp.iteritems():
+        for prop, interp_key in interp.items():
             if interp_key.startswith(u'@'):
                 interp_key = iri.absolutize(interp_key[1:], VERSA_BASEIRI)
             if interp_key in PREP_METHODS:
@@ -237,7 +237,7 @@ def from_markdown(md, output, encoding='utf-8', config=None):
         if not rtype:
             rtype = syntaxtypemap.get(sect.xml_local)
         if rtype:
-            output.add(rid, RDFTYPE, rtype)
+            output.add(rid, TYPE_REL, rtype)
         #Add the property
         for prop, val, typeindic, subfield_list in fields(sect):
             attrs = {}
@@ -270,7 +270,7 @@ def from_markdown(md, output, encoding='utf-8', config=None):
             #    val = resinfo.group(1)
             #    valtype = resinfo.group(3)
             #    if not val: val = output.generate_resource()
-            #    if valtype: attrs[RDFTYPE] = valtype
+            #    if valtype: attrs[TYPE_REL] = valtype
 
     return base
 

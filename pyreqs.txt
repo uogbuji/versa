@@ -1,4 +1,4 @@
-amara==2
+amara3-iri
 Markdown
 nose
 nose-testconfig

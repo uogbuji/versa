@@ -16,7 +16,7 @@ from copy import deepcopy
 import logging
 #from itertools import groupby
 #from operator import itemgetter
-from amara.lib import iri #for absolutize & matches_uri_syntax
+from amara3 import iri #for absolutize & matches_uri_syntax
 
 from versa.driver import connection_base
 from versa import ORIGIN, RELATIONSHIP, TARGET, ATTRIBUTES
@@ -53,7 +53,7 @@ class connection(connection_base):
         raise NotImplementedError
 
     def __iter__(self):
-        for rid, rel in self._relationships.iteritems(): yield rid, deepcopy(rel)
+        for rid, rel in self._relationships.items(): yield rid, deepcopy(rel)
 
     def match(self, subj=None, pred=None, obj=None, attrs=None, include_ids=False):
         '''
@@ -65,7 +65,7 @@ class connection(connection_base):
         attrs - optional attribute mapping of relationship metadata, i.e. {attrname1: attrval1, attrname2: attrval2}. If any attribute is specified, an exact match is made (i.e. the attribute name and value must match).
 
         '''
-        for rid, rel in self._relationships.items(): #Can't use iteritems or we risk RuntimeError: dictionary changed size during iteration
+        for rid, rel in self._relationships.items(): #Can't use items or we risk RuntimeError: dictionary changed size during iteration
 
             matches = True
             if subj and subj != rel[ORIGIN]:

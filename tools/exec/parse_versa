@@ -17,7 +17,7 @@ from itertools import islice
 import logging
 
 #from amara.thirdparty import httplib2, json
-#from amara.lib.iri import relativize, absolutize
+#from amara3.iri import relativize, absolutize
 
 from versa.driver import memory
 from versa import VERSA_BASEIRI

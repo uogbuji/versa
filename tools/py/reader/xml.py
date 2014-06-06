@@ -1,11 +1,13 @@
 #dendrite.importr
 
+#FIXME: OBSOLETE. Use Markdown, JSON or other format
+
 import re
 
 from amara.bindery import parse
 from amara.lib import U
 
-ABBR_PAT = re.compile(ur'\$(\w+)')
+ABBR_PAT = re.compile(r'\$(\w+)')
 
 
 def import_resources(source, model):
@@ -42,7 +44,7 @@ def import_resources(source, model):
     def process(resource, context):
         subj = interpret(resource.id)
         for rel in resource.xml_select('*'):
-            if rel.xml_name == u'rel':
+            if rel.xml_name == 'rel':
                 #Rel id is in an attribute
                 pass
             else:
@@ -51,10 +53,10 @@ def import_resources(source, model):
             val = U(rel)
             attrs = {}
             if context:
-                attrs[u'@context'] = context
+                attrs['@context'] = context
             for ans, aname in rel.xml_attributes:
                 aval = rel.xml_attributes[ans, aname]
-                if aname == u'value':
+                if aname == 'value':
                     val = interpret(rel.value)
                 else:
                     attrs[abbrs.get(U(aname), U(aname))] = interpret(U(aval))
