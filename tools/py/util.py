@@ -21,6 +21,16 @@ def simple_lookup(m, orig, rel):
     return stmts[0][TARGET] if stmts else None
 
 
+def transitive_closure(m, orig, rel):
+    '''
+    Generate the closure over a transitive relationship in depth-first fashion
+    '''
+    stmts = list(m.match(orig, rel))
+    for stmt in stmts:
+        yield stmts[0][TARGET]
+        yield from transitive_closure(m, target, rel)
+
+
 def jsonload(model, fp):
     '''
     Load Versa model dumped into JSON form

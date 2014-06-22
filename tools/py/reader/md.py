@@ -250,7 +250,6 @@ def from_markdown(md, output, encoding='utf-8', config=None):
     #Gather the document-level metadata
     base = propbase = rtbase = interp_from_instance = None
     for prop, val, typeindic, subfield_list in fields(docheader):
-        print(prop, val, typeindic, subfield_list) 
         if prop == '@base':
             base = propbase = rtbase = val
         if prop == '@property-base':
