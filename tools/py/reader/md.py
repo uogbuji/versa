@@ -11,12 +11,13 @@ For example:
 '''
 
 import re
+import itertools
 
 import markdown
 from amara3 import iri #for absolutize & matches_uri_syntax
-from amara.lib import U, inputsource
-from amara.bindery import html
-from amara import namespaces
+from amara3.uxml.parser import parse, event
+from amara3.uxml.tree import treebuilder, element
+#from amara import namespaces
 
 from versa import I, VERSA_BASEIRI
 
@@ -31,6 +32,8 @@ REL_PAT = re.compile('((<(.+)>)|([@\\-_\\w]+)):\s*((<(.+)>)|("(.*?)")|(\'(.*?)\'
 RESOURCE_STR = '([^\s\\[\\]]+)?\s?(\\[([^\s\\[\\]]*?)\\])?'
 RESOURCE_PAT = re.compile(RESOURCE_STR)
 AB_RESOURCE_PAT = re.compile('<\s*' + RESOURCE_STR + '\s*>')
+
+HEADER_PAT = re.compile('h\\d')
 
 '''
 >>> import re
@@ -61,6 +64,7 @@ def handle_resourcelist(ltext, **kwargs):
         model.add(newlist, VERSA_BASEIRI + 'item', I(iri.absolutize(i, base)))
     return newlist
 
+
 def handle_resourceset(ltext, **kwargs):
     '''
     A helper that converts sets of resources from a textual format such as Markdown, including absolutizing relative IRIs
@@ -74,19 +78,55 @@ def handle_resourceset(ltext, **kwargs):
         model.add(rid, fullprop, I(iri.absolutize(i, base)))
     return None
 
+
 PREP_METHODS = {
     VERSA_BASEIRI + 'text': lambda x, **kwargs: x,
     VERSA_BASEIRI + 'resource': lambda x, base=VERSA_BASEIRI, **kwargs: I(iri.absolutize(x, base)),
     VERSA_BASEIRI + 'resourceset': handle_resourceset,
 }
 
-#FIXME: Isn't this just itertools.islice?
-def results_until(items, end_criteria):
-    for node in items:
-        if node.xml_select(end_criteria):
-            break
+
+def descendants(elem):
+    yield elem
+    for child in elem.xml_children:
+        yield child
+        if isinstance(child, element):
+            yield from descendants(child)
+
+
+def select_elements(source):
+    if isinstance(source, element):
+        source = source.xml_children
+    return filter(lambda x: isinstance(x, element), source)
+
+
+def select_name(source, name):
+    return filter(lambda x: x.xml_name == name, select_elements(source))
+
+
+def select_attribute(source, name, val=None):
+    def check(x):
+        if val is None:
+            return name in x.xml_attributes
         else:
-            yield node
+            return name in x.xml_attributes and x.xml_attributes[name] == val
+    return filter(check, select_elements(source))
+    
+
+def select_name_pattern(source, pat):
+    return filter(lambda x: pat.match(x.xml_name) is not None, select_elements(source))
+
+
+def following_siblings(e):
+    it = itertools.dropwhile(lambda x: x != e, e.xml_parent.xml_children)
+    next(it) #Skip the element itself
+    return it
+
+
+def select_value(source, val):
+    if isinstance(source, element):
+        source = source.xml_children
+    return filter(lambda x: x.xml_value == val, source)
 
 
 def from_markdown(md, output, encoding='utf-8', config=None):
@@ -103,16 +143,16 @@ def from_markdown(md, output, encoding='utf-8', config=None):
     config = config or {}
     #This mapping takes syntactical elements such as the various header levels in Markdown and associates a resource type with the specified resources
     syntaxtypemap = {}
-    if config.get('autotype-h1'): syntaxtypemap[u'h1'] = config.get('autotype-h1')
-    if config.get('autotype-h2'): syntaxtypemap[u'h2'] = config.get('autotype-h2')
-    if config.get('autotype-h3'): syntaxtypemap[u'h3'] = config.get('autotype-h3')
+    if config.get('autotype-h1'): syntaxtypemap['h1'] = config.get('autotype-h1')
+    if config.get('autotype-h2'): syntaxtypemap['h2'] = config.get('autotype-h2')
+    if config.get('autotype-h3'): syntaxtypemap['h3'] = config.get('autotype-h3')
     interp_stanza = config.get('interpretations', {})
     interpretations = {}
 
     def setup_interpretations(interp):
         #Map the interpretation IRIs to functions to do the data prep
         for prop, interp_key in interp.items():
-            if interp_key.startswith(u'@'):
+            if interp_key.startswith('@'):
                 interp_key = iri.absolutize(interp_key[1:], VERSA_BASEIRI)
             if interp_key in PREP_METHODS:
                 interpretations[prop] = PREP_METHODS[interp_key]
@@ -127,15 +167,19 @@ def from_markdown(md, output, encoding='utf-8', config=None):
     #from xml.sax.saxutils import escape, unescape
     #h = markdown.markdown(escape(md.decode(encoding)), output_format='html5')
     #Note: even using safe_mode this should not be presumed safe from tainted input
-    h = markdown.markdown(md.decode(encoding), safe_mode='escape', output_format='html5')
+    #h = markdown.markdown(md.decode(encoding), safe_mode='escape', output_format='html5')
+    h = markdown.markdown(md, safe_mode='escape', output_format='html5')
 
-    doc = html.markup_fragment(inputsource.text(h.encode('utf-8')))
+    #doc = html.markup_fragment(inputsource.text(h.encode('utf-8')))
+    tb = treebuilder()
+    h = '<html>' + h + '</html>'
+    root = tb.parse(h)
     #Each section contains one resource description, but the special one named @docheader contains info to help interpret the rest
-    top_section_fields = results_until(doc.xml_select(u'//h1[1]/following-sibling::h2'), u'self::h1')
+    first_h1 = next(select_name(descendants(root), 'h1'))
+    #top_section_fields = itertools.takewhile(lambda x: x.xml_name != 'h1', select_name(following_siblings(first_h1), 'h2'))
 
-    docheader = doc.xml_select(u'//h1[.="@docheader"]')[0]
-    sections = doc.xml_select(u'//h1[not(.="@docheader")]|h2[not(.="@docheader")]|h3[not(.="@docheader")]')
-    #sections = doc.xml_select(u'//h1|h2|h3')
+    docheader = next(select_value(select_name(descendants(root), 'h1'), '@docheader')) # //h1[.="@docheader"]
+    sections = filter(lambda x: x.xml_value != '@docheader', select_name_pattern(descendants(root), HEADER_PAT)) # //h1[not(.="@docheader")]|h2[not(.="@docheader")]|h3[not(.="@docheader")]
 
     def fields(sect):
         '''
@@ -146,9 +190,10 @@ def from_markdown(md, output, encoding='utf-8', config=None):
         '''
         #import logging; logging.debug(repr(sect))
         #Pull all the list elements until the next header. This accommodates multiple lists in a section
-        sect_body_items = results_until(sect.xml_select(u'following-sibling::*'), u'self::h1|self::h2|self::h3')
-        #field_list = [ U(li) for ul in sect.xml_select(u'following-sibling::ul') for li in ul.xml_select(u'./li') ]
-        field_list = [ li for elem in sect_body_items for li in elem.xml_select(u'li') ]
+        sect_body_items = itertools.takewhile(lambda x: HEADER_PAT.match(x.xml_name) is None, select_elements(following_siblings(sect)))
+        #results_until(sect.xml_select('following-sibling::*'), 'self::h1|self::h2|self::h3')
+        #field_list = [ U(li) for ul in sect.xml_select('following-sibling::ul') for li in ul.xml_select('./li') ]
+        field_list = [ li for elem in select_name(sect_body_items, 'ul') for li in select_name(elem, 'li') ]
 
         def parse_li(pair):
             '''
@@ -157,7 +202,7 @@ def from_markdown(md, output, encoding='utf-8', config=None):
             if pair.strip():
                 matched = REL_PAT.match(pair)
                 if not matched:
-                    raise ValueError(_(u'Syntax error in relationship expression: {0}'.format(field)))
+                    raise ValueError(_('Syntax error in relationship expression: {0}'.format(field)))
                 #print matched.groups()
                 if matched.group(3): prop = matched.group(3).strip()
                 if matched.group(4): prop = matched.group(4).strip()
@@ -174,9 +219,9 @@ def from_markdown(md, output, encoding='utf-8', config=None):
                     val = matched.group(12).strip()
                     typeindic = UNKNOWN_VAL
                 else:
-                    val = u''
+                    val = ''
                     typeindic = UNKNOWN_VAL
-                #prop, val = [ part.strip() for part in U(li.xml_select(u'string(.)')).split(u':', 1) ]
+                #prop, val = [ part.strip() for part in U(li.xml_select('string(.)')).split(':', 1) ]
                 #import logging; logging.debug(repr((prop, val)))
                 return prop, val, typeindic
             return None, None, None
@@ -184,21 +229,28 @@ def from_markdown(md, output, encoding='utf-8', config=None):
         #Go through each list item
         for li in field_list:
             #Is there a nested list, which expresses attributes on a property
-            if li.xml_select(u'ul'):
-                main = ''.join([ U(node) for node in results_until(li.xml_select(u'node()'), u'self::ul') ])
-                #main = li.xml_select(u'string(ul/preceding-sibling::node())')
+            if list(select_name(li, 'ul')):
+                main = ''.join([ node.xml_value()
+                        for node in itertools.takewhile(
+                            lambda x: x.xml_name != 'h1', select_elements(li)
+                            )
+                    ])
+                #main = li.xml_select('string(ul/preceding-sibling::node())')
                 prop, val, typeindic = parse_li(main)
-                subfield_list = [ parse_li(U(sli)) for sli in li.xml_select(u'ul/li') ]
+                subfield_list = [ parse_li(sli.xml_value()) for sli in (
+                                select_name(e, 'li') for e in select_name(li, 'ul')
+                                ) ]
                 subfield_list = [ (p, v, t) for (p, v, t) in subfield_list if p is not None ]
                 yield prop, val, typeindic, subfield_list
             #Just a regular, unadorned property
             else:
-                prop, val, typeindic = parse_li(U(li))
+                prop, val, typeindic = parse_li(li.xml_value)
                 if prop: yield prop, val, typeindic, None
 
     #Gather the document-level metadata
     base = propbase = rtbase = interp_from_instance = None
     for prop, val, typeindic, subfield_list in fields(docheader):
+        print(prop, val, typeindic, subfield_list) 
         if prop == '@base':
             base = propbase = rtbase = val
         if prop == '@property-base':
@@ -219,12 +271,12 @@ def from_markdown(md, output, encoding='utf-8', config=None):
 
     #Go through the resources expressed in remaining sections
     for sect in sections:
-        #if U(sect) == u'@docheader': continue #Not needed because excluded by ss
+        #if U(sect) == '@docheader': continue #Not needed because excluded by ss
         #The header can take one of 4 forms: "ResourceID" "ResourceID [ResourceType]" "[ResourceType]" or "[]"
         #The 3rd form is for an anonymous resource with specified type and the 4th an anonymous resource with unspecified type
-        matched = RESOURCE_PAT.match(U(sect))
+        matched = RESOURCE_PAT.match(sect.xml_value)
         if not matched:
-            raise ValueError(_(u'Syntax error in resource header: {0}'.format(U(sect))))
+            raise ValueError(_('Syntax error in resource header: {0}'.format(sect.xml_value)))
         rid = matched.group(1)
         rtype = matched.group(3)
         if rid:
@@ -235,7 +287,7 @@ def from_markdown(md, output, encoding='utf-8', config=None):
             rtype = I(iri.absolutize(rtype, base))
         #Resource type might be set by syntax config
         if not rtype:
-            rtype = syntaxtypemap.get(sect.xml_local)
+            rtype = syntaxtypemap.get(sect.xml_name)
         if rtype:
             output.add(rid, TYPE_REL, rtype)
         #Add the property
