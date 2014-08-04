@@ -25,10 +25,23 @@ def transitive_closure(m, orig, rel):
     '''
     Generate the closure over a transitive relationship in depth-first fashion
     '''
+    #FIXME: Broken for now
     stmts = list(m.match(orig, rel))
     for stmt in stmts:
-        yield stmts[0][TARGET]
+        yield stmt[0][TARGET]
         yield from transitive_closure(m, target, rel)
+
+
+def all_origins(m):
+    '''
+    Generate all unique statement origins in the given model
+    '''
+    seen = set()
+    for stmt in m.match():
+        origin = stmt[ORIGIN]
+        if origin not in seen:
+            seen.add(origin)
+            yield origin
 
 
 def jsonload(model, fp):
@@ -43,6 +56,9 @@ def jsonload(model, fp):
 
 
 def jsondump(model, fp):
+    '''
+    Dump Versa model into JSON form
+    '''
     fp.write('[')
     stmts_ser = []
     for stmt in model:

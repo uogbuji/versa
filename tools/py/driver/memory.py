@@ -55,6 +55,8 @@ class connection(connection_base):
     def __iter__(self):
         for rid, rel in self._relationships.items(): yield rid, deepcopy(rel)
 
+    #FIXME: For performance make each link an iterator, so that deepcopy isn't necessary
+
     def match(self, subj=None, pred=None, obj=None, attrs=None, include_ids=False):
         '''
         Retrieve an iterator of relationship IDs that match a pattern of components
