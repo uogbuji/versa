@@ -53,9 +53,9 @@ class connection(connection_base):
         raise NotImplementedError
 
     def __iter__(self):
-        for rid, rel in self._relationships.items(): yield rid, deepcopy(rel)
+        for rid, rel in self._relationships.items(): yield rid, (rel[0], rel[1], rel[2], rel[3].copy())
 
-    #FIXME: For performance make each link an iterator, so that deepcopy isn't necessary
+    #FIXME: For performance make each link an iterator, so that slice/copy isn't necessary?
 
     def match(self, subj=None, pred=None, obj=None, attrs=None, include_ids=False):
         '''

@@ -31,3 +31,11 @@ def init_localization():
 from versa.iriref import iriref as I
 
 VERSA_BASEIRI = I('http://bibfra.me/purl/versa/')
+
+class context(object):
+    def __init__(self, origin, linkset, linkspace, base=None):
+        self.origin = origin
+        self.linkset = linkset
+        self.linkspace = linkspace
+        self.base = base
+

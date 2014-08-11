@@ -8,7 +8,6 @@ nosetests test/py/test_memory.py --tc=debug:y --nologcapture
 
 import logging
 
-from nose import with_setup
 from testconfig import config
 
 from versa.driver import memory
@@ -51,5 +50,5 @@ RELS_1 = [
 ]
 
 if __name__ == '__main__':
-    raise SystemExit("use nosetests")
+    raise SystemExit("use py.test")
 
