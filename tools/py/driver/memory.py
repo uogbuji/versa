@@ -12,7 +12,6 @@ The optional attributes are metadata bound to the statement itself
 #Note: for PyPy support port to pg8000 <http://pybrary.net/pg8000/>
 #Reportedly PyPy/pg8000 is faster than CPython/psycopg2
 
-from copy import deepcopy
 import logging
 #from itertools import groupby
 #from operator import itemgetter
@@ -82,9 +81,9 @@ class connection(connection_base):
                         matches = False
             if matches:
                 if include_ids:
-                    yield rid, deepcopy(rel)
+                    yield rid, (rel[0], rel[1], rel[2], rel[3].copy())
                 else:
-                    yield deepcopy(rel)
+                    yield (rel[0], rel[1], rel[2], rel[3].copy())
         return
 
     def add(self, subj, pred, obj, attrs=None, rid=None):
