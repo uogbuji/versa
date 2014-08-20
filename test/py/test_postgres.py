@@ -1,43 +1,47 @@
 '''
 
-Requires http://pypi.python.org/pypi/nose-testconfig/ e.g.:
+Requires http://pytest.org/ e.g.:
 
-pip install nose-testconfig
+pip install pytest
 
 ----
 
-Before running this, run:
+Recommended: first set up environment. On BASH:
 
-createdb -U vuser versa_test "A temp DB for Versa test suite"
+export VUSER=versa
+export VPASS=password
 
-(replacing "vuser" with your user name, or omitting it for the default)
+(Replacing "vuser" & "password" accordingly)
 
+Then before running test:
 
-Use the nosetests command line to pass in your PG password, e.g.:
+createdb -U $VUSER versa_test "A temp DB for Versa test suite"
 
-VUSER=vuser; VPASS=VUPassword; nosetests test/py/test_postgres.py --tc=pguser:$VUSER --tc=pgpasswd:$VPASS
+Pass in your PG password, e.g.:
+
+py.test test/py/test_postgres.py --user=$VUSER --pass=$VPASS
 
 or to debug:
 
-VUSER=vuser; VPASS=VUPassword; nosetests test/py/test_postgres.py --tc=pguser:$VUSER --tc=pgpasswd:$VPASS --tc=debug:y
+py.test test/py/test_postgres.py --user=$VUSER --pass=$VPASS --debug
 
 
 ----
 
 If something breaks and the temp DB isn't cleaned up, you can do:
 
-VUSER=vuser; VPASS=VUPassword; python -c "import psycopg2; from versa.driver import postgres; c = postgres.connection('host=localhost dbname=versa_test user=$VUSER password=$VPASS'); c.drop_space()"
+VHOST=localhost; python -c "import psycopg2; from versa.driver import postgres; c = postgres.connection('host=$VHOST dbname=versa_test user=$VUSER password=$VPASS'); c.drop_space()"
 
-Replace host and password as needed
+Replace localhost as needed
 
 If you want to set up the temp DB for playing around, do:
 
-createdb -U vuser versa_test "Test DB for Versa."
-psql -U vuser versa_test < test/py/test1.sql
+createdb -U $VUSER versa_test "Test DB for Versa."
+psql -U $VUSER versa_test < test/py/test1.sql
 
 Then you can fiddle around:
 
-psql -U vuser versa_test
+psql -U $VUSER versa_test
 
 SELECT relationship.rawid, relationship.subj, relationship.pred, relationship.obj FROM relationship, attribute WHERE relationship.subj = 'http://copia.ogbuji.net';
 SELECT relationship.rawid, relationship.subj, relationship.pred, relationship.obj FROM relationship, attribute WHERE relationship.subj = 'http://copia.ogbuji.net' AND relationship.rawid = attribute.rawid AND attribute.name = '@context' AND attribute.value = 'http://copia.ogbuji.net#metadata';
@@ -79,38 +83,21 @@ See also:
 
 import logging
 
-from nose import with_setup
-from testconfig import config
-
 from versa.driver import postgres
 
 #If you do this you also need --nologcapture
 #Handle  --tc=debug:y option
-if config.get('debug', 'n').startswith('y'):
-    logging.basicConfig(level=logging.DEBUG)
-
-def pg_setup():
-    "set up test fixtures"
-    global conn
-    pgpasswd = config['pgpasswd']
-    pguser = config.get('pguser', 'postgres')
-    conn = postgres.connection("host=localhost dbname=versa_test user={0} password={1}".format(pguser, pgpasswd))
-    conn.create_space()
-    return
-    
-
-def pg_teardown():
-    "tear down test fixtures"
-    #conn.drop_space()
-    conn.close()
-    return
+#if config.get('debug', 'n').startswith('y'):
+#    logging.basicConfig(level=logging.DEBUG)
 
 
-@with_setup(pg_setup, pg_teardown)
-def test_basics():
+#@with_setup(pg_setup, pg_teardown)
+def test_basics(pgdb):
     "test ..."
+    conn = pgdb
     for (subj, pred, obj, attrs) in RELS_1:
         conn.add(subj, pred, obj, attrs)
+    assert conn.size() == len(RELS_1)
     results = conn.match(subj='http://copia.ogbuji.net')
     logging.debug('BASICS PART 1')
     for result in results:
@@ -137,4 +124,5 @@ RELS_1 = [
 ]
 
 if __name__ == '__main__':
-    raise SystemExit("use nosetests")
+    raise SystemExit("Run with py.test")
+

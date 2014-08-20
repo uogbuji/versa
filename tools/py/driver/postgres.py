@@ -49,6 +49,21 @@ class connection(connection_base):
         '''Execute a Versa query'''
         raise NotImplementedError
 
+    def size(self):
+        '''Return the number of links in the model'''
+        cur = self._conn.cursor()
+        querystr = u"SELECT COUNT(*) FROM relationship;"
+        cur.execute(querystr)
+        result = cur.fetchone()
+        return result[0]
+
+    def __iter__(self):
+        cur = self._conn.cursor()
+        tables = u"relationship"
+        querystr = u"SELECT relationship.rawid, relationship.subj, relationship.pred, relationship.obj, attribute.name, attribute.value FROM relationship FULL JOIN attribute ON relationship.rawid = attribute.rawid;".format(tables)
+        cur.execute(querystr)
+        return self._process_db_rows_iter(cur)
+
     def match(self, subj=None, pred=None, obj=None, attrs=None):
         '''
         Retrieve an iterator of relationship IDs that match a pattern of components
@@ -78,7 +93,7 @@ class connection(connection_base):
             and_placeholder = u" AND "
         if attrs:
             tables = u"relationship, attribute"
-            for a_name, a_val in attrs.iteritems():
+            for a_name, a_val in attrs.items():
                 conditions += and_placeholder + u"EXISTS (SELECT 1 from attribute AS subattr WHERE subattr.rawid = relationship.rawid AND subattr.name = %s AND subattr.value = %s)"
                 params.extend((a_name, a_val))
                 and_placeholder = u" AND "
@@ -143,7 +158,7 @@ class connection(connection_base):
             querystr = u"INSERT INTO relationship (subj, pred, obj) VALUES (%s, %s, %s) RETURNING rawid;"
             cur.execute(querystr, (subj, pred, obj))
         rawid = cur.fetchone()[0]
-        for a_name, a_val in attrs.iteritems():
+        for a_name, a_val in attrs.items():
             querystr = u"INSERT INTO attribute (rawid, name, value) VALUES (%s, %s, %s);"
             cur.execute(querystr, (rawid, a_name, a_val))
         self._conn.commit()

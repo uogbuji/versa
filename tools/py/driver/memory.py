@@ -51,6 +51,10 @@ class connection(connection_base):
         '''Execute a Versa query'''
         raise NotImplementedError
 
+    def size(self):
+        '''Return the number of links in the model'''
+        return len(self._relationships)
+
     def __iter__(self):
         for rid, rel in self._relationships.items(): yield rid, (rel[0], rel[1], rel[2], rel[3].copy())
 
