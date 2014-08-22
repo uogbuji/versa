@@ -70,8 +70,9 @@ class connection(connection_base):
         attrs - optional attribute mapping of relationship metadata, i.e. {attrname1: attrval1, attrname2: attrval2}. If any attribute is specified, an exact match is made (i.e. the attribute name and value must match).
 
         '''
-        for rid, rel in self._relationships.items(): #Can't use items or we risk RuntimeError: dictionary changed size during iteration
-
+        #Can't use items or we risk client side RuntimeError: dictionary changed size during iteration
+        for rid in list(self._relationships.keys()):
+            rel = self._relationships[rid]
             matches = True
             if subj and subj != rel[ORIGIN]:
                 matches = False
