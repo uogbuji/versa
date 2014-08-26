@@ -86,25 +86,3 @@ def run(pycmds):
         return result
     return _run
 
-'''
-with open(sys.argv[1], 'rb') as inf:
-    existing_ids = []
-    indata = dict_from_xls(inf)
-    #for row in itertools.islice(indata, None):
-    for row in indata:
-        for k, v in row.items():
-            sid = next(idg)
-            stmt = (sid, k, v)
-            existing_ids.append(sid)
-            func = ACTIONS[k]
-            ctx = context(stmt[ORIGIN], [stmt], m, base=BFZ)
-            new_stmts = func(context)
-
-            #FIXME: Use add
-            for s in new_stmts: m.add(*s)
-        print('.', end='')
-
-with open(sys.argv[2], 'wb') as outf:
-    rdf.process(m, g, logger=logging)
-    outf.write(g.serialize(format="turtle"))
-'''

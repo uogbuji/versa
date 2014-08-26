@@ -39,3 +39,10 @@ class context(object):
         self.linkspace = linkspace
         self.base = base
 
+    def copy(self, origin=None, linkset=None, linkspace=None, base=None):
+        origin = origin if origin else self.origin
+        linkset = linkset if linkset else self.linkset
+        linkspace = linkspace if linkspace else self.linkspace
+        base = base if base else self.base
+        return context(origin=origin, linkset=linkset, linkspace=linkspace, base=base)
+
