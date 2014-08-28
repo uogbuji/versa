@@ -11,9 +11,11 @@ from versa import util
 from versa.util import simple_lookup
 from versa import context
 
-from datachef.ids import simple_hashstring
+from datachef.ids import simple_hashstring, FROM_EMPTY_HASH
 
 VTYPE_REL = I(iri.absolutize('type', VERSA_BASEIRI))
+
+
 
 #FIXME: Use __all__
 
@@ -41,6 +43,7 @@ def materialize(ctx, hashidgen=None, existing_ids=None, unique=None, typ=None, n
     '''
     Create a new resource related to the origin
     '''
+    properties = properties or {}
     newlinkset = []
     #Just work with the first provided statement, for now
     (o, r, t) = ctx.linkset[0]
@@ -48,13 +51,37 @@ def materialize(ctx, hashidgen=None, existing_ids=None, unique=None, typ=None, n
         objid = hashidgen.send(unique(ctx))
     else:
         objid = next(hashidgen)
-    newlinkset.append((I(o), I(iri.absolutize(new_rel, ctx.base)), I(objid), {}))
-    if objid not in existing_ids:
-        if typ: newlinkset.append((I(objid), VTYPE_REL, I(iri.absolutize(typ, ctx.base)), {}))
-        for k, v in properties.items():
-            if callable(v):
-                v = v(ctx)
-            newlinkset.append((I(objid), I(iri.absolutize(k, ctx.base)), v, {}))
+    if objid != FROM_EMPTY_HASH:
+        newlinkset.append((I(o), I(iri.absolutize(new_rel, ctx.base)), I(objid), {}))
+        if objid not in existing_ids:
+            if typ: newlinkset.append((I(objid), VTYPE_REL, I(iri.absolutize(typ, ctx.base)), {}))
+            for k, v in properties.items():
+                if callable(v):
+                    v = v(ctx)
+                newlinkset.append((I(objid), I(iri.absolutize(k, ctx.base)), v, {}))
+    return newlinkset
+
+
+def inverse_materialize(ctx, hashidgen=None, existing_ids=None, unique=None, typ=None, new_rel=None, properties=None):
+    '''
+    Create a new resource related to the origin
+    '''
+    properties = properties or {}
+    newlinkset = []
+    #Just work with the first provided statement, for now
+    (o, r, t) = ctx.linkset[0]
+    if unique:
+        objid = hashidgen.send(unique(ctx))
+    else:
+        objid = next(hashidgen)
+    if objid != FROM_EMPTY_HASH:
+        newlinkset.append((I(objid), I(iri.absolutize(new_rel, ctx.base)), I(o), {}))
+        if objid not in existing_ids:
+            if typ: newlinkset.append((I(objid), VTYPE_REL, I(iri.absolutize(typ, ctx.base)), {}))
+            for k, v in properties.items():
+                if callable(v):
+                    v = v(ctx)
+                newlinkset.append((I(objid), I(iri.absolutize(k, ctx.base)), v, {}))
     return newlinkset
 
 

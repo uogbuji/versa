@@ -1,0 +1,150 @@
+#!/usr/bin/env python
+"""
+parse_versa_model
+
+Tool to parse Versa
+
+"""
+
+import re
+import sys
+import os
+import glob
+import time
+import argparse
+from itertools import islice
+import logging
+
+import rdflib
+from rdflib import URIRef, Literal
+from amara3 import iri
+
+#from amara.thirdparty import httplib2, json
+#from amara.lib.iri import relativize, absolutize
+
+from rdflib import URIRef, Literal, RDF
+
+from versa import I, VERSA_BASEIRI, ORIGIN, RELATIONSHIP, TARGET
+from versa.driver import memory
+from versa import VERSA_BASEIRI
+from versa.reader.md import from_markdown
+
+TYPE_REL = I(iri.absolutize('type', VERSA_BASEIRI))
+VNS = rdflib.Namespace(VERSA_BASEIRI)
+
+RDF_NAMESPACE = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#'
+RDFS_NAMESPACE = 'http://www.w3.org/2000/01/rdf-schema#'
+
+RESOURCE_MAPPING = {
+    I(VERSA_BASEIRI + 'Resource'): I(RDFS_NAMESPACE + 'Class'),
+    I(VERSA_BASEIRI + 'Property'): I(RDFS_NAMESPACE + 'Property'),
+    I(VERSA_BASEIRI + 'description'): I(RDFS_NAMESPACE + 'comment'),
+    I(VERSA_BASEIRI + 'label'): I(RDFS_NAMESPACE + 'label'),
+}
+
+
+def prep(stmt):
+    '''
+    Prepare a statement into a triple ready for rdflib
+    '''
+    s, p, o = stmt[:3]
+    s = URIRef(s)
+    p = URIRef(p)
+    o = URIRef(o) if isinstance(o, I) else Literal(o)
+    return s, p, o
+
+
+def process(source, target, base=None, logger=logging):
+    '''
+    Prepare a statement into a triple ready for rdflib graph
+
+    '''
+    for stmt in source.match():
+        s, p, o = stmt[:3]
+        #SKip docheader statements
+        if s == (base or '') + '@docheader': continue
+        if p in RESOURCE_MAPPING: p = RESOURCE_MAPPING[p]
+        if o in RESOURCE_MAPPING: o = RESOURCE_MAPPING[o]
+        if p == VERSA_BASEIRI + 'refines':
+            tstmts = list(source.match(s, TYPE_REL))
+            if tstmts:
+                if tstmts[0][TARGET] == VERSA_BASEIRI + 'Resource':
+                    p = I(RDFS_NAMESPACE + 'subClassOf')
+                elif tstmts[0][TARGET] == VERSA_BASEIRI + 'Property':
+                    p = I(RDFS_NAMESPACE + 'subPropertyOf')
+        if p == VERSA_BASEIRI + 'properties':
+            target.add((URIRef(o), URIRef(RDFS_NAMESPACE + 'domain'), URIRef(s)))
+            continue
+        s = URIRef(s)
+        #Translate v:type to rdf:type
+        p = RDF.type if p == TYPE_REL else URIRef(p)
+        o = URIRef(o) if isinstance(o, I) else Literal(o)
+        target.add((s, p, o))
+    return
+
+
+def run(inputs=None, base=None, config=None, rdfttl=None, rdfxml=None, ns=None, verbose=False):
+    '''
+    See the command line help
+    '''
+    prefixes = dict(( pair[0].split(':', 1) for pair in ns ))
+    logger = logging.getLogger('parse_versa_model')
+    if verbose:
+        logger.setLevel(logging.DEBUG)
+
+    config = {
+        'autotype-h1': VERSA_BASEIRI + 'Resource',
+        'autotype-h2': VERSA_BASEIRI + 'Property',
+        'interpretations': {
+            VERSA_BASEIRI + 'refines': VERSA_BASEIRI + 'resourceset',
+            VERSA_BASEIRI + 'properties': VERSA_BASEIRI + 'resourceset',
+            VERSA_BASEIRI + 'synonyms': VERSA_BASEIRI + 'resourceset'
+        }
+    }
+
+    g = rdflib.Graph()
+    #g.bind('bf', BFNS)
+    #g.bind('bfc', BFCNS)
+    #g.bind('bfd', BFDNS)
+    g.bind('v', VNS)
+    for inf in inputs:
+        m = memory.connection(baseuri=base)
+        base_out = from_markdown(inf.read(), m, config=config)
+        process(m, g, base=base_out, logger=logger)
+
+    if rdfttl: rdfttl.write(g.serialize(format="turtle"))
+    if rdfxml: rdfxml.write(g.serialize(format="pretty-xml"))
+    return
+
+
+# Handle the command-line arguments
+
+#import signal
+#import shutil
+
+if __name__ == '__main__':
+    #parser = argparse.ArgumentParser(prog="bootstrap", add_help=False)
+    parser = argparse.ArgumentParser()
+    parser.add_argument('inputs', type=argparse.FileType('r'), metavar='inputs', nargs='+',
+                        help='One or more Versa files to be parsed into a single model')
+    parser.add_argument('--ns', metavar="prefix:iri", nargs="*", action='append',
+        help='Namespace mapping')
+    parser.add_argument('--rdfttl', type=argparse.FileType('wb'),
+        help='file where RDF Turtle output should be written')
+    parser.add_argument('--rdfxml', type=argparse.FileType('wb'),
+        help='file where RDF/XML output should be written ')
+    parser.add_argument('-c', '--config', type=argparse.FileType('r'),
+        help='config, a Versa file whose config (in the @docheader) should be used to parse the rest')
+    parser.add_argument('-b', '--base', metavar="IRI", #dest="base",
+        help='Base IRI to be used for parsing the Versa. Can be overridden by a base statement within the docheader')
+    parser.add_argument('-v', '--verbose', action='store_false',
+        help='whether or not to show verbose error messages')
+    #
+    args = parser.parse_args()
+
+    run(inputs=args.inputs, base=args.base, config=args.config, rdfttl=args.rdfttl, rdfxml=args.rdfxml, ns=args.ns, verbose=args.verbose)
+    for f in args.inputs: f.close()
+    if args.config: args.config.close()
+    if args.rdfttl: args.rdfttl.close()
+    if args.rdfxml: args.rdfxml.close()
+
