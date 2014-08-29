@@ -34,9 +34,9 @@ def run(inputs=None, base=None, config=None, out=None, verbose=False):
     for inf in inputs:
         m = memory.connection(baseuri=base)
         base_out = from_markdown(inf.read(), m, config=config)
-        for sid, stmt in m:
-            stmt_out = stmt if stmt[ATTRIBUTES] else stmt[:3]
-            out.write(repr(stmt_out) + '\n')
+        for sid, link in m:
+            link_out = link if link[ATTRIBUTES] else link[:3]
+            out.write(repr(link_out) + '\n')
 
     return
 

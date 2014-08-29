@@ -224,27 +224,27 @@ def run(modelsource=None, output=None, base=''):
 
     #Collect all the refinements
     refinements = {}
-    for stmt in m.match(None, VERSA_BASEIRI + 'refines'):
-        #print stmt
-        narrower, r, broader = stmt[0:3]
+    for link in m.match(None, VERSA_BASEIRI + 'refines'):
+        #print link
+        narrower, r, broader = link[0:3]
         refinements.setdefault(broader, []).append(narrower)
 
     #Map each class ID to its attributes
     classes = {}
-    for stmt in m.match(None, TYPE_REL, VERSA_BASEIRI + 'Resource'):
-        rclass = stmt[ORIGIN]
-        rstmts = m.match(rclass)
-        #classes[rclass] = dict([ (s[1][VERSA_BASEIRI_LEN:], s[2]) for s in rstmts if s[1].startswith(VERSA_BASEIRI) ])
-        classes[rclass] = dict([ (s[RELATIONSHIP], s[TARGET]) for s in rstmts if s[RELATIONSHIP].startswith(VERSA_BASEIRI) ])
+    for link in m.match(None, TYPE_REL, VERSA_BASEIRI + 'Resource'):
+        rclass = link[ORIGIN]
+        rlinks = m.match(rclass)
+        #classes[rclass] = dict([ (s[1][VERSA_BASEIRI_LEN:], s[2]) for s in rlinks if s[1].startswith(VERSA_BASEIRI) ])
+        classes[rclass] = dict([ (s[RELATIONSHIP], s[TARGET]) for s in rlinks if s[RELATIONSHIP].startswith(VERSA_BASEIRI) ])
     #pprint.pprint(classes)
 
     #Map each property ID to its attributes
     properties = {}
-    for stmt in m.match(None, TYPE_REL, VERSA_BASEIRI + 'Property'):
-        prop = stmt[ORIGIN]
-        pstmts = m.match(prop)
-        #classes[rclass] = dict([ (s[1][VERSA_BASEIRI_LEN:], s[2]) for s in rstmts if s[1].startswith(VERSA_BASEIRI) ])
-        properties[prop] = dict([ (s[RELATIONSHIP], s[TARGET]) for s in pstmts if s[RELATIONSHIP].startswith(VERSA_BASEIRI) ])
+    for link in m.match(None, TYPE_REL, VERSA_BASEIRI + 'Property'):
+        prop = link[ORIGIN]
+        plinks = m.match(prop)
+        #classes[rclass] = dict([ (s[1][VERSA_BASEIRI_LEN:], s[2]) for s in rlinks if s[1].startswith(VERSA_BASEIRI) ])
+        properties[prop] = dict([ (s[RELATIONSHIP], s[TARGET]) for s in plinks if s[RELATIONSHIP].startswith(VERSA_BASEIRI) ])
     #pprint.pprint(properties)
 
     def handle_inline_links(text):
@@ -269,8 +269,8 @@ def run(modelsource=None, output=None, base=''):
         #pprint.pprint((clsid, clsinfo))
         ancestors = []
         def add_ancestors(startclsid):
-            for stmt in m.match(startclsid, VERSA_BASEIRI + 'refines'):
-                p = stmt[TARGET]
+            for link in m.match(startclsid, VERSA_BASEIRI + 'refines'):
+                p = link[TARGET]
                 add_ancestors(p)
             ancestors.append(startclsid)
             return

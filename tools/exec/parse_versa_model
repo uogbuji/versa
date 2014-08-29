@@ -43,11 +43,11 @@ RESOURCE_MAPPING = {
 }
 
 
-def prep(stmt):
+def prep(link):
     '''
     Prepare a statement into a triple ready for rdflib
     '''
-    s, p, o = stmt[:3]
+    s, p, o = link[:3]
     s = URIRef(s)
     p = URIRef(p)
     o = URIRef(o) if isinstance(o, I) else Literal(o)
@@ -59,18 +59,18 @@ def process(source, target, base=None, logger=logging):
     Prepare a statement into a triple ready for rdflib graph
 
     '''
-    for stmt in source.match():
-        s, p, o = stmt[:3]
+    for link in source.match():
+        s, p, o = link[:3]
         #SKip docheader statements
         if s == (base or '') + '@docheader': continue
         if p in RESOURCE_MAPPING: p = RESOURCE_MAPPING[p]
         if o in RESOURCE_MAPPING: o = RESOURCE_MAPPING[o]
         if p == VERSA_BASEIRI + 'refines':
-            tstmts = list(source.match(s, TYPE_REL))
-            if tstmts:
-                if tstmts[0][TARGET] == VERSA_BASEIRI + 'Resource':
+            tlinks = list(source.match(s, TYPE_REL))
+            if tlinks:
+                if tlinks[0][TARGET] == VERSA_BASEIRI + 'Resource':
                     p = I(RDFS_NAMESPACE + 'subClassOf')
-                elif tstmts[0][TARGET] == VERSA_BASEIRI + 'Property':
+                elif tlinks[0][TARGET] == VERSA_BASEIRI + 'Property':
                     p = I(RDFS_NAMESPACE + 'subPropertyOf')
         if p == VERSA_BASEIRI + 'properties':
             target.add((URIRef(o), URIRef(RDFS_NAMESPACE + 'domain'), URIRef(s)))
@@ -87,7 +87,7 @@ def run(inputs=None, base=None, config=None, rdfttl=None, rdfxml=None, ns=None, 
     '''
     See the command line help
     '''
-    prefixes = dict(( pair[0].split(':', 1) for pair in ns ))
+    prefixes = dict(( pair[0].split(':', 1) for pair in ns or [] ))
     logger = logging.getLogger('parse_versa_model')
     if verbose:
         logger.setLevel(logging.DEBUG)
@@ -107,6 +107,8 @@ def run(inputs=None, base=None, config=None, rdfttl=None, rdfxml=None, ns=None, 
     #g.bind('bfc', BFCNS)
     #g.bind('bfd', BFDNS)
     g.bind('v', VNS)
+    for k, v in prefixes.items():
+        g.bind(k, v)
     for inf in inputs:
         m = memory.connection(baseuri=base)
         base_out = from_markdown(inf.read(), m, config=config)

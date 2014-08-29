@@ -45,8 +45,8 @@ def Xtest_versa_syntax1():
     #from_markdown(VERSA_LITERATE1, m, encoding='utf-8')
     from_markdown(VERSA_LITERATE1, m)
     logging.debug('VERSA LITERATE EXAMPLE 1')
-    for stmt in m.match():
-        logging.debug('Result: {0}'.format(repr(stmt)))
+    for link in m.match():
+        logging.debug('Result: {0}'.format(repr(link)))
         #assert result == ()
     #assert results == None, "Boo! "
 
@@ -67,8 +67,8 @@ def test_versa_syntax1():
     doc = open(os.path.join(RESOURCEPATH, 'ubibframe.md')).read()
     from_markdown(doc, m, config=config)
     logging.debug('VERSA LITERATE EXAMPLE 1')
-    for stmt in m.match():
-        logging.debug('Result: {0}'.format(repr(stmt)))
+    for link in m.match():
+        logging.debug('Result: {0}'.format(repr(link)))
         #assert result == ()
     assert results == None, "Boo! "
 

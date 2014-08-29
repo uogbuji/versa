@@ -103,11 +103,11 @@ def discard(ctx):
 
 def run(pycmds):
     def _run(ctx):
-        stmt = ctx.linkset[0]
+        link = ctx.linkset[0]
         gdict = {
             'origin': resource(ctx),
-            #'origin': resource(stmt[ORIGIN], ctx),
-            'target': stmt[TARGET],
+            #'origin': resource(link[ORIGIN], ctx),
+            'target': link[TARGET],
         }
         result = eval(pycmds, gdict)
         return result
