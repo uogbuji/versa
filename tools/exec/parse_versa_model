@@ -54,7 +54,7 @@ def prep(link):
     return s, p, o
 
 
-def process(source, target, base=None, logger=logging):
+def process(source, target, rdfsonly, base=None, logger=logging):
     '''
     Prepare a statement into a triple ready for rdflib graph
 
@@ -79,11 +79,12 @@ def process(source, target, base=None, logger=logging):
         #Translate v:type to rdf:type
         p = RDF.type if p == TYPE_REL else URIRef(p)
         o = URIRef(o) if isinstance(o, I) else Literal(o)
-        target.add((s, p, o))
+        if not rdfsonly or p.startswith(RDF_NAMESPACE) or p.startswith(RDFS_NAMESPACE):
+            target.add((s, p, o))
     return
 
 
-def run(inputs=None, base=None, config=None, rdfttl=None, rdfxml=None, ns=None, verbose=False):
+def run(inputs=None, base=None, config=None, rdfttl=None, rdfxml=None, rdfsonly=False, ns=None, verbose=False):
     '''
     See the command line help
     '''
@@ -112,7 +113,7 @@ def run(inputs=None, base=None, config=None, rdfttl=None, rdfxml=None, ns=None, 
     for inf in inputs:
         m = memory.connection(baseuri=base)
         base_out = from_markdown(inf.read(), m, config=config)
-        process(m, g, base=base_out, logger=logger)
+        process(m, g, rdfsonly, base=base_out, logger=logger)
 
     if rdfttl: rdfttl.write(g.serialize(format="turtle"))
     if rdfxml: rdfxml.write(g.serialize(format="pretty-xml"))
@@ -134,7 +135,9 @@ if __name__ == '__main__':
     parser.add_argument('--rdfttl', type=argparse.FileType('wb'),
         help='file where RDF Turtle output should be written')
     parser.add_argument('--rdfxml', type=argparse.FileType('wb'),
-        help='file where RDF/XML output should be written ')
+        help='file where RDF/XML output should be written')
+    parser.add_argument('--rdfsonly', action='store_true',
+        help='Strip any non RDFS or RDF vocabulary (based on property)')
     parser.add_argument('-c', '--config', type=argparse.FileType('r'),
         help='config, a Versa file whose config (in the @docheader) should be used to parse the rest')
     parser.add_argument('-b', '--base', metavar="IRI", #dest="base",
@@ -144,7 +147,7 @@ if __name__ == '__main__':
     #
     args = parser.parse_args()
 
-    run(inputs=args.inputs, base=args.base, config=args.config, rdfttl=args.rdfttl, rdfxml=args.rdfxml, ns=args.ns, verbose=args.verbose)
+    run(inputs=args.inputs, base=args.base, config=args.config, rdfttl=args.rdfttl, rdfxml=args.rdfxml, rdfsonly=args.rdfsonly, ns=args.ns, verbose=args.verbose)
     for f in args.inputs: f.close()
     if args.config: args.config.close()
     if args.rdfttl: args.rdfttl.close()

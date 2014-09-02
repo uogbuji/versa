@@ -11,7 +11,11 @@ from versa import util
 from versa.util import simple_lookup
 from versa import context
 
-from datachef.ids import simple_hashstring, FROM_EMPTY_HASH
+try:
+    from datachef.ids import simple_hashstring, FROM_EMPTY_HASH
+except ImportError:
+    #datachef not installed, but proceed anyway
+    FROM_EMPTY_HASH = 'AAAAAAAA'
 
 VTYPE_REL = I(iri.absolutize('type', VERSA_BASEIRI))
 
