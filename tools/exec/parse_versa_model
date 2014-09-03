@@ -75,6 +75,10 @@ def process(source, target, rdfsonly, base=None, logger=logging):
         if p == VERSA_BASEIRI + 'properties':
             target.add((URIRef(o), URIRef(RDFS_NAMESPACE + 'domain'), URIRef(s)))
             continue
+        if p == VERSA_BASEIRI + 'value':
+            if o not in ['Literal', 'IRI']:
+                target.add((URIRef(s), URIRef(RDFS_NAMESPACE + 'range'), URIRef(o)))
+                continue
         s = URIRef(s)
         #Translate v:type to rdf:type
         p = RDF.type if p == TYPE_REL else URIRef(p)
