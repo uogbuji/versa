@@ -73,11 +73,13 @@ def process(source, target, rdfsonly, base=None, logger=logging):
                 elif tlinks[0][TARGET] == VERSA_BASEIRI + 'Property':
                     p = I(RDFS_NAMESPACE + 'subPropertyOf')
         if p == VERSA_BASEIRI + 'properties':
-            target.add((URIRef(o), URIRef(RDFS_NAMESPACE + 'domain'), URIRef(s)))
+            suri = I(iri.absolutize(s, base)) if base else s
+            target.add((URIRef(o), URIRef(RDFS_NAMESPACE + 'domain'), URIRef(suri)))
             continue
         if p == VERSA_BASEIRI + 'value':
             if o not in ['Literal', 'IRI']:
-                target.add((URIRef(s), URIRef(RDFS_NAMESPACE + 'range'), URIRef(o)))
+                ouri = I(iri.absolutize(o, base)) if base else o
+                target.add((URIRef(s), URIRef(RDFS_NAMESPACE + 'range'), URIRef(ouri)))
                 continue
         s = URIRef(s)
         #Translate v:type to rdf:type
