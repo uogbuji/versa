@@ -37,7 +37,7 @@ RDFS_NAMESPACE = 'http://www.w3.org/2000/01/rdf-schema#'
 
 RESOURCE_MAPPING = {
     I(VERSA_BASEIRI + 'Resource'): I(RDFS_NAMESPACE + 'Class'),
-    I(VERSA_BASEIRI + 'Property'): I(RDFS_NAMESPACE + 'Property'),
+    I(VERSA_BASEIRI + 'Property'): I(RDF_NAMESPACE + 'Property'),
     I(VERSA_BASEIRI + 'description'): I(RDFS_NAMESPACE + 'comment'),
     I(VERSA_BASEIRI + 'label'): I(RDFS_NAMESPACE + 'label'),
 }
