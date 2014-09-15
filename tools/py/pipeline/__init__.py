@@ -65,7 +65,7 @@ def materialize(ctx, hashidgen=None, existing_ids=None, unique=None, typ=None, n
         objid = hashidgen.send(unique(ctx))
     else:
         objid = next(hashidgen)
-    if objid != FROM_EMPTY_HASH:
+    if objid != I(iri.absolutize(FROM_EMPTY_HASH, ctx.base)):
         newlinkset.append((I(o), I(iri.absolutize(new_rel, ctx.base)), I(objid), {}))
         if objid not in existing_ids:
             if typ: newlinkset.append((I(objid), VTYPE_REL, I(iri.absolutize(typ, ctx.base)), {}))
@@ -88,7 +88,7 @@ def inverse_materialize(ctx, hashidgen=None, existing_ids=None, unique=None, typ
         objid = hashidgen.send(unique(ctx))
     else:
         objid = next(hashidgen)
-    if objid != FROM_EMPTY_HASH:
+    if objid != I(iri.absolutize(FROM_EMPTY_HASH, ctx.base)):
         newlinkset.append((I(objid), I(iri.absolutize(new_rel, ctx.base)), I(o), {}))
         if objid not in existing_ids:
             if typ: newlinkset.append((I(objid), VTYPE_REL, I(iri.absolutize(typ, ctx.base)), {}))

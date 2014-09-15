@@ -81,4 +81,46 @@ to this Versa built-in concept. You can write out this link in full as follows:
     ["http://uche.ogbuji.net/ndewo/", "http://www.w3.org/TR/html5/created", "2013-09-01", {"<http://purl.org/versa/type>", "<http://purl.org/versa/datetime>"}]
 
 
+## Versa Literate
+
+The JSON representation of Versa is good for data exchange and other programming uses, but data on the Web is often
+managed by people, who need a friendlier means of expression. Versa Literate is a language based on [Markdown](http://daringfireball.net/projects/markdown/)
+for Web data in Versa form. A basic representation equivalent to the above link set is as follows.
+
+    # http://uche.ogbuji.net/ndewo/
+    
+    * <http://www.w3.org/TR/html5/title>: "Ndewo, Colorado"
+    * <http://www.w3.org/TR/html5/link-type/author>: <http://uche.ogbuji.net/>
+        * <http://www.w3.org/TR/html5/link/description>: "Uche Ogbuji"
+    * <http://www.w3.org/TR/html5/link-type/see-also>: <http://www.goodreads.com/book/show/18714145-ndewo-colorado>
+        * <http://www.w3.org/TR/html5/link/label>: "Goodreads"
+    
+    # http://uche.ogbuji.net/
+    
+    * <http://www.w3.org/TR/html5/link-type/see-also>: <http://uche.ogbuji.net/ndewo/>
+
+Links are given from two different origins, marked using the Markdown convention for a header `"# "`. Relationships from
+each origin are given as a list in the form `relationship: target`. Link attributes, if any, are given in a sublist.
+As is the above is not a lot friendlier than the JSON version, but there are many abbreviations which make Versa
+Literate much more readable. The following example uses several abbreviation mechanisms to express the same link set as the above.
+
+    # @docheader
+    
+    * @base: http://uche.ogbuji.net
+    * @prop-base: http://www.w3.org/TR/html5/
+    
+    # /ndewo/
+    
+    * title: "Ndewo, Colorado"
+    * link-type/author: </>
+        * link/description: "Uche Ogbuji"
+    * link-type/see-also: <http://www.goodreads.com/book/show/18714145-ndewo-colorado>
+        * link/label: "Goodreads"
+    
+    # /
+    
+    * link-type/see-also: </ndewo/>
+
+
+
 
