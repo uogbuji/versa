@@ -1,0 +1,120 @@
+#!/usr/bin/env python
+"""
+parse_versa
+
+Tool to parse Versa
+
+"""
+
+import re
+import sys
+import os
+import glob
+import time
+import argparse
+import warnings
+import logging
+import xml.parsers.expat
+
+from amara3 import iri
+from amara3.util import coroutine
+from amara3.uxml import tree
+from amara3.uxml.xml import expat_callbacks
+from amara3.uxml.treeutil import *
+
+def next_or_none(it):
+    try:
+        result = next(it)
+        if result is None:
+            warnings.warn('Actual iterator content is None, which won\'t be distinguished from the result from a depleted iterator')
+        return result
+    except StopIteration:
+        return None
+
+
+def child_value(parent, childname):
+    child = next_or_none(select_name(parent, childname))
+    if child:
+        return child.xml_value
+    else:
+        return None
+
+
+class xml_tree_builder(tree.treebuilder):
+    def parse(self, source):
+        expat_handler = expat_callbacks(self._handler(), asyncio_based_handler=False)
+        p = xml.parsers.expat.ParserCreate(namespace_separator=' ')
+
+        p.StartElementHandler = expat_handler.start_element
+        p.EndElementHandler = expat_handler.end_element
+        p.CharacterDataHandler = expat_handler.char_data
+        p.Parse(source)
+
+        return self._root
+
+
+ENTRY_TEMPLATE = '''
+# [poem]
+
+* updated: {0}
+{1}* title: "{2}"
+* author: {3}
+{4}* summary: {5}
+* content: {6}
+
+'''
+
+def run(inputs=None, base=None, out=None, verbose=False):
+    '''
+    See the command line help
+    '''
+    if verbose:
+        logging.basicConfig(level=logging.DEBUG)
+
+    for inf in inputs:
+        tb = xml_tree_builder()
+        root = tb.parse(inf.read())
+        #feed = next(select_name(root, 'feed'))
+        for entry in select_name(root, 'entry'):
+            updated = child_value(entry, 'updated')
+            links = [ (e.xml_attributes.get('href'), e.xml_attributes.get('rel')) for e in select_name(entry, 'link') ]
+            title = child_value(entry, 'title')
+            title = title.replace('"', '\\"')
+            summary = child_value(entry, 'summary') or ''
+            #summary = summary.replace('\n', '\n    ')
+            content = child_value(entry, 'content') or ''
+            source = list(select_name(entry, 'source'))
+            if source:
+                source_id = child_value(source[0], 'id')
+                source_title = child_value(source[0], 'title')
+                source_links = [ e.xml_attributes.get('href') for e in select_name(source[0], 'link') ]
+
+            links_text = ''.join([ '* link: {0}\n'.format(l[0]) for l in links ])
+            source_text = ''
+            if source:
+                source_text += '* source: {0}\n'.format(source_id)
+                if source_text:
+                    source_text += '    * title: {0}\n'.format(source_title)
+            text = ENTRY_TEMPLATE.format(updated, links_text, title, 'uogbuji', source_text, summary.strip(), content.strip())
+            out.write(text)
+    return
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(prog="atom2versa")#, add_help=False)
+    parser.add_argument('inputs', type=argparse.FileType('rb'), metavar='inputs', nargs='+',
+                        help='One or more Atom/XML files to be parsed into a single model')
+    parser.add_argument('-o', '--out', type=argparse.FileType('w'), default=sys.stdout,
+        help='file where output should be written '
+             '(default: write to stdout)')
+    parser.add_argument('-b', '--base', metavar="IRI", #dest="base",
+        help='Base IRI to be used for parsing the Versa. Can be overridden by a base statement within the docheader')
+    parser.add_argument('-v', '--verbose', action='store_false',
+        help='whether or not to show verbose error messages')
+    #
+    args = parser.parse_args()
+
+    run(inputs=args.inputs, base=args.base, out=args.out, verbose=args.verbose)
+    for f in args.inputs: f.close()
+    args.out.close()
+
