@@ -20,7 +20,6 @@ except ImportError:
 VTYPE_REL = I(iri.absolutize('type', VERSA_BASEIRI))
 
 
-
 #FIXME: Use __all__
 
 class resource(object):
@@ -41,6 +40,17 @@ class resource(object):
 def origin(ctx):
     return resource(ctx.linkset[0][ORIGIN], ctx.linkspace)
 
+
+def res(arg):
+    '''
+    Convert the argument into an IRI ref
+    '''
+    def _res(ctx):
+        _arg = arg(ctx) if callable(arg) else arg
+        return I(arg)
+    return _res
+
+
 #Functions that take a prototype link set and generates a transformed link set
 
 def materialize(ctx, hashidgen=None, existing_ids=None, unique=None, typ=None, new_rel=None, properties=None):
@@ -55,7 +65,7 @@ def materialize(ctx, hashidgen=None, existing_ids=None, unique=None, typ=None, n
         objid = hashidgen.send(unique(ctx))
     else:
         objid = next(hashidgen)
-    if objid != FROM_EMPTY_HASH:
+    if objid != I(iri.absolutize(FROM_EMPTY_HASH, ctx.base)):
         newlinkset.append((I(o), I(iri.absolutize(new_rel, ctx.base)), I(objid), {}))
         if objid not in existing_ids:
             if typ: newlinkset.append((I(objid), VTYPE_REL, I(iri.absolutize(typ, ctx.base)), {}))
@@ -78,7 +88,7 @@ def inverse_materialize(ctx, hashidgen=None, existing_ids=None, unique=None, typ
         objid = hashidgen.send(unique(ctx))
     else:
         objid = next(hashidgen)
-    if objid != FROM_EMPTY_HASH:
+    if objid != I(iri.absolutize(FROM_EMPTY_HASH, ctx.base)):
         newlinkset.append((I(objid), I(iri.absolutize(new_rel, ctx.base)), I(o), {}))
         if objid not in existing_ids:
             if typ: newlinkset.append((I(objid), VTYPE_REL, I(iri.absolutize(typ, ctx.base)), {}))
@@ -89,13 +99,14 @@ def inverse_materialize(ctx, hashidgen=None, existing_ids=None, unique=None, typ
     return newlinkset
 
 
-def relabel(ctx, new_rel=None):
+def relabel(ctx, new_rel=None, res=False):
     '''
     Update the label of the relationship to be added to the link space
     '''
     newlinkset = []
     #Just work with the first provided statement, for now
     (o, r, t) = ctx.linkset[0]
+    if res: t = I(t)
     newlinkset.append((I(o), I(iri.absolutize(new_rel, ctx.base)), t, {}))
     return newlinkset
 

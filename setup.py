@@ -13,7 +13,7 @@ setup(
     description="Versa model for Web resources and relationships. Think of it as an evolution of Resource Description Framework (RDF) that's at once simpler and more expressive.",
     author='Uche Ogbuji',
     author_email='uche@ogbuji.net',
-    url='http://uche.ogbuji.net',
+    url='https://github.com/uogbuji/versa',
     package_dir={'versa': 'tools/py'},
     packages=['versa', 'versa.driver', 'versa.reader', 'versa.writer', 'versa.pipeline'],
     scripts=['tools/exec/build_model_site', 'tools/exec/parse_versa', 'tools/exec/parse_versa_model', 'tools/exec/atom2versa'],

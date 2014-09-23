@@ -37,7 +37,7 @@ RDFS_NAMESPACE = 'http://www.w3.org/2000/01/rdf-schema#'
 
 RESOURCE_MAPPING = {
     I(VERSA_BASEIRI + 'Resource'): I(RDFS_NAMESPACE + 'Class'),
-    I(VERSA_BASEIRI + 'Property'): I(RDFS_NAMESPACE + 'Property'),
+    I(VERSA_BASEIRI + 'Property'): I(RDF_NAMESPACE + 'Property'),
     I(VERSA_BASEIRI + 'description'): I(RDFS_NAMESPACE + 'comment'),
     I(VERSA_BASEIRI + 'label'): I(RDFS_NAMESPACE + 'label'),
 }
@@ -73,8 +73,14 @@ def process(source, target, rdfsonly, base=None, logger=logging):
                 elif tlinks[0][TARGET] == VERSA_BASEIRI + 'Property':
                     p = I(RDFS_NAMESPACE + 'subPropertyOf')
         if p == VERSA_BASEIRI + 'properties':
-            target.add((URIRef(o), URIRef(RDFS_NAMESPACE + 'domain'), URIRef(s)))
+            suri = I(iri.absolutize(s, base)) if base else s
+            target.add((URIRef(o), URIRef(RDFS_NAMESPACE + 'domain'), URIRef(suri)))
             continue
+        if p == VERSA_BASEIRI + 'value':
+            if o not in ['Literal', 'IRI']:
+                ouri = I(iri.absolutize(o, base)) if base else o
+                target.add((URIRef(s), URIRef(RDFS_NAMESPACE + 'range'), URIRef(ouri)))
+                continue
         s = URIRef(s)
         #Translate v:type to rdf:type
         p = RDF.type if p == TYPE_REL else URIRef(p)
