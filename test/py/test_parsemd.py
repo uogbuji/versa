@@ -15,7 +15,7 @@ def module_path(local_function):
    return os.path.abspath(inspect.getsourcefile(local_function))
 
 #hack to locate test resource (data) files regardless of from where nose was run
-RESOURCEPATH = os.path.normpath(os.path.join(module_path(lambda _: None), '../../py/resource/'))
+RESOURCEPATH = os.path.normpath(os.path.join(module_path(lambda _: None), '../../resource/'))
 
 VERSA_BASEIRI = 'http://bibfra.me/purl/versa/'
 

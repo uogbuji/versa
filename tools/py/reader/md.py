@@ -14,6 +14,8 @@ import re
 import itertools
 
 import markdown
+from versa.contrib import mkdcomments
+
 from amara3 import iri #for absolutize & matches_uri_syntax
 from amara3.uxml.parser import parse, event
 from amara3.uxml.tree import treebuilder, element
@@ -137,7 +139,17 @@ def from_markdown(md, output, encoding='utf-8', config=None):
     output -- Versa model to take the output relationship
     encoding -- character encoding (defaults to UTF-8)
 
-    No return value
+    Returns: The overall base URI (`@base`) specified in the Markdown file, or None
+    
+    >>> from versa.driver import memory
+    >>> from versa.reader.md import from_markdown
+    >>> m = memory.connection()
+    >>> from_markdown(open('test/resource/poetry.md').read(), m)
+    'http://uche.ogbuji.net/poems/'
+    >>> m.size()
+    40
+    >>> next(m.match(None, 'http://uche.ogbuji.net/poems/updated', '2013-10-15'))
+    (I(http://uche.ogbuji.net/poems/1), I(http://uche.ogbuji.net/poems/updated), '2013-10-15', {})
     """
     #Set up configuration to interpret the conventions for the Markdown
     config = config or {}
@@ -168,7 +180,8 @@ def from_markdown(md, output, encoding='utf-8', config=None):
     #h = markdown.markdown(escape(md.decode(encoding)), output_format='html5')
     #Note: even using safe_mode this should not be presumed safe from tainted input
     #h = markdown.markdown(md.decode(encoding), safe_mode='escape', output_format='html5')
-    h = markdown.markdown(md, safe_mode='escape', output_format='html5')
+    comments = mkdcomments.CommentsExtension()
+    h = markdown.markdown(md, safe_mode='escape', output_format='html5', extensions=[comments])
 
     #doc = html.markup_fragment(inputsource.text(h.encode('utf-8')))
     tb = treebuilder()
@@ -202,7 +215,7 @@ def from_markdown(md, output, encoding='utf-8', config=None):
             if pair.strip():
                 matched = REL_PAT.match(pair)
                 if not matched:
-                    raise ValueError(_('Syntax error in relationship expression: {0}'.format(field)))
+                    raise ValueError(_('Syntax error in relationship expression: {0}'.format(pair)))
                 #print matched.groups()
                 if matched.group(3): prop = matched.group(3).strip()
                 if matched.group(4): prop = matched.group(4).strip()
@@ -230,17 +243,19 @@ def from_markdown(md, output, encoding='utf-8', config=None):
         for li in field_list:
             #Is there a nested list, which expresses attributes on a property
             if list(select_name(li, 'ul')):
-                main = ''.join([ node.xml_value()
+                main = ''.join([ node.xml_value
                         for node in itertools.takewhile(
-                            lambda x: x.xml_name != 'h1', select_elements(li)
+                            lambda x: x.xml_name != 'ul', select_elements(li)
                             )
                     ])
                 #main = li.xml_select('string(ul/preceding-sibling::node())')
                 prop, val, typeindic = parse_li(main)
-                subfield_list = [ parse_li(sli.xml_value()) for sli in (
-                                select_name(e, 'li') for e in select_name(li, 'ul')
+                subfield_list = [ parse_li(sli.xml_value) for e in select_name(li, 'ul') for sli in (
+                                select_name(e, 'li')
                                 ) ]
                 subfield_list = [ (p, v, t) for (p, v, t) in subfield_list if p is not None ]
+                #Support a special case for syntax such as in the @interpretations: stanza of @docheader
+                if prop is None: prop = ''
                 yield prop, val, typeindic, subfield_list
             #Just a regular, unadorned property
             else:
