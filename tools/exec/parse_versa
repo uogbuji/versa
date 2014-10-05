@@ -32,7 +32,7 @@ def run(inputs=None, base=None, config=None, out=None, verbose=False):
     if verbose:
         logging.basicConfig(level=logging.DEBUG)
 
-    m = memory.connection(baseuri=base)
+    m = memory.connection(baseiri=base)
     for inf in inputs:
         base_out = from_markdown(inf.read(), m, config=config)
         #for sid, link in m:

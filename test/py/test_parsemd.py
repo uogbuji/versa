@@ -62,7 +62,7 @@ def test_versa_syntax1():
         }
     }
 
-    m = memory.connection(baseuri='http://example.org/')
+    m = memory.connection(baseiri='http://example.org/')
     #from_markdown(VERSA_LITERATE1, m, encoding='utf-8')
     doc = open(os.path.join(RESOURCEPATH, 'ubibframe.md')).read()
     from_markdown(doc, m, config=config)

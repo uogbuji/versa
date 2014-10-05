@@ -216,7 +216,7 @@ def run(modelsource=None, output=None, base=''):
         }
     }
 
-    m = memory.connection(baseuri=base)
+    m = memory.connection(baseiri=base)
     modelsource = open(modelsource).read()
     base = from_markdown(modelsource, m, config=config)
 

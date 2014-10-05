@@ -18,7 +18,7 @@ from versa.contrib import mkdcomments
 
 from amara3 import iri #for absolutize & matches_uri_syntax
 from amara3.uxml.parser import parse, event
-from amara3.uxml.tree import treebuilder, element
+from amara3.uxml.tree import treebuilder, element, text
 from amara3.uxml.treeutil import *
 #from amara import namespaces
 
@@ -29,7 +29,10 @@ TEXT_VAL, RES_VAL, UNKNOWN_VAL = 1, 2, 3
 TYPE_REL = I(iri.absolutize('type', VERSA_BASEIRI))
 
 #Does not support the empty URL <> as a property name
-REL_PAT = re.compile('((<(.+)>)|([@\\-_\\w]+)):\s*((<(.+)>)|("(.*?)")|(\'(.*?)\')|(.*))', re.DOTALL)
+REL_PAT = re.compile('((<(.+)>)|([@\\-_\\w#/]+)):\s*((<(.+)>)|("(.*?)")|(\'(.*?)\')|(.*))', re.DOTALL)
+
+#
+URI_ABBR_PAT = re.compile('@([\\-_\\w]+)([#/@])(.+)', re.DOTALL)
 
 #Does not support the empty URL <> as a property name
 RESOURCE_STR = '([^\s\\[\\]]+)?\s?(\\[([^\s\\[\\]]*?)\\])?'
@@ -131,7 +134,7 @@ def from_markdown(md, output, encoding='utf-8', config=None):
                 interpretations[prop] = lambda x, **kwargs: x
 
     setup_interpretations(interp_stanza)
-
+    
     #Parse the Markdown
     #Alternately:
     #from xml.sax.saxutils import escape, unescape
@@ -201,34 +204,44 @@ def from_markdown(md, output, encoding='utf-8', config=None):
         for li in field_list:
             #Is there a nested list, which expresses attributes on a property
             if list(select_name(li, 'ul')):
-                main = ''.join([ node.xml_value
-                        for node in itertools.takewhile(
-                            lambda x: x.xml_name != 'ul', select_elements(li)
-                            )
-                    ])
+                #main = ''.join([ node.xml_value
+                #        for node in itertools.takewhile(
+                #            lambda x: x.xml_name != 'ul', select_elements(li)
+                #            )
+                #    ])
+                main = ''.join(itertools.takewhile(
+                            lambda x: isinstance(x, text), li.xml_children
+                            ))
                 #main = li.xml_select('string(ul/preceding-sibling::node())')
                 prop, val, typeindic = parse_li(main)
                 subfield_list = [ parse_li(sli.xml_value) for e in select_name(li, 'ul') for sli in (
                                 select_name(e, 'li')
                                 ) ]
                 subfield_list = [ (p, v, t) for (p, v, t) in subfield_list if p is not None ]
-                #Support a special case for syntax such as in the @interpretations: stanza of @docheader
-                if prop is None: prop = ''
+                #Support a special case for syntax such as in the @iri and @interpretations: stanza of @docheader
+                if val is None: val = ''
                 yield prop, val, typeindic, subfield_list
             #Just a regular, unadorned property
             else:
                 prop, val, typeindic = parse_li(li.xml_value)
                 if prop: yield prop, val, typeindic, None
 
+    iris = {}
+
     #Gather the document-level metadata
     base = propbase = rtbase = interp_from_instance = None
     for prop, val, typeindic, subfield_list in fields(docheader):
-        if prop == '@base':
+        if prop == '@iri':
             base = propbase = rtbase = val
-        if prop == '@property-base':
-            propbase = val
-        if prop == '@resource-type-base':
-            rtbase = val
+            for (k, uri, typeindic) in subfield_list:
+                if k == '@base':
+                    base = uri
+                elif k == '@property':
+                    propbase = uri
+                elif k == '@resource-type':
+                    rtbase = uri
+                else:
+                    iris[k] = uri
         if prop == '@interpretations':
             interp_from_instance = subfield_list
 
@@ -267,7 +280,12 @@ def from_markdown(md, output, encoding='utf-8', config=None):
             attrs = {}
             for (aprop, aval, atype) in subfield_list or ():
                 if atype == RES_VAL:
-                    attrs[aprop] = I(iri.absolutize(aval, rtbase))
+                    valmatch = URI_ABBR_PAT.match(aval)
+                    if valmatch:
+                        uri = iris[valmatch.group(1)]
+                        attrs[aprop] = URI_ABBR_PAT.sub(uri + '\\2\\3', aval)
+                    else:
+                        attrs[aprop] = I(iri.absolutize(aval, rtbase))
                 elif atype == TEXT_VAL:
                     attrs[aprop] = aval
                 elif atype == UNKNOWN_VAL:
@@ -277,9 +295,19 @@ def from_markdown(md, output, encoding='utf-8', config=None):
                         if aval is not None: attrs[aprop] = aval
                     else:
                         attrs[aprop] = aval
-            fullprop = I(iri.absolutize(prop, propbase))
+            propmatch = URI_ABBR_PAT.match(prop)
+            if propmatch:
+                uri = iris[propmatch.group(1)]
+                fullprop = URI_ABBR_PAT.sub(uri + '\\2\\3', prop)
+            else:
+                fullprop = I(iri.absolutize(prop, propbase))
             if typeindic == RES_VAL:
-                val = I(iri.absolutize(val, rtbase))
+                valmatch = URI_ABBR_PAT.match(aval)
+                if valmatch:
+                    uri = iris[valmatch.group(1)]
+                    val = URI_ABBR_PAT.sub(uri + '\\2\\3', val)
+                else:
+                    val = I(iri.absolutize(val, rtbase))
                 output.add(rid, fullprop, val, attrs)
             elif typeindic == TEXT_VAL:
                 output.add(rid, fullprop, val, attrs)

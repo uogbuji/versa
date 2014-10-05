@@ -20,11 +20,11 @@ from operator import itemgetter
 from versa.driver import connection_base
 
 class connection(connection_base):
-    def __init__(self, baseuri=None, connstr=':memory:', logger=None):
+    def __init__(self, baseiri=None, connstr=':memory:', logger=None):
         '''
         '''
         self._conn = sqlite3.connect(connstr)
-        self._baseuri = baseuri
+        self._baseiri = baseiri
         self._logger = logger or logging
         return
 

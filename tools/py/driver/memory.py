@@ -21,11 +21,11 @@ from versa.driver import connection_base
 from versa import ORIGIN, RELATIONSHIP, TARGET, ATTRIBUTES
 
 class connection(connection_base):
-    def __init__(self, baseuri=None, logger=None):
+    def __init__(self, baseiri=None, logger=None):
         '''
         '''
         self.create_space()
-        self._baseuri = baseuri
+        self._baseiri = baseiri
         self._id_counter = 1
         self._logger = logger or logging
         return
@@ -42,8 +42,8 @@ class connection(connection_base):
         return
 
     def generate_resource(self):
-        if self._baseuri:
-            return iri.absolutize(str(self._id_counter), self._baseuri)
+        if self._baseiri:
+            return iri.absolutize(str(self._id_counter), self._baseiri)
         else:
             return str(self._id_counter)
 

@@ -117,7 +117,7 @@ def run(inputs=None, base=None, config=None, rdfttl=None, rdfxml=None, rdfsonly=
     for k, v in prefixes.items():
         g.bind(k, v)
     for inf in inputs:
-        m = memory.connection(baseuri=base)
+        m = memory.connection(baseiri=base)
         base_out = from_markdown(inf.read(), m, config=config)
         process(m, g, rdfsonly, base=base_out, logger=logger)
 
