@@ -23,6 +23,7 @@ from versa.driver import memory
 from versa import VERSA_BASEIRI
 from versa.reader.md import from_markdown
 from versa import ORIGIN, RELATIONSHIP, TARGET, ATTRIBUTES
+from versa.util import jsondump
 
 def run(inputs=None, base=None, config=None, out=None, verbose=False):
     '''
@@ -31,12 +32,13 @@ def run(inputs=None, base=None, config=None, out=None, verbose=False):
     if verbose:
         logging.basicConfig(level=logging.DEBUG)
 
+    m = memory.connection(baseuri=base)
     for inf in inputs:
-        m = memory.connection(baseuri=base)
         base_out = from_markdown(inf.read(), m, config=config)
-        for sid, link in m:
-            link_out = link if link[ATTRIBUTES] else link[:3]
-            out.write(repr(link_out) + '\n')
+        #for sid, link in m:
+        #    link_out = link if link[ATTRIBUTES] else link[:3]
+        #    out.write(repr(link_out) + '\n')
+    jsondump(m, out)
 
     return
 

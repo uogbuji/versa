@@ -121,6 +121,3 @@ Literate much more readable. The following example uses several abbreviation mec
     
     * link-type/see-also: </ndewo/>
 
-
-
-
