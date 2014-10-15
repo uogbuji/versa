@@ -195,4 +195,7 @@ class connection(connection_base):
         return hash(bytes(repr(self),'utf-8'))
 
     def __eq__(self, other):
-        return hash(self) == hash(other)
+        if other.__hash__:
+            return hash(self) == hash(other)
+        else:
+            return False
