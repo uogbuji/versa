@@ -29,8 +29,10 @@ The meta-properties in this file are actually defined by the Versa data model to
 
 @resource-base is another possible override, for resource headers, but not used here
 -->
-* @base: http://bibfra.me/vocab/
-* @property-base: http://bibfra.me/purl/versa/
+
+* @iri:
+    * @base: http://bibfra.me/vocab/
+    * @property: http://bibfra.me/purl/versa/
 
 # Resource
 

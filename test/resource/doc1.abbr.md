@@ -1,7 +1,8 @@
 # @docheader
 
-* @base: http://uche.ogbuji.net
-* @prop-base: http://www.w3.org/TR/html5/
+* @iri:
+    * @base: http://uche.ogbuji.net
+    * @property: http://www.w3.org/TR/html5/
 
 # /ndewo/
 

@@ -1,18 +1,11 @@
-<!-- Based on example at http://schema.org/CreativeWork -->
+<!--- Based on example at http://schema.org/CreativeWork -->
 
 # @docheader
 
-<!-- Because of this avatar-movie is resolved to http://example.org/movies/avatar-movie etc. -->
-
-* @base: http://example.org/classics/
-
-<!-- Because of this Movie is resolved to http://schema.org/Movie etc. -->
-
-* @resource-type-base: http://schema.org/
-
-<!-- Because of this name is resolved to http://schema.org/name etc. -->
-
-* @property-base: http://schema.org/
+* @iri:
+    * @base: http://example.org/classics/
+    * @resource-type: http://schema.org/
+    * @property: http://schema.org/
 
 # catcher-in-the-rye [Book]
 

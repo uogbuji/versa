@@ -232,10 +232,9 @@ def from_markdown(md, output, encoding='utf-8', config=None):
     base = propbase = rtbase = interp_from_instance = None
     for prop, val, typeindic, subfield_list in fields(docheader):
         if prop == '@iri':
-            base = propbase = rtbase = val
             for (k, uri, typeindic) in subfield_list:
                 if k == '@base':
-                    base = uri
+                    base = propbase = rtbase = uri
                 elif k == '@property':
                     propbase = uri
                 elif k == '@resource-type':
