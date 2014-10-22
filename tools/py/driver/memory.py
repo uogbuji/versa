@@ -139,7 +139,7 @@ class connection(connection_base):
                 subj, pred, obj, attrs, rid = rel
             else:
                 raise ValueError
-            self.add(subj, pred, obj, attrs, ridNone)
+            self.add(subj, pred, obj, attrs, rid)
         return
 
     def delete(rids):
@@ -167,3 +167,35 @@ class connection(connection_base):
         self._relationships = {}
         return
 
+    def __repr__(self):
+        '''
+        Canonical representation used for equivalence testing in test cases
+        '''
+        import json
+        from collections import OrderedDict
+        from versa.util import OrderedJsonEncoder
+
+        # need to rebuilding _relationships with sorted attributes
+        rels = []
+        for v in sorted(self._relationships.values()):
+            if v[3]:
+                new_attr = OrderedDict()
+                for ak in sorted(v[3].keys()):
+                    new_attr[ak] = v[3][ak]
+
+                new_v = (v[0], v[1], v[2], new_attr)
+            else:
+                new_v = v
+
+            rels.append(new_v)
+
+        return json.dumps(rels, indent=4, cls=OrderedJsonEncoder)
+
+    def __hash__(self):
+        return hash(bytes(repr(self),'utf-8'))
+
+    def __eq__(self, other):
+        if other.__hash__:
+            return hash(self) == hash(other)
+        else:
+            return False

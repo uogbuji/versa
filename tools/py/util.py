@@ -7,6 +7,7 @@ Utilities to help deal with constructs expressed in Versa
 #import logging
 
 import json
+from collections import OrderedDict
 
 from versa import ORIGIN, RELATIONSHIP, TARGET, VERSA_BASEIRI
 from versa import init_localization
@@ -66,3 +67,16 @@ def jsondump(model, fp):
     fp.write(',\n'.join(links_ser))
     fp.write(']')
 
+class OrderedJsonEncoder(json.JSONEncoder):
+    '''
+    JSON-serialize OrderedDicts... in order
+
+    Derived from http://stackoverflow.com/questions/10844064/items-in-json-object-are-out-of-order-using-json-dumps
+
+    Used for generating canonical representations of Versa models
+    '''
+    def encode(self, o):
+        if isinstance(o, OrderedDict):
+            return '{'+','.join(( self.encode(k)+':'+self.encode(v) for (k,v) in o.items() ))+'}'
+        else:
+            return json.JSONEncoder.encode(self, o)
