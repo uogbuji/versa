@@ -2,7 +2,7 @@
 '''
 
 [
-    (subj, pred, obj, {attrname1: attrval1, attrname2: attrval2}),
+    (origin, rel, target, {attrname1: attrval1, attrname2: attrval2}),
 ]
 
 The optional attributes are metadata bound to the statement itself
@@ -60,36 +60,37 @@ class connection(connection_base):
     def __iter__(self):
         cur = self._conn.cursor()
         tables = u"relationship"
-        querystr = u"SELECT relationship.rawid, relationship.subj, relationship.pred, relationship.obj, attribute.name, attribute.value FROM relationship FULL JOIN attribute ON relationship.rawid = attribute.rawid;".format(tables)
+        querystr = u"SELECT relationship.rawid, relationship.origin, relationship.rel, relationship.target, attribute.name, attribute.value FROM relationship FULL JOIN attribute ON relationship.rawid = attribute.rawid;".format(tables)
         cur.execute(querystr)
         return self._process_db_rows_iter(cur)
 
-    def match(self, subj=None, pred=None, obj=None, attrs=None):
+    def match(self, origin=None, rel=None, target=None, attrs=None, include_ids=False):
         '''
         Retrieve an iterator of relationship IDs that match a pattern of components
 
-        subj - optional subject or origin of the relationship, an IRI coded as a unicode object. If omitted any subject will be matched.
-        pred - optional predicate or type of the relationship, an IRI coded as a unicode object. If omitted any predicate will be matched.
-        obj - optional object of the relationship, a boolean, floating point or unicode object. If omitted any object will be matched.
-        attrs - optional attribute mapping of relationship metadata, i.e. {attrname1: attrval1, attrname2: attrval2}. If any attribute is specified, an exact match is made (i.e. the attribute name and value must match).
-
+        origin - (optional) origin of the relationship (similar to an RDF subject). If omitted any origin will be matched.
+        rel - (optional) type IRI of the relationship (similar to an RDF predicate). If omitted any relationship will be matched.
+        target - (optional) target of the relationship (similar to an RDF object), a boolean, floating point or unicode object. If omitted any target will be matched.
+        attrs - (optional) attribute mapping of relationship metadata, i.e. {attrname1: attrval1, attrname2: attrval2}. If any attribute is specified, an exact match is made (i.e. the attribute name and value must match).
+        include_ids - If true include statement IDs with yield values
         '''
+        #FIXME: Implement include_ids
         cur = self._conn.cursor()
         conditions = u""
         and_placeholder = u""
         tables = u"relationship"
         params = []
-        if subj:
-            conditions += u"relationship.subj = %s"
-            params.append(subj)
+        if origin:
+            conditions += u"relationship.origin = %s"
+            params.append(origin)
             and_placeholder = u" AND "
-        if obj:
-            conditions += and_placeholder + u"relationship.obj = %s"
-            params.append(obj)
+        if target:
+            conditions += and_placeholder + u"relationship.target = %s"
+            params.append(target)
             and_placeholder = u" AND "
-        if pred:
-            conditions += and_placeholder + u"relationship.pred = %s"
-            params.append(pred)
+        if rel:
+            conditions += and_placeholder + u"relationship.rel = %s"
+            params.append(rel)
             and_placeholder = u" AND "
         if attrs:
             tables = u"relationship, attribute"
@@ -97,9 +98,9 @@ class connection(connection_base):
                 conditions += and_placeholder + u"EXISTS (SELECT 1 from attribute AS subattr WHERE subattr.rawid = relationship.rawid AND subattr.name = %s AND subattr.value = %s)"
                 params.extend((a_name, a_val))
                 and_placeholder = u" AND "
-        #querystr = u"SELECT relationship.rawid, relationship.subj, relationship.pred, relationship.obj, attribute.name, attribute.value FROM {0} WHERE {1} ORDER BY relationship.rawid;".format(tables, conditions)
-        #SELECT relationship.rawid, attribute.rawid, relationship.subj, relationship.pred, relationship.obj, attribute.name, attribute.value FROM relationship FULL JOIN attribute ON relationship.rawid = attribute.rawid WHERE relationship.subj = 'http://uche.ogbuji.net' AND EXISTS (SELECT 1 from attribute AS subattr WHERE subattr.rawid = relationship.rawid AND subattr.name = '@context' AND subattr.value = 'http://uche.ogbuji.net#_metadata') AND EXISTS (SELECT 1 from attribute AS subattr WHERE subattr.rawid = relationship.rawid AND subattr.name = '@lang' AND subattr.value = 'ig') ORDER BY relationship.rawid;
-        querystr = u"SELECT relationship.rawid, relationship.subj, relationship.pred, relationship.obj, attribute.name, attribute.value FROM relationship FULL JOIN attribute ON relationship.rawid = attribute.rawid WHERE {1} ORDER BY relationship.rawid;".format(tables, conditions)
+        #querystr = u"SELECT relationship.rawid, relationship.origin, relationship.rel, relationship.target, attribute.name, attribute.value FROM {0} WHERE {1} ORDER BY relationship.rawid;".format(tables, conditions)
+        #SELECT relationship.rawid, attribute.rawid, relationship.origin, relationship.rel, relationship.target, attribute.name, attribute.value FROM relationship FULL JOIN attribute ON relationship.rawid = attribute.rawid WHERE relationship.origin = 'http://uche.ogbuji.net' AND EXISTS (SELECT 1 from attribute AS subattr WHERE subattr.rawid = relationship.rawid AND subattr.name = '@context' AND subattr.value = 'http://uche.ogbuji.net#_metadata') AND EXISTS (SELECT 1 from attribute AS subattr WHERE subattr.rawid = relationship.rawid AND subattr.name = '@lang' AND subattr.value = 'ig') ORDER BY relationship.rawid;
+        querystr = u"SELECT relationship.rawid, relationship.origin, relationship.rel, relationship.target, attribute.name, attribute.value FROM relationship FULL JOIN attribute ON relationship.rawid = attribute.rawid WHERE {1} ORDER BY relationship.rawid;".format(tables, conditions)
         #self._logger.debug(x.format(url))
         self._logger.debug(cur.mogrify(querystr, params))
         cur.execute(querystr, params)
@@ -119,44 +120,45 @@ class connection(connection_base):
         #Be aware of: http://packages.python.org/psycopg2/faq.html#problems-with-transactions-handling
         #The results will come back grouped by the raw relationship IDs, in order
         for relid, relgroup in groupby(cursor, itemgetter(0)):
-            rel = None
+            curr_rel = None
             attrs = None
             #Each relgroup are the DB rows corresponding to a single relationship,
-            #With redundant subject/predicate/object but the sequence of attributes
+            #With redundant origin/rel/target but the sequence of attributes
             for row in relgroup:
-                (rawid, subj, pred, obj, a_name, a_val) = row
+                (rawid, origin, rel, target, a_name, a_val) = row
                 #self._logger.debug('Row: {0}'.format(repr(row)))
-                if not rel: rel = (subj, pred, obj)
+                if not curr_rel: curr_rel = (origin, rel, target)
                 if a_name:
                     if not attrs:
                         attrs = {}
-                        rel = (subj, pred, obj, attrs)
+                        curr_rel = (origin, rel, target, attrs)
                     attrs[a_name] = a_val
-            yield rel
+            yield curr_rel
         cursor.close()
         self._conn.rollback() #Finish with the transaction
         return
 
-    def add(self, subj, pred, obj, attrs=None, rid=None):
+    def add(self, origin, rel, target, attrs=None, rid=None):
         '''
         Add one relationship to the extent
 
-        subj - subject or origin of the relationship, an IRI coded as a unicode object
-        pred - predicate or type of the relationship, an IRI coded as a unicode object
-        obj - object of the relationship, a boolean, floating point or unicode object
+        origin - origin of the relationship (similar to an RDF subject)
+        rel - type IRI of the relationship (similar to an RDF predicate)
+        target - target of the relationship (similar to an RDF object), a boolean, floating point or unicode object
         attrs - optional attribute mapping of relationship metadata, i.e. {attrname1: attrval1, attrname2: attrval2}
         rid - optional ID for the relationship in IRI form. If not specified one will be generated.
 
-        returns an ID (IRI) for the resulting relationship
         '''
+        #FIXME no it doesn't re:
+        #returns an ID (IRI) for the resulting relationship
         cur = self._conn.cursor()
         #relationship.
         if rid:
-            querystr = u"INSERT INTO relationship (subj, pred, obj, rid) VALUES (%s, %s, %s, %s) RETURNING rawid;"
-            cur.execute(querystr, (subj, pred, obj, rid))
+            querystr = u"INSERT INTO relationship (origin, rel, target, rid) VALUES (%s, %s, %s, %s) RETURNING rawid;"
+            cur.execute(querystr, (origin, rel, target, rid))
         else:
-            querystr = u"INSERT INTO relationship (subj, pred, obj) VALUES (%s, %s, %s) RETURNING rawid;"
-            cur.execute(querystr, (subj, pred, obj))
+            querystr = u"INSERT INTO relationship (origin, rel, target) VALUES (%s, %s, %s) RETURNING rawid;"
+            cur.execute(querystr, (origin, rel, target))
         rawid = cur.fetchone()[0]
         for a_name, a_val in attrs.items():
             querystr = u"INSERT INTO attribute (rawid, name, value) VALUES (%s, %s, %s);"
@@ -172,12 +174,12 @@ class connection(connection_base):
 
         rels - a list of 0 or more relationship tuples, e.g.:
         [
-            (subj, pred, obj, {attrname1: attrval1, attrname2: attrval2}, rid),
+            (origin, rel, target, {attrname1: attrval1, attrname2: attrval2}, rid),
         ]
 
-        subj - subject or origin of the relationship, an an IRI coded as a unicode object
-        pred - predicate or type of the relationship, an an IRI coded as a unicode object
-        obj - object of the relationship, a boolean, floating point or unicode object
+        origin - origin of the relationship (similar to an RDF subject)
+        rel - type IRI of the relationship (similar to an RDF predicate)
+        target - target of the relationship (similar to an RDF object), a boolean, floating point or unicode object
         attrs - optional attribute mapping of relationship metadata, i.e. {attrname1: attrval1, attrname2: attrval2}
         rid - optional ID for the relationship in IRI form.  If not specified for any relationship, one will be generated.
 
@@ -213,9 +215,9 @@ SQL_MODEL = '''
 CREATE TABLE relationship (
     rawid    SERIAL PRIMARY KEY,  -- a low level, internal ID purely for effieicnt referential integrity
     id       TEXT UNIQUE,         --The higher level relationship ID
-    subj     TEXT NOT NULL,
-    pred     TEXT NOT NULL,
-    obj      TEXT NOT NULL
+    origin   TEXT NOT NULL,
+    rel      TEXT NOT NULL,
+    target   TEXT NOT NULL
 );
 
 CREATE TABLE attribute (
@@ -224,7 +226,7 @@ CREATE TABLE attribute (
     value    TEXT
 );
 
-CREATE INDEX main_relationship_index ON relationship (subj, pred);
+CREATE INDEX main_relationship_index ON relationship (origin, rel);
 
 CREATE INDEX main_attribute_index ON attribute (name, value);
 '''
@@ -241,11 +243,4 @@ DROP TABLE relationship;
 
 #Some notes on arrays:
 # * http://fossplanet.com/f15/%5Bgeneral%5D-general-postgres-performance-tips-when-using-array-169307/
-
-"""
->>> import psycopg2
->>> conn = psycopg2.connect("dbname=test user=postgres password=PeeeGeee")
-"""
-
-#cur.execute("CREATE TABLE test (id serial PRIMARY KEY, num integer, data varchar);")
 

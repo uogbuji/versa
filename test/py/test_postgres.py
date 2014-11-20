@@ -98,14 +98,14 @@ def test_basics(pgdb):
     for (subj, pred, obj, attrs) in RELS_1:
         conn.add(subj, pred, obj, attrs)
     assert conn.size() == len(RELS_1)
-    results = conn.match(subj='http://copia.ogbuji.net')
+    results = conn.match(origin='http://copia.ogbuji.net')
     logging.debug('BASICS PART 1')
     for result in results:
         logging.debug('Result: {0}'.format(repr(result)))
         #assert result == ()
     #assert results == None, "Boo! "
 
-    results = conn.match(subj='http://uche.ogbuji.net', attrs={u'@lang': u'ig'})
+    results = conn.match(origin='http://uche.ogbuji.net', attrs={u'@lang': u'ig'})
     logging.debug('BASICS PART 2')
     results = list(results)
     for result in results:

@@ -23,14 +23,14 @@ def test_basics():
     model = memory.connection()
     for (subj, pred, obj, attrs) in RELS_1:
         model.add(subj, pred, obj, attrs)
-    results = model.match(subj='http://copia.ogbuji.net')
+    results = model.match(origin='http://copia.ogbuji.net')
     logging.debug('BASICS PART 1')
     for result in results:
         logging.debug('Result: {0}'.format(repr(result)))
         #assert result == ()
     #assert results == None, "Boo! "
 
-    results = model.match(subj='http://uche.ogbuji.net', attrs={u'@lang': u'ig'})
+    results = model.match(origin='http://uche.ogbuji.net', attrs={u'@lang': u'ig'})
     logging.debug('BASICS PART 2')
     results = tuple(list(results))
     import pprint; pprint.pprint(results)

@@ -2,7 +2,7 @@
 '''
 
 [
-    (subj, pred, obj, {attrname1: attrval1, attrname2: attrval2}),
+    (origin, rel, target, {attrname1: attrval1, attrname2: attrval2}),
 ]
 
 The optional attributes are metadata bound to the statement itself
@@ -60,53 +60,54 @@ class connection(connection_base):
 
     #FIXME: For performance make each link an iterator, so that slice/copy isn't necessary?
 
-    def match(self, subj=None, pred=None, obj=None, attrs=None, include_ids=False):
+    def match(self, origin=None, rel=None, target=None, attrs=None, include_ids=False):
         '''
         Retrieve an iterator of relationship IDs that match a pattern of components
 
-        subj - optional subject or origin of the relationship, an IRI coded as a unicode object. If omitted any subject will be matched.
-        pred - optional predicate or type of the relationship, an IRI coded as a unicode object. If omitted any predicate will be matched.
-        obj - optional object of the relationship, a boolean, floating point or unicode object. If omitted any object will be matched.
-        attrs - optional attribute mapping of relationship metadata, i.e. {attrname1: attrval1, attrname2: attrval2}. If any attribute is specified, an exact match is made (i.e. the attribute name and value must match).
-
+        origin - (optional) origin of the relationship (similar to an RDF subject). If omitted any origin will be matched.
+        rel - (optional) type IRI of the relationship (similar to an RDF predicate). If omitted any relationship will be matched.
+        target - (optional) target of the relationship (similar to an RDF object), a boolean, floating point or unicode object. If omitted any target will be matched.
+        attrs - (optional) attribute mapping of relationship metadata, i.e. {attrname1: attrval1, attrname2: attrval2}. If any attribute is specified, an exact match is made (i.e. the attribute name and value must match).
+        include_ids - If true include statement IDs with yield values
         '''
         #Can't use items or we risk client side RuntimeError: dictionary changed size during iteration
         for rid in list(self._relationships.keys()):
-            rel = self._relationships[rid]
+            curr_rel = self._relationships[rid]
             matches = True
-            if subj and subj != rel[ORIGIN]:
+            if origin and origin != curr_rel[ORIGIN]:
                 matches = False
-            if pred and pred != rel[RELATIONSHIP]:
+            if rel and rel != curr_rel[RELATIONSHIP]:
                 matches = False
-            if obj and obj != rel[TARGET]:
+            if target and target != curr_rel[TARGET]:
                 matches = False
             if attrs:
                 for k, v in attrs.items():
-                    if k not in rel[ATTRIBUTES] or rel[ATTRIBUTES].get(k) != v:
+                    if k not in curr_rel[ATTRIBUTES] or curr_rel[ATTRIBUTES].get(k) != v:
                         matches = False
             if matches:
                 if include_ids:
-                    yield rid, (rel[0], rel[1], rel[2], rel[3].copy())
+                    yield rid, (curr_rel[0], curr_rel[1], curr_rel[2], curr_rel[3].copy())
                 else:
-                    yield (rel[0], rel[1], rel[2], rel[3].copy())
+                    yield (curr_rel[0], curr_rel[1], curr_rel[2], curr_rel[3].copy())
         return
 
-    def add(self, subj, pred, obj, attrs=None, rid=None):
+    def add(self, origin, rel, target, attrs=None, rid=None):
         '''
         Add one relationship to the extent
 
-        subj - subject or origin of the relationship, an IRI coded as a unicode object
-        pred - predicate or type of the relationship, an IRI coded as a unicode object
-        obj - object of the relationship, a boolean, floating point or unicode object
+        origin - origin of the relationship (similar to an RDF subject)
+        rel - type IRI of the relationship (similar to an RDF predicate)
+        target - target of the relationship (similar to an RDF object), a boolean, floating point or unicode object
         attrs - optional attribute mapping of relationship metadata, i.e. {attrname1: attrval1, attrname2: attrval2}
         rid - optional ID for the relationship in IRI form. If not specified one will be generated.
         '''
         #FIXME: return an ID (IRI) for the resulting relationship?
+        assert rel
         attrs = attrs or {}
         if rid is None:
             rid = self.generate_resource()
             self._id_counter += 1
-        self._relationships[rid] = (subj, pred, obj, attrs)
+        self._relationships[rid] = (origin, rel, target, attrs)
         return
 
     def add_many(self, rels):
@@ -115,12 +116,12 @@ class connection(connection_base):
 
         rels - a list of 0 or more relationship tuples, e.g.:
         [
-            (subj, pred, obj, {attrname1: attrval1, attrname2: attrval2}, rid),
+            (origin, rel, target, {attrname1: attrval1, attrname2: attrval2}, rid),
         ]
 
-        subj - subject or origin of the relationship, an an IRI coded as a unicode object
-        pred - predicate or type of the relationship, an an IRI coded as a unicode object
-        obj - object of the relationship, a boolean, floating point or unicode object
+        origin - origin of the relationship (similar to an RDF subject)
+        rel - type IRI of the relationship (similar to an RDF predicate)
+        target - target of the relationship (similar to an RDF object), a boolean, floating point or unicode object
         attrs - optional attribute mapping of relationship metadata, i.e. {attrname1: attrval1, attrname2: attrval2}
         rid - optional ID for the relationship in IRI form.  If not specified for any relationship, one will be generated.
 
@@ -128,18 +129,19 @@ class connection(connection_base):
 
         returns a list of IDs (IRI), one for each resulting relationship, in order
         '''
-        for rel in rels:
+        for curr_rel in curr_rels:
             attrs = {}
             rid = None
-            if len(rel) == 3:
-                subj, pred, obj = rel
-            elif len(rel) == 4:
-                subj, pred, obj, attrs = rel
-            elif len(rel) == 5:
-                subj, pred, obj, attrs, rid = rel
+            if len(curr_rel) == 3:
+                origin, rel, target = curr_rel
+            elif len(curr_rel) == 4:
+                origin, rel, target, attrs = curr_rel
+            elif len(curr_rel) == 5:
+                origin, rel, target, attrs, rid = curr_rel
             else:
                 raise ValueError
-            self.add(subj, pred, obj, attrs, rid)
+            assert rel
+            self.add(origin, rel, target, attrs, rid)
         return
 
     def delete(rids):

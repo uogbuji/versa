@@ -2,7 +2,7 @@
 '''
 
 [
-    (subj, pred, obj, {attrname1: attrval1, attrname2: attrval2}),
+    (origin, rel, target, {attrname1: attrval1, attrname2: attrval2}),
 ]
 
 The optional attributes are metadata bound to the statement itself
@@ -14,25 +14,25 @@ class connection_base(object):
         '''Execute a Versa query'''
         raise NotImplementedError
 
-    def match(self, subj=None, pred=None, obj=None, attrs=None):
+    def match(self, origin=None, rel=None, target=None, attrs=None, include_ids=False):
         '''
         Retrieve an iterator of relationship IDs that match a pattern of components
 
-        subj - optional subject or origin of the relationship, an IRI coded as a unicode object. If omitted any subject will be matched.
-        pred - optional predicate or type of the relationship, an IRI coded as a unicode object. If omitted any predicate will be matched.
-        obj - optional object of the relationship, a boolean, floating point or unicode object. If omitted any object will be matched.
+        origin - (optional) origin of the relationship (similar to an RDF subject). If omitted any origin will be matched.
+        rel - (optional) type IRI of the relationship (similar to an RDF predicate). If omitted any relationship will be matched.
+        target - (optional) target of the relationship (similar to an RDF object), a boolean, floating point or unicode object. If omitted any target will be matched.
         attrs - optional attribute mapping of relationship metadata, i.e. {attrname1: attrval1, attrname2: attrval2}. If any attribute is specified, an exact match is made (i.e. the attribute name and value must match).
-
+        include_ids - If true include statement IDs with yield values
         '''
         raise NotImplementedError
 
-    def add(self, subj, pred, obj, attrs=None, rid=None):
+    def add(self, origin, rel, target, attrs=None, rid=None):
         '''
         Add one relationship to the extent
 
-        subj - subject or origin of the relationship, an IRI coded as a unicode object
-        pred - predicate or type of the relationship, an IRI coded as a unicode object
-        obj - object of the relationship, a boolean, floating point or unicode object
+        origin - origin of the relationship (similar to an RDF subject)
+        rel - type IRI of the relationship (similar to an RDF predicate)
+        target - target of the relationship (similar to an RDF object), a boolean, floating point or unicode object
         attrs - optional attribute mapping of relationship metadata, i.e. {attrname1: attrval1, attrname2: attrval2}
         rid - optional ID for the relationship in IRI form. If not specified one will be generated.
 
@@ -46,12 +46,12 @@ class connection_base(object):
 
         rels - a list of 0 or more relationship tuples, e.g.:
         [
-            (subj, pred, obj, {attrname1: attrval1, attrname2: attrval2}, rid),
+            (origin, rel, target, {attrname1: attrval1, attrname2: attrval2}, rid),
         ]
 
-        subj - subject or origin of the relationship, an an IRI coded as a unicode object
-        pred - predicate or type of the relationship, an an IRI coded as a unicode object
-        obj - object of the relationship, a boolean, floating point or unicode object
+        origin - origin of the relationship (similar to an RDF subject)
+        rel - type IRI of the relationship (similar to an RDF predicate)
+        target - target of the relationship (similar to an RDF object), a boolean, floating point or unicode object
         attrs - optional attribute mapping of relationship metadata, i.e. {attrname1: attrval1, attrname2: attrval2}
         rid - optional ID for the relationship in IRI form.  If not specified for any relationship, one will be generated.
 
