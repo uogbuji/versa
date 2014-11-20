@@ -228,9 +228,10 @@ def from_markdown(md, output, encoding='utf-8', config=None):
 
     iris = {}
 
-    #Gather the document-level metadata
+    #Gather the document-level metadata from the @docheader section
     base = propbase = rtbase = interp_from_instance = None
     for prop, val, typeindic, subfield_list in fields(docheader):
+        #The @iri section is where key IRI prefixes can be set
         if prop == '@iri':
             for (k, uri, typeindic) in subfield_list:
                 if k == '@base':
@@ -241,15 +242,18 @@ def from_markdown(md, output, encoding='utf-8', config=None):
                     rtbase = uri
                 else:
                     iris[k] = uri
+        #The @interpretations section is where defaults can be set as to the primitive types of values from the Markdown, based on the relevant property/relationship
         if prop == '@interpretations':
             interp_from_instance = subfield_list
 
+    #Iterate over items from the @docheader/@interpretations section to set up for further parsing
     if interp_from_instance:
         interp = {}
         for k, v, x in interp_from_instance:
-            interp[I(iri.absolutize(k, rtbase))] = v
+            interp[I(iri.absolutize(k, propbase))] = v
         setup_interpretations(interp)
 
+    #Default IRI prefixes if @iri/@base is set
     if not propbase: propbase = base
     if not rtbase: rtbase = base
 

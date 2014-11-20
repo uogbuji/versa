@@ -1,4 +1,3 @@
-#Dendrite: a Web semi-structured metadata tool
 '''
 
 [
