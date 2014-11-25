@@ -90,7 +90,7 @@ def process(source, target, rdfsonly, base=None, logger=logging):
     return
 
 
-def run(inputs=None, base=None, config=None, rdfttl=None, rdfxml=None, rdfsonly=False, ns=None, verbose=False):
+def run(inputs=None, base=None, config=None, jsonf=None, rdfttl=None, rdfxml=None, rdfsonly=False, ns=None, verbose=False):
     '''
     See the command line help
     '''
@@ -105,7 +105,9 @@ def run(inputs=None, base=None, config=None, rdfttl=None, rdfxml=None, rdfsonly=
         'interpretations': {
             VERSA_BASEIRI + 'refines': VERSA_BASEIRI + 'resourceset',
             VERSA_BASEIRI + 'properties': VERSA_BASEIRI + 'resourceset',
-            VERSA_BASEIRI + 'synonyms': VERSA_BASEIRI + 'resourceset'
+            VERSA_BASEIRI + 'synonyms': VERSA_BASEIRI + 'resourceset',
+            VERSA_BASEIRI + 'highlight': VERSA_BASEIRI + 'resourceset',
+            VERSA_BASEIRI + 'scope': VERSA_BASEIRI + 'resource',
         }
     }
 
@@ -138,6 +140,8 @@ if __name__ == '__main__':
                         help='One or more Versa files to be parsed into a single model')
     parser.add_argument('--ns', metavar="prefix:iri", nargs="*", action='append',
         help='Namespace mapping')
+    parser.add_argument('--json', type=argparse.FileType('wb'),
+        help='file where JSON output should be written')
     parser.add_argument('--rdfttl', type=argparse.FileType('wb'),
         help='file where RDF Turtle output should be written')
     parser.add_argument('--rdfxml', type=argparse.FileType('wb'),
@@ -153,9 +157,12 @@ if __name__ == '__main__':
     #
     args = parser.parse_args()
 
-    run(inputs=args.inputs, base=args.base, config=args.config, rdfttl=args.rdfttl, rdfxml=args.rdfxml, rdfsonly=args.rdfsonly, ns=args.ns, verbose=args.verbose)
+    run(inputs=args.inputs, base=args.base, config=args.config, jsonf=args.json,
+        rdfttl=args.rdfttl, rdfxml=args.rdfxml, rdfsonly=args.rdfsonly, ns=args.ns,
+        verbose=args.verbose)
     for f in args.inputs: f.close()
     if args.config: args.config.close()
+    if args.json: args.json.close()
     if args.rdfttl: args.rdfttl.close()
     if args.rdfxml: args.rdfxml.close()
 

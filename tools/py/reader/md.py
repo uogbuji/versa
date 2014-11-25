@@ -229,7 +229,7 @@ def from_markdown(md, output, encoding='utf-8', config=None):
     iris = {}
 
     #Gather the document-level metadata from the @docheader section
-    base = propbase = rtbase = interp_from_instance = None
+    base = propbase = rtbase = document_iri = None
     for prop, val, typeindic, subfield_list in fields(docheader):
         #The @iri section is where key IRI prefixes can be set
         if prop == '@iri':
@@ -243,19 +243,30 @@ def from_markdown(md, output, encoding='utf-8', config=None):
                 else:
                     iris[k] = uri
         #The @interpretations section is where defaults can be set as to the primitive types of values from the Markdown, based on the relevant property/relationship
-        if prop == '@interpretations':
-            interp_from_instance = subfield_list
+        elif prop == '@interpretations':
+            #Iterate over items from the @docheader/@interpretations section to set up for further parsing
+            interp = {}
+            for k, v, x in subfield_list:
+                interp[I(iri.absolutize(k, propbase))] = v
+            setup_interpretations(interp)
+        #Setting an IRI for this very document being parsed
+        elif prop == '@document':
+            document_iri = val
+        #If we have a resource to which to attach them, just attach all other properties
+        elif document_iri or base:
+            rid = document_iri or base
+            fullprop = I(iri.absolutize(prop, propbase or base))
+            if fullprop in interpretations:
+                val = interpretations[fullprop](val, rid=rid, fullprop=fullprop, base=base, model=output)
+                if val is not None: output.add(rid, fullprop, val)
+            else:
+                output.add(rid, fullprop, val)
 
-    #Iterate over items from the @docheader/@interpretations section to set up for further parsing
-    if interp_from_instance:
-        interp = {}
-        for k, v, x in interp_from_instance:
-            interp[I(iri.absolutize(k, propbase))] = v
-        setup_interpretations(interp)
 
     #Default IRI prefixes if @iri/@base is set
     if not propbase: propbase = base
     if not rtbase: rtbase = base
+    if not document_iri: document_iri = base
 
     #Go through the resources expressed in remaining sections
     for sect in sections:
@@ -327,5 +338,5 @@ def from_markdown(md, output, encoding='utf-8', config=None):
             #    if not val: val = output.generate_resource()
             #    if valtype: attrs[TYPE_REL] = valtype
 
-    return base
+    return document_iri
 
