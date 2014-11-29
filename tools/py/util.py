@@ -47,11 +47,16 @@ def all_origins(m):
 
 def jsonload(model, fp):
     '''
-    Load Versa model dumped into JSON form
+    Load Versa model dumped into JSON form, either raw or canonical
     '''
     dumped_list = json.load(fp)
     for link in dumped_list:
-        sid, (s, p, o, a) = link
+        if len(link) == 2:
+            sid, (s, p, o, a) = link
+        elif len(link) == 4:
+            (s, p, o, a) = link
+        else:
+            continue
         model.add(s, p, o, a)
     return
 

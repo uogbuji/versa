@@ -129,7 +129,7 @@ class connection(connection_base):
 
         returns a list of IDs (IRI), one for each resulting relationship, in order
         '''
-        for curr_rel in curr_rels:
+        for curr_rel in rels:
             attrs = {}
             rid = None
             if len(curr_rel) == 3:
