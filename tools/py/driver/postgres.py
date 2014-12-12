@@ -189,7 +189,7 @@ class connection(connection_base):
         '''
         raise NotImplementedError
 
-    def delete(rids):
+    def remove(self, rids):
         '''
         Delete one or more relationship, by ID, from the extent
 
@@ -197,7 +197,7 @@ class connection(connection_base):
         '''
         raise NotImplementedError
 
-    def add_iri_prefix(prefix):
+    def add_iri_prefix(self, prefix):
         '''
         Add an IRI prefix, for efficiency of table scan searches
 

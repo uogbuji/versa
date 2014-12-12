@@ -9,7 +9,7 @@ The optional attributes are metadata bound to the statement itself
 '''
 
 class connection_base(object):
-    def query(expr):
+    def query(self, expr):
         '''Execute a Versa query'''
         raise NotImplementedError
 
@@ -60,7 +60,7 @@ class connection_base(object):
         '''
         raise NotImplementedError
 
-    def delete(self, rids):
+    def remove(self, rids):
         '''
         Delete one or more relationship, by ID, from the extent
 

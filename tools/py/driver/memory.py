@@ -144,19 +144,19 @@ class connection(connection_base):
             self.add(origin, rel, target, attrs, rid)
         return
 
-    def delete(rids):
+    def remove(self, rids):
         '''
         Delete one or more relationship, by ID, from the extent
 
         rids - either a single ID or an sequence or iterator of IDs
         '''
-        if isinstance(rids, basestring):
+        if isinstance(rids, str):
             del self._relationships[rids]
         else:
             for rid in rids:
                 del self._relationships[rid]
 
-    def add_iri_prefix(prefix):
+    def add_iri_prefix(self, prefix):
         '''
         Add an IRI prefix, for efficiency of table scan searches
 
