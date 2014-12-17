@@ -71,26 +71,32 @@ def res(arg):
 
 #Functions that take a prototype link set and generates a transformed link set
 
-def materialize(ctx, hashidgen=None, existing_ids=None, unique=None, typ=None, new_rel=None, properties=None):
+def materialize(ctx, split=None, hashidgen=None, existing_ids=None, unique=None, typ=None, new_rel=None, properties=None):
     '''
     Create a new resource related to the origin, with optional, additional links created in the output model
     '''
     properties = properties or {}
-    #Just work with the first provided statement, for now
-    (o, r, t) = ctx.current_link
-    if unique:
-        objid = hashidgen.send(unique(ctx))
-    else:
-        objid = next(hashidgen)
-    if objid != I(iri.absolutize(FROM_EMPTY_HASH, ctx.base)):
-        ctx.output_model.add(I(o), I(iri.absolutize(new_rel, ctx.base)), I(objid), {})
-        if objid not in existing_ids:
-            if typ: ctx.output_model.add(I(objid), VTYPE_REL, I(iri.absolutize(typ, ctx.base)), {})
-            for k, v in properties.items():
-                if callable(v):
-                    v = v(ctx)
-                ctx.output_model.add(I(objid), I(iri.absolutize(k, ctx.base)), v, {})
-    return objid
+    #FIXME: On redesign implement split using function composition instead
+    objids = []
+    (o, r, t, a) = ctx.current_link
+    targets = [t] if split else [ sub_t.strip() for sub_t in t.split(split) ]
+    for target in targets:
+        newctx = ctx.clone(current_link=((o, r, target, a)))
+        #Just work with the first provided statement, for now
+        if unique:
+            objid = hashidgen.send(unique(newctx))
+        else:
+            objid = next(hashidgen)
+        objids.append(objid)
+        if objid != I(iri.absolutize(FROM_EMPTY_HASH, newctx.base)):
+            newctx.output_model.add(I(o), I(iri.absolutize(new_rel, newctx.base)), I(objid), {})
+            if objid not in existing_ids:
+                if typ: newctx.output_model.add(I(objid), VTYPE_REL, I(iri.absolutize(typ, newctx.base)), {})
+                for k, v in properties.items():
+                    if callable(v):
+                        v = v(newctx)
+                    newctx.output_model.add(I(objid), I(iri.absolutize(k, newctx.base)), v, {})
+    return objids
 
 
 def inverse_materialize(ctx, hashidgen=None, existing_ids=None, unique=None, typ=None, new_rel=None, properties=None):
