@@ -76,8 +76,7 @@ def materialize(ctx, hashidgen=None, existing_ids=None, unique=None, typ=None, n
     Create a new resource related to the origin, with optional, additional links created in the output model
     '''
     properties = properties or {}
-    #Just work with the first provided statement, for now
-    (o, r, t) = ctx.current_link
+    (o, r, t, a) = ctx.current_link
     if unique:
         objid = hashidgen.send(unique(ctx))
     else:
@@ -99,7 +98,7 @@ def inverse_materialize(ctx, hashidgen=None, existing_ids=None, unique=None, typ
     '''
     properties = properties or {}
     #Just work with the first provided statement, for now
-    (o, r, t) = ctx.current_link
+    (o, r, t, a) = ctx.current_link
     if unique:
         objid = hashidgen.send(unique(ctx))
     else:
@@ -120,7 +119,7 @@ def relabel(ctx, new_rel=None, res=False):
     Update the label of the relationship to be added to the link space
     '''
     #Just work with the first provided statement, for now
-    (o, r, t) = ctx.current_link
+    (o, r, t, a) = ctx.current_link
     if res: t = I(t)
     ctx.output_model.add(I(o), I(iri.absolutize(new_rel, ctx.base)), t, {})
     return None
