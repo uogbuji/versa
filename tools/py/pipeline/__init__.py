@@ -59,7 +59,7 @@ def materialize_entity(ctx, etype, unique=None, **data):
         else:
             eid = ctx.idgen.send([plaintext, unique])
     else:
-        eid = next(ids)
+        eid = next(ctx.idgen)
     return eid
 
 
@@ -173,7 +173,7 @@ def foreach(origin=None, rel=None, target=None, attributes=None):
     return _foreach
 
 
-def materialize(typ, rel=None, derive_origin=None, unique=None, links=None, inverse=False):
+def materialize(typ, rel=None, derive_origin=None, unique=None, links=None, inverse=False, split=None):
     '''
     Create a new resource related to the origin
     '''
@@ -183,61 +183,67 @@ def materialize(typ, rel=None, derive_origin=None, unique=None, links=None, inve
         if not ctx.idgen: ctx.idgen = idgen
         _typ = typ(ctx) if callable(typ) else typ
         _rel = rel(ctx) if callable(rel) else rel
-        #Conversions to make sure we end up with a list of relationships out of it all
         (o, r, t, a) = ctx.current_link
+        #FIXME: On redesign implement split using function composition instead
+        targets = [t] if split else [ sub_t.strip() for sub_t in t.split(split) ]
+        #Conversions to make sure we end up with a list of relationships out of it all
         if _rel is None:
             _rel = [r]
         rels = _rel if isinstance(_rel, list) else ([_rel] if rel else [])
-        if derive_origin:
-            #Have been given enough info to derive the origin from context. Ignore origin in current link
-            o = derive_origin(ctx)
-        computed_unique = unique(ctx) if unique else None
-        objid = materialize_entity(ctx, _typ, unique=computed_unique)
-        for curr_rel in rels:
-            #FIXME: Fix this properly, by slugifying & making sure slugify handles all numeric case (prepend '_')
-            curr_rel = '_' + curr_rel if curr_rel.isdigit() else curr_rel
-            if curr_rel:
-                if inverse:
-                    ctx.output_model.add(I(objid), I(iri.absolutize(curr_rel, ctx.base)), I(o), {})
-                else:
-                    ctx.output_model.add(I(o), I(iri.absolutize(curr_rel, ctx.base)), I(objid), {})
-        print((objid, ctx.existing_ids))
-        if objid not in ctx.existing_ids:
-            if _typ: ctx.output_model.add(I(objid), VTYPE_REL, I(iri.absolutize(_typ, ctx.base)), {})
-            #FIXME: Should we be using Python Nones to mark blanks, or should Versa define some sort of null resource?
-            for k, v in links.items():
-                k = k(ctx) if callable(k) else k
-                #If k is a list of contexts use it to dynamically execute functions
-                if isinstance(k, list):
-                    if k and isinstance(k[0], context):
-                        for newctx in k:
-                            #Presumably the function in question will generate any needed links in the output model
-                            v(newctx)
-                        continue
+        objids = []
+        for target in targets:
+            ctx_ = ctx.copy(current_link=((o, r, target, a)))
+            if derive_origin:
+                #Have been given enough info to derive the origin from context. Ignore origin in current link
+                o = derive_origin(ctx_)
+            computed_unique = unique(ctx_) if unique else None
+            objid = materialize_entity(ctx_, _typ, unique=computed_unique)
+            objids.append(objid)
+            for curr_rel in rels:
+                #FIXME: Fix this properly, by slugifying & making sure slugify handles all numeric case (prepend '_')
+                curr_rel = '_' + curr_rel if curr_rel.isdigit() else curr_rel
+                if curr_rel:
+                    if inverse:
+                        ctx_.output_model.add(I(objid), I(iri.absolutize(curr_rel, ctx_.base)), I(o), {})
+                    else:
+                        ctx_.output_model.add(I(o), I(iri.absolutize(curr_rel, ctx_.base)), I(objid), {})
+            #print((objid, ctx_.existing_ids))
+            if objid not in ctx_.existing_ids:
+                if _typ: ctx.output_model.add(I(objid), VTYPE_REL, I(iri.absolutize(_typ, ctx_.base)), {})
+                #FIXME: Should we be using Python Nones to mark blanks, or should Versa define some sort of null resource?
+                for k, v in links.items():
+                    k = k(ctx_) if callable(k) else k
+                    #If k is a list of contexts use it to dynamically execute functions
+                    if isinstance(k, list):
+                        if k and isinstance(k[0], context):
+                            for newctx in k:
+                                #Presumably the function in question will generate any needed links in the output model
+                                v(newctx)
+                            continue
 
-                #import traceback; traceback.print_stack() #For looking up the call stack e.g. to debug nested materialize
-                #Check that the links key is not None, which is a signal not to
-                #generate the item. For example if the key is an ifexists and the
-                #test expression result is False, it will come back as None,
-                #and we don't want to run the v function
-                print((k, v))
-                if k:
-                    new_current_link = (I(objid), k, ctx.current_link[TARGET], ctx.current_link[ATTRIBUTES])
-                    newctx = ctx.copy(current_link=new_current_link)
-                    v = v(newctx) if callable(v) else v
-
-                    #If k or v come from pipeline functions as None it signals to skip generating anything else for this link item
-                    if v is not None:
+                    #import traceback; traceback.print_stack() #For looking up the call stack e.g. to debug nested materialize
+                    #Check that the links key is not None, which is a signal not to
+                    #generate the item. For example if the key is an ifexists and the
+                    #test expression result is False, it will come back as None,
+                    #and we don't want to run the v function
+                    if k:
+                        new_current_link = (I(objid), k, ctx.current_link[TARGET], ctx.current_link[ATTRIBUTES])
+                        newctx = ctx.copy(current_link=new_current_link)
                         v = v(newctx) if callable(v) else v
-                        #FIXME: Fix properly, by slugifying & making sure slugify handles all-numeric case
-                        if k.isdigit(): k = '_' + k
-                        if isinstance(v, list):
-                            for valitems in v:
-                                if valitems:
-                                    ctx.output_model.add(I(objid), I(iri.absolutize(k, newctx.base)), valitems, {})
-                        else:
-                            ctx.output_model.add(I(objid), I(iri.absolutize(k, newctx.base)), v, {})
-            ctx.existing_ids.add(objid)
+
+                        #If k or v come from pipeline functions as None it signals to skip generating anything else for this link item
+                        if v is not None:
+                            v = v(newctx) if callable(v) else v
+                            #FIXME: Fix properly, by slugifying & making sure slugify handles all-numeric case
+                            if k.isdigit(): k = '_' + k
+                            if isinstance(v, list):
+                                for valitems in v:
+                                    if valitems:
+                                        ctx.output_model.add(I(objid), I(iri.absolutize(k, newctx.base)), valitems, {})
+                            else:
+                                ctx.output_model.add(I(objid), I(iri.absolutize(k, newctx.base)), v, {})
+                ctx.existing_ids.add(objid)
+        return objids
 
     return _materialize
 
