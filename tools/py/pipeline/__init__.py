@@ -185,14 +185,15 @@ def materialize(typ, rel=None, derive_origin=None, unique=None, links=None, inve
         _rel = rel(ctx) if callable(rel) else rel
         (o, r, t, a) = ctx.current_link
         #FIXME: On redesign implement split using function composition instead
-        targets = [t] if split else [ sub_t.strip() for sub_t in t.split(split) ]
+        targets = [ sub_t.strip() for sub_t in t.split(split) ] if split else [t]
         #Conversions to make sure we end up with a list of relationships out of it all
         if _rel is None:
             _rel = [r]
         rels = _rel if isinstance(_rel, list) else ([_rel] if rel else [])
         objids = []
+        print((split, rels, targets))
         for target in targets:
-            ctx_ = ctx.copy(current_link=((o, r, target, a)))
+            ctx_ = ctx.copy(current_link=(o, r, target, a))
             if derive_origin:
                 #Have been given enough info to derive the origin from context. Ignore origin in current link
                 o = derive_origin(ctx_)
