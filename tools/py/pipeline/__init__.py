@@ -191,7 +191,6 @@ def materialize(typ, rel=None, derive_origin=None, unique=None, links=None, inve
             _rel = [r]
         rels = _rel if isinstance(_rel, list) else ([_rel] if rel else [])
         objids = []
-        print((split, rels, targets))
         for target in targets:
             ctx_ = ctx.copy(current_link=(o, r, target, a))
             if derive_origin:
