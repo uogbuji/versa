@@ -9,7 +9,7 @@ Utilities to help deal with constructs expressed in Versa
 import json
 from collections import OrderedDict
 
-from versa import ORIGIN, RELATIONSHIP, TARGET, VERSA_BASEIRI
+from versa import I, ORIGIN, RELATIONSHIP, TARGET, VERSA_BASEIRI
 from versa import init_localization
 init_localization()
 
@@ -53,8 +53,12 @@ def jsonload(model, fp):
     for link in dumped_list:
         if len(link) == 2:
             sid, (s, p, o, a) = link
-        elif len(link) == 4:
+        elif len(link) == 4: #canonical
             (s, p, o, a) = link
+            tt = a.get('@target-type')
+            if tt == '@iri-ref':
+                o = I(o)
+            a.pop('@target-type', None)
         else:
             continue
         model.add(s, p, o, a)
