@@ -18,7 +18,7 @@ import logging
 from amara3 import iri #for absolutize & matches_uri_syntax
 
 from versa.driver import connection_base
-from versa import ORIGIN, RELATIONSHIP, TARGET, ATTRIBUTES
+from versa import I, ORIGIN, RELATIONSHIP, TARGET, ATTRIBUTES
 
 class connection(connection_base):
     def __init__(self, baseiri=None, logger=None):
@@ -177,7 +177,7 @@ class connection(connection_base):
         from collections import OrderedDict
         from versa.util import OrderedJsonEncoder
 
-        # need to rebuilding _relationships with sorted attributes
+        # rebuilding _relationships with sorted attributes
         rels = []
         for v in sorted(self._relationships.values()):
             if v[3]:
@@ -189,6 +189,11 @@ class connection(connection_base):
             else:
                 new_v = v
 
+            # Mark type of target as a pseudo attribute. Doesn't mutate
+            # original Versa statement
+            if isinstance(v[2], I):
+                new_v[3]['@target-type'] = '@iri-ref'
+            
             rels.append(new_v)
 
         return json.dumps(rels, indent=4, cls=OrderedJsonEncoder)
