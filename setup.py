@@ -7,6 +7,22 @@ versionfile = 'tools/py/version.py'
 exec(compile(open(versionfile, "rb").read(), versionfile, 'exec'), globals(), locals())
 __version__ = '.'.join(version_info)
 
+LONGDESC = '''Versa
+=====
+
+The Versa model for Web resources and relationships. Think of it as an
+evolution of Resource Description Framework (RDF) that's at once simpler
+and more expressive.
+
+'''
+
+try:
+    import pypandoc
+    long_description = pypandoc.convert('README.md', 'rst')
+except (IOError, ImportError) as e:
+    #long_description = open('README.md').read()
+    long_description = LONGDESC
+
 setup(
     name = "versa",
     version = __version__,
@@ -30,6 +46,5 @@ setup(
         "Topic :: Software Development :: Libraries :: Python Modules",
         "Topic :: Internet :: WWW/HTTP",
     ],
-    long_description = '''
-    '''
+    long_description = long_description
     )
