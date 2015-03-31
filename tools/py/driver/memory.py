@@ -13,6 +13,7 @@ The optional attributes are metadata bound to the statement itself
 #Reportedly PyPy/pg8000 is faster than CPython/psycopg2
 
 import logging
+import functools
 #from itertools import groupby
 #from operator import itemgetter
 from amara3 import iri #for absolutize & matches_uri_syntax
@@ -21,9 +22,10 @@ from versa.driver import connection_base
 from versa import I, ORIGIN, RELATIONSHIP, TARGET, ATTRIBUTES
 
 class connection(connection_base):
-    def __init__(self, baseiri=None, logger=None):
+    def __init__(self, baseiri=None, attr_cls=dict, logger=None):
         '''
         '''
+        self._attr_cls = attr_cls # class used to hold attributes within a relationship
         self.create_space()
         self._baseiri = baseiri
         self._id_counter = 1
@@ -103,7 +105,11 @@ class connection(connection_base):
         '''
         #FIXME: return an ID (IRI) for the resulting relationship?
         assert rel
-        attrs = attrs or {}
+
+        # convert attribute class to the expected type
+        if type(attrs) != type(self._attr_cls):
+            attrs = self._attr_cls(attrs or {})
+
         if rid is None:
             rid = self.generate_resource()
             self._id_counter += 1
@@ -130,7 +136,7 @@ class connection(connection_base):
         returns a list of IDs (IRI), one for each resulting relationship, in order
         '''
         for curr_rel in rels:
-            attrs = {}
+            attrs = self._attr_cls()
             rid = None
             if len(curr_rel) == 3:
                 origin, rel, target = curr_rel
@@ -174,35 +180,27 @@ class connection(connection_base):
         Canonical representation used for equivalence testing in test cases
         '''
         import json
-        from collections import OrderedDict
         from versa.util import OrderedJsonEncoder
+
+        # Simple canonicalization of attributes for model sorting purposes
+        # when model constructed with OrderedDict instances for attributes
+        # (via attr_cls). Not canonical if only dict is used.
+        # FIXME this doesn'yet handle the case of irirefs as keys or values
+        # in the attributes
+        rel_repr = functools.partial(json.dumps, cls=OrderedJsonEncoder)
 
         # rebuilding _relationships with sorted attributes
         rels = []
-        for v in sorted(self._relationships.values()):
-            if v[3]:
-                new_attr = OrderedDict()
-                for ak in sorted(v[3].keys()):
-                    new_attr[ak] = v[3][ak]
-
-                new_v = (v[0], v[1], v[2], new_attr)
-            else:
-                new_v = v
+        for v in sorted(self._relationships.values(), key=rel_repr):
 
             # Mark type of target as a pseudo attribute. Doesn't mutate
             # original Versa statement
             if isinstance(v[2], I):
-                new_v[3]['@target-type'] = '@iri-ref'
+                v[3]['@target-type'] = '@iri-ref'
             
-            rels.append(new_v)
+            rels.append(v)
 
         return json.dumps(rels, indent=4, cls=OrderedJsonEncoder)
 
-    def __hash__(self):
-        return hash(bytes(repr(self),'utf-8'))
-
     def __eq__(self, other):
-        if other.__hash__:
-            return hash(self) == hash(other)
-        else:
-            return False
+        return repr(other) == repr(self)
