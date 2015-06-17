@@ -34,7 +34,7 @@ class connection(connection_base):
 
     def create_space(self):
         '''Set up a new table space for the first time'''
-        self._relationships = {}
+        self._relationships = []
         self._id_counter = 1
         return
 
@@ -42,12 +42,6 @@ class connection(connection_base):
         '''Dismantle an existing table space'''
         create_space(self)
         return
-
-    def generate_resource(self):
-        if self._baseiri:
-            return iri.absolutize(str(self._id_counter), self._baseiri)
-        else:
-            return str(self._id_counter)
 
     def query(self, expr):
         '''Execute a Versa query'''
@@ -58,7 +52,7 @@ class connection(connection_base):
         return len(self._relationships)
 
     def __iter__(self):
-        for rid, rel in self._relationships.items(): yield rid, (rel[0], rel[1], rel[2], rel[3].copy())
+        for index, rel in enumerate(self._relationships): yield index, (rel[0], rel[1], rel[2], rel[3].copy())
 
     #FIXME: For performance make each link an iterator, so that slice/copy isn't necessary?
 
@@ -73,8 +67,7 @@ class connection(connection_base):
         include_ids - If true include statement IDs with yield values
         '''
         #Can't use items or we risk client side RuntimeError: dictionary changed size during iteration
-        for rid in list(self._relationships.keys()):
-            curr_rel = self._relationships[rid]
+        for index, curr_rel in enumerate(self._relationships):
             matches = True
             if origin and origin != curr_rel[ORIGIN]:
                 matches = False
@@ -88,12 +81,13 @@ class connection(connection_base):
                         matches = False
             if matches:
                 if include_ids:
-                    yield rid, (curr_rel[0], curr_rel[1], curr_rel[2], curr_rel[3].copy())
+                    yield index, (curr_rel[0], curr_rel[1], curr_rel[2], curr_rel[3].copy())
                 else:
                     yield (curr_rel[0], curr_rel[1], curr_rel[2], curr_rel[3].copy())
+
         return
 
-    def add(self, origin, rel, target, attrs=None, rid=None):
+    def add(self, origin, rel, target, attrs=None, index=None):
         '''
         Add one relationship to the extent
 
@@ -101,7 +95,7 @@ class connection(connection_base):
         rel - type IRI of the relationship (similar to an RDF predicate)
         target - target of the relationship (similar to an RDF object), a boolean, floating point or unicode object
         attrs - optional attribute mapping of relationship metadata, i.e. {attrname1: attrval1, attrname2: attrval2}
-        rid - optional ID for the relationship in IRI form. If not specified one will be generated.
+        index - optional position for the relationship to be inserted
         '''
         #FIXME: return an ID (IRI) for the resulting relationship?
         assert rel
@@ -110,10 +104,12 @@ class connection(connection_base):
         if type(attrs) != type(self._attr_cls):
             attrs = self._attr_cls(attrs or {})
 
-        if rid is None:
-            rid = self.generate_resource()
-            self._id_counter += 1
-        self._relationships[rid] = (origin, rel, target, attrs)
+        item = (origin, rel, target, attrs)
+        if index is not None:
+            self._relationships.insert(index, item)
+        else:
+            self._relationships.append(item)
+
         return
 
     def add_many(self, rels):
@@ -142,25 +138,26 @@ class connection(connection_base):
                 origin, rel, target = curr_rel
             elif len(curr_rel) == 4:
                 origin, rel, target, attrs = curr_rel
-            elif len(curr_rel) == 5:
-                origin, rel, target, attrs, rid = curr_rel
             else:
                 raise ValueError
             assert rel
-            self.add(origin, rel, target, attrs, rid)
+            self.add(origin, rel, target, attrs)
         return
 
-    def remove(self, rids):
+    def remove(self, index):
         '''
-        Delete one or more relationship, by ID, from the extent
+        Delete one or more relationship, by index, from the extent
 
-        rids - either a single ID or an sequence or iterator of IDs
+        index - either a single index or a list of indices
         '''
-        if isinstance(rids, str):
-            del self._relationships[rids]
+        if hasattr(index, '__iter__'):
+            ind = set(index)
         else:
-            for rid in rids:
-                del self._relationships[rid]
+            ind = [index]
+
+        # Rebuild relationships, excluding the provided indices
+        self._relationships = [r for i, r in enumerate(self._relationships) if i not in ind]
+        
 
     def add_iri_prefix(self, prefix):
         '''
@@ -172,7 +169,7 @@ class connection(connection_base):
 
     def close(self):
         '''Set up a new table space for the first time'''
-        self._relationships = {}
+        self._relationships = []
         return
 
     def __repr__(self):
@@ -191,7 +188,7 @@ class connection(connection_base):
 
         # rebuilding _relationships with sorted attributes
         rels = []
-        for v in sorted(self._relationships.values(), key=rel_repr):
+        for v in sorted(self._relationships, key=rel_repr):
 
             # Mark type of target as a pseudo attribute. Doesn't mutate
             # original Versa statement

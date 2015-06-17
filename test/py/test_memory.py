@@ -40,6 +40,34 @@ def test_basics():
     expected = (('http://uche.ogbuji.net', 'http://purl.org/dc/elements/1.1/title', 'Ulo Uche', {'@context': 'http://uche.ogbuji.net#_metadata', '@lang': 'ig'}),)
     assert results == expected, (results, expected)
 
+def test_ordering_insertion():
+    model = memory.connection()
+    model.add('s1','p1','lit1',{})
+    model.add('s1','p2','lit2',{})
+    model.add('s1','p0','lit0',{},index=1)
+    model.add('s2','p3','lit3',{})
+
+    assert list(model)[0][1][1] == 'p1'
+    assert list(model)[1][1][1] == 'p0'
+    assert list(model)[2][1][1] == 'p2'
+    assert list(model)[3][1][1] == 'p3'
+
+def test_removal():
+    model = memory.connection()
+    model.add('s1','p0','lit0',{})
+    model.add('s1','p1','lit1',{})
+    model.add('s1','p2','lit2',{})
+    model.add('s2','p3','lit3',{})
+    model.remove([3,0])
+
+    assert list(model)[0][1][2] == 'lit1'
+    assert list(model)[1][1][2] == 'lit2'
+    assert model.size() == 2
+
+    model.remove(0)
+    assert list(model)[0][1][2] == 'lit2'
+    assert model.size() == 1
+
 
 RELS_1 = [
     ("http://copia.ogbuji.net", "http://purl.org/dc/elements/1.1/creator", "Uche Ogbuji", {"@context": "http://copia.ogbuji.net#_metadata"}),
