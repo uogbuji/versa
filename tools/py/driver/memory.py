@@ -36,7 +36,7 @@ class connection(connection_base):
     def copy(self, contents=True):
         '''Create a copy of this model, optionally without contents (i.e. just configuration)'''
         cp = connection(self._baseiri, self._attr_cls, self._logger)
-        if contents: cp.add_many(list(self))
+        if contents: cp.add_many(self._relationships)
 
         return cp
 
