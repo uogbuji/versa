@@ -21,6 +21,7 @@ from amara3 import iri #for absolutize & matches_uri_syntax
 from versa.driver import connection_base
 from versa import I, ORIGIN, RELATIONSHIP, TARGET, ATTRIBUTES
 
+
 class connection(connection_base):
     def __init__(self, baseiri=None, attr_cls=dict, logger=None):
         '''
@@ -31,6 +32,13 @@ class connection(connection_base):
         self._id_counter = 1
         self._logger = logger or logging
         return
+
+    def copy(self, contents=True):
+        '''Create a copy of this model, optionally without contents (i.e. just configuration)'''
+        cp = connection(self._baseiri, self._attr_cls, self._logger)
+        if contents: cp.add_many(list(self))
+
+        return cp
 
     def create_space(self):
         '''Set up a new table space for the first time'''
@@ -106,11 +114,13 @@ class connection(connection_base):
 
         item = (origin, rel, target, attrs)
         if index is not None:
+            rid = index
             self._relationships.insert(index, item)
         else:
+            rid = self.size()
             self._relationships.append(item)
 
-        return
+        return rid
 
     def add_many(self, rels):
         '''
@@ -118,23 +128,21 @@ class connection(connection_base):
 
         rels - a list of 0 or more relationship tuples, e.g.:
         [
-            (origin, rel, target, {attrname1: attrval1, attrname2: attrval2}, rid),
+            (origin, rel, target, {attrname1: attrval1, attrname2: attrval2}),
         ]
 
         origin - origin of the relationship (similar to an RDF subject)
         rel - type IRI of the relationship (similar to an RDF predicate)
         target - target of the relationship (similar to an RDF object), a boolean, floating point or unicode object
         attrs - optional attribute mapping of relationship metadata, i.e. {attrname1: attrval1, attrname2: attrval2}
-        rid - optional ID for the relationship in IRI form.  If not specified for any relationship, one will be generated.
 
         you can omit the dictionary of attributes if there are none, as long as you are not specifying a statement ID
-
-        returns a list of IDs (IRI), one for each resulting relationship, in order
         '''
         for curr_rel in rels:
             attrs = self._attr_cls()
-            rid = None
-            if len(curr_rel) == 3:
+            if len(curr_rel) == 2: # handle __iter__ output for copy()
+                origin, rel, target, attrs = curr_rel[1]
+            elif len(curr_rel) == 3:
                 origin, rel, target = curr_rel
             elif len(curr_rel) == 4:
                 origin, rel, target, attrs = curr_rel
@@ -171,6 +179,10 @@ class connection(connection_base):
         '''Set up a new table space for the first time'''
         self._relationships = []
         return
+
+    def __getitem__(self, i):
+         r = self._relationships[i]
+         return (r[0], r[1], r[2], r[3].copy())
 
     def __repr__(self):
         '''
