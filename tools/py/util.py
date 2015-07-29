@@ -9,9 +9,10 @@ Utilities to help deal with constructs expressed in Versa
 import json
 from collections import OrderedDict
 
-from versa import I, ORIGIN, RELATIONSHIP, TARGET, VERSA_BASEIRI
+from versa import I, ORIGIN, RELATIONSHIP, TARGET
 from versa import init_localization
 init_localization()
+from versa import VERSA_BASEIRI
 
 def versa_list_to_pylist(m, vlistid):
     return [ s[TARGET] for s in m.match(vlistid, VERSA_BASEIRI + 'item') ]

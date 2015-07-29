@@ -43,12 +43,10 @@ def init_localization():
 
 #Intentionally after the localization setup
 from versa.iriref import iriref as I
+VERSA_BASEIRI = I('http://bibfra.me/purl/versa/')
 
 from versa.driver import memory
 from versa.contrib.datachefids import idgen as default_idgen, FROM_EMPTY_HASH
-
-VERSA_BASEIRI = I('http://bibfra.me/purl/versa/')
-
 
 class context(object):
     #Default way to create a model for the transform output, if one is not provided

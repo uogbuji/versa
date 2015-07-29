@@ -68,6 +68,28 @@ def test_removal():
     assert list(model)[0][1][2] == 'lit2'
     assert model.size() == 1
 
+def test_index():
+    model = memory.connection()
+    r1 = model.add('s1','p0','lit0',{})
+    r2 = model.add('s1','p1','lit1',{})
+    r3 = model.add('s1','p2','lit2',{})
+
+    assert model[r1][0] == 's1'
+    assert model[r2][1] == 'p1'
+    assert model[r3][2] == 'lit2'
+
+def test_copy():
+    model = memory.connection()
+    r1 = model.add('s1','p0','lit0',{})
+    r2 = model.add('s1','p1','lit1',{})
+    r3 = model.add('s1','p2','lit2',{})
+
+    model2 = model.copy()
+    assert model == model2
+
+    model3 = model.copy(contents=False)
+    assert model3.size() == 0
+
 
 RELS_1 = [
     ("http://copia.ogbuji.net", "http://purl.org/dc/elements/1.1/creator", "Uche Ogbuji", {"@context": "http://copia.ogbuji.net#_metadata"}),
