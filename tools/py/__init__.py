@@ -2,11 +2,24 @@
 import gettext
 import locale
 import logging
+from enum import Enum #https://docs.python.org/3.4/library/enum.html
 
+
+#XXX Try to use enums for this?
 ORIGIN = RESOURCE = SUBJECT = 0
 RELATIONSHIP = 1
 TARGET = VALUE = 2
 ATTRIBUTES = 3
+
+from amara3.util import coroutine
+
+class link(Enum):
+    origin = 0
+    relationship = 1
+    target = 2
+    attributes = 3
+
+#LINKROLES = {0: link.origin, 1: link.relationship, 2: link.target, 3: link.attributes}
 
 
 def init_localization():
@@ -67,4 +80,3 @@ class context(object):
         idgen = idgen if idgen else self.idgen
         existing_ids = existing_ids if existing_ids else self.existing_ids
         return context(current_link=current_link, input_model=input_model, output_model=output_model, base=base, extras=extras, idgen=idgen, existing_ids=existing_ids)
-

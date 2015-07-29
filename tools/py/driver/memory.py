@@ -84,6 +84,39 @@ class connection(connection_base):
                     yield index, (curr_rel[0], curr_rel[1], curr_rel[2], curr_rel[3].copy())
                 else:
                     yield (curr_rel[0], curr_rel[1], curr_rel[2], curr_rel[3].copy())
+        return
+
+    def multimatch(self, origin=None, rel=None, target=None, attrs=None, include_ids=False):
+        '''
+        Retrieve an iterator of relationship IDs that match a pattern of components
+
+        origin - (optional) origin of the relationship (similar to an RDF subject), or set of values. If omitted any origin will be matched.
+        rel - (optional) type IRI of the relationship (similar to an RDF predicate), or set of values. If omitted any relationship will be matched.
+        target - (optional) target of the relationship (similar to an RDF object), a boolean, floating point or unicode object, or set of values. If omitted any target will be matched.
+        attrs - (optional) attribute mapping of relationship metadata, i.e. {attrname1: attrval1, attrname2: attrval2}. If any attribute is specified, an exact match is made (i.e. the attribute name and value must match).
+        include_ids - If true include statement IDs with yield values
+        '''
+        origin = origin if origin is None or isinstance(origin, set) else set([origin])
+        rel = rel if rel is None or isinstance(rel, set) else set([rel])
+        target = target if target is None or isinstance(target, set) else set([target])
+        #Can't use items or we risk client side RuntimeError: dictionary changed size during iteration
+        for index, curr_rel in enumerate(self._relationships):
+            matches = True
+            if origin and curr_rel[ORIGIN] not in origin:
+                matches = False
+            if rel and curr_rel[RELATIONSHIP] not in rel:
+                matches = False
+            if target and curr_rel[TARGET] not in target:
+                matches = False
+            if attrs:
+                for k, v in attrs.items():
+                    if k not in curr_rel[ATTRIBUTES] or curr_rel[ATTRIBUTES].get(k) != v:
+                        matches = False
+            if matches:
+                if include_ids:
+                    yield index, (curr_rel[0], curr_rel[1], curr_rel[2], curr_rel[3].copy())
+                else:
+                    yield (curr_rel[0], curr_rel[1], curr_rel[2], curr_rel[3].copy())
 
         return
 
@@ -157,7 +190,7 @@ class connection(connection_base):
 
         # Rebuild relationships, excluding the provided indices
         self._relationships = [r for i, r in enumerate(self._relationships) if i not in ind]
-        
+
 
     def add_iri_prefix(self, prefix):
         '''
@@ -194,7 +227,7 @@ class connection(connection_base):
             # original Versa statement
             if isinstance(v[2], I):
                 v[3]['@target-type'] = '@iri-ref'
-            
+
             rels.append(v)
 
         return json.dumps(rels, indent=4, cls=OrderedJsonEncoder)

@@ -45,6 +45,19 @@ def all_origins(m):
             yield origin
 
 
+def column(m, linkpart):
+    '''
+    Generate all parts of links according to the parameter
+    '''
+    assert linkpart in (0, 1, 2, 3)
+    seen = set()
+    for link in m.match():
+        val = link[linkpart]
+        if val not in seen:
+            seen.add(val)
+            yield val
+
+
 def jsonload(model, fp):
     '''
     Load Versa model dumped into JSON form, either raw or canonical

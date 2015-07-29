@@ -101,7 +101,7 @@ def from_markdown(md, output, encoding='utf-8', config=None):
     encoding -- character encoding (defaults to UTF-8)
 
     Returns: The overall base URI (`@base`) specified in the Markdown file, or None
-    
+
     >>> from versa.driver import memory
     >>> from versa.reader.md import from_markdown
     >>> m = memory.connection()
@@ -134,7 +134,7 @@ def from_markdown(md, output, encoding='utf-8', config=None):
                 interpretations[prop] = lambda x, **kwargs: x
 
     setup_interpretations(interp_stanza)
-    
+
     #Parse the Markdown
     #Alternately:
     #from xml.sax.saxutils import escape, unescape
@@ -152,7 +152,8 @@ def from_markdown(md, output, encoding='utf-8', config=None):
     first_h1 = next(select_name(descendants(root), 'h1'))
     #top_section_fields = itertools.takewhile(lambda x: x.xml_name != 'h1', select_name(following_siblings(first_h1), 'h2'))
 
-    docheader = next(select_value(select_name(descendants(root), 'h1'), '@docheader')) # //h1[.="@docheader"]
+    #Extract header elements. Notice I use an empty element with an empty parent as the default result
+    docheader = next(select_value(select_name(descendants(root), 'h1'), '@docheader'), element('empty', parent=root)) # //h1[.="@docheader"]
     sections = filter(lambda x: x.xml_value != '@docheader', select_name_pattern(descendants(root), HEADER_PAT)) # //h1[not(.="@docheader")]|h2[not(.="@docheader")]|h3[not(.="@docheader")]
 
     def fields(sect):
@@ -162,6 +163,7 @@ def from_markdown(md, output, encoding='utf-8', config=None):
         Some properties have attributes, expressed in markdown as a nested list. If present these attributes
         Are yielded as well, else None is yielded
         '''
+        print(sect, sect.xml_parent())
         #import logging; logging.debug(repr(sect))
         #Pull all the list elements until the next header. This accommodates multiple lists in a section
         sect_body_items = itertools.takewhile(lambda x: HEADER_PAT.match(x.xml_name) is None, select_elements(following_siblings(sect)))
@@ -174,6 +176,7 @@ def from_markdown(md, output, encoding='utf-8', config=None):
             Parse each list item into a property pair
             '''
             if pair.strip():
+                print(pair)
                 matched = REL_PAT.match(pair)
                 if not matched:
                     raise ValueError(_('Syntax error in relationship expression: {0}'.format(pair)))
@@ -229,7 +232,7 @@ def from_markdown(md, output, encoding='utf-8', config=None):
     iris = {}
 
     #Gather the document-level metadata from the @docheader section
-    base = propbase = rtbase = document_iri = None
+    base = propbase = rtbase = document_iri = default_lang = None
     for prop, val, typeindic, subfield_list in fields(docheader):
         #The @iri section is where key IRI prefixes can be set
         if prop == '@iri':
@@ -252,6 +255,8 @@ def from_markdown(md, output, encoding='utf-8', config=None):
         #Setting an IRI for this very document being parsed
         elif prop == '@document':
             document_iri = val
+        elif prop == '@language':
+            default_lang = val
         #If we have a resource to which to attach them, just attach all other properties
         elif document_iri or base:
             rid = document_iri or base
@@ -324,6 +329,7 @@ def from_markdown(md, output, encoding='utf-8', config=None):
                     val = I(iri.absolutize(val, rtbase))
                 output.add(rid, fullprop, val, attrs)
             elif typeindic == TEXT_VAL:
+                if '@lang' not in attrs: attrs['@lang'] = default_lang
                 output.add(rid, fullprop, val, attrs)
             elif typeindic == UNKNOWN_VAL:
                 if fullprop in interpretations:
@@ -339,4 +345,3 @@ def from_markdown(md, output, encoding='utf-8', config=None):
             #    if valtype: attrs[TYPE_REL] = valtype
 
     return document_iri
-
