@@ -31,11 +31,44 @@ from amara3 import iri
 from versa import I, VERSA_BASEIRI, ORIGIN, RELATIONSHIP, TARGET, ATTRIBUTES
 from versa import util
 from versa.util import simple_lookup, OrderedJsonEncoder
-from versa import context
+from versa.driver import memory
 
-from versa.contrib.datachefids import idgen, FROM_EMPTY_HASH
+from versa.contrib.datachefids import idgen as default_idgen, FROM_EMPTY_HASH
 
 VTYPE_REL = I(iri.absolutize('type', VERSA_BASEIRI))
+
+class context(object):
+    #Default way to create a model for the transform output, if one is not provided
+    transform_factory = memory.connection
+
+    #Note: origin was eliminated; not really needed since the origin of current_link can be used
+    def __init__(self, current_link, input_model, output_model=None, base=None, variables=None, extras=None, idgen=None, existing_ids=None):
+        '''
+        current_link - one of the links in input_model, a key reference for the transform
+        input_model - Versa model treated as overall input to the transform
+        output_model - Versa model treated as overall output to the transform; if None an empty model is created
+        base - reference base IRI, e.g. used to resolve created resources
+        '''
+        self.current_link = current_link
+        self.input_model = input_model
+        self.output_model = output_model or context.transform_factory()
+        self.base = base
+        self.variables = variables or {}
+        self.extras = extras or {}
+        #FIXME: idgen requires a base IRI. Think this over.
+        self.idgen = idgen or default_idgen(base)
+        self.existing_ids = existing_ids or set()
+
+    def copy(self, current_link=None, input_model=None, output_model=None, base=None, variables=None, extras=None, idgen=None, existing_ids=None):
+        current_link = current_link if current_link else self.current_link
+        input_model = input_model if input_model else self.input_model
+        output_model = output_model if output_model else self.output_model
+        base = base if base else self.base
+        variables = variables if variables else self.variables
+        extras = extras if extras else self.extras
+        idgen = idgen if idgen else self.idgen
+        existing_ids = existing_ids if existing_ids else self.existing_ids
+        return context(current_link=current_link, input_model=input_model, output_model=output_model, base=base, extras=extras, idgen=idgen, existing_ids=existing_ids)
 
 
 def materialize_entity(ctx, etype, unique=None, **data):
@@ -65,7 +98,7 @@ def materialize_entity(ctx, etype, unique=None, **data):
 
 def rename(rel, res=False):
     '''
-    Update the label of the relationship to be added to the link space
+    Action function generator to update the label of the relationship to be added to the link space
     '''
     def _rename(ctx):
         (o, r, t, a) = ctx.current_link
@@ -77,6 +110,35 @@ def rename(rel, res=False):
         ctx.output_model.add(I(o), I(iri.absolutize(rel, ctx.base)), t, {})
         return
     return _rename
+
+
+def links(origin, rel, target, attributes=None):
+    '''
+    Action function generator to create a new link in the output
+    '''
+    def _links(ctx):
+        _origin = origin(ctx) if callable(origin) else origin
+        _origin = _origin if isinstance(_origin, set) else set([_origin])
+        _rel = rel(ctx) if callable(rel) else rel
+        _rel = _rel if isinstance(_rel, set) else set([_rel])
+        _target = target(ctx) if callable(target) else target
+        _target = _target if isinstance(_target, set) else set([_target])
+        _attributes = attributes(ctx) if callable(attributes) else {} if attributes is None else attributes
+        #(origin, rel, target, attributes) = ctx.current_link
+
+        for (o, r, t, a) in [ (o, r, t, a) for o in _origin for r in _rel for t in _target for a in [_attributes] ]:
+            ctx.output_model.add(o, r, t, a)
+        return
+    return _links
+
+
+def var(name):
+    '''
+    Action function generator to retrieve a variable from context
+    '''
+    def _var(ctx):
+        return ctx.variables.get(name)
+    return _var
 
 
 def target():
@@ -142,7 +204,7 @@ def ifexists(test, value, alt=None):
 
 def foreach(origin=None, rel=None, target=None, attributes=None):
     '''
-    Action function generator to compute a combination of links and fun the 
+    Action function generator to compute a combination of links and fun the
 
     :return: Versa action function to do the actual work
     '''
@@ -311,4 +373,3 @@ def run(pycmds):
         result = eval(pycmds, gdict)
         return result
     return _run
-

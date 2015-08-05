@@ -2,7 +2,7 @@
 
 Note: to see DEBUG log even if the tests pass do:
 
-nosetests test/py/test_memory.py --tc=debug:y --nologcapture
+py.test test/py/test_memory.py --tc=debug:y --nologcapture
 
 '''
 
@@ -101,4 +101,3 @@ RELS_1 = [
 
 if __name__ == '__main__':
     raise SystemExit("use py.test")
-
