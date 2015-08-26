@@ -71,27 +71,30 @@ class context(object):
         return context(current_link=current_link, input_model=input_model, output_model=output_model, base=base, extras=extras, idgen=idgen, existing_ids=existing_ids)
 
 
-def materialize_entity(ctx, etype, unique=None, **data):
+def materialize_entity(ctx, etype, unique=None):
     '''
     Routine for creating a BIBFRAME resource. Takes the entity (resource) type and a data mapping
     according to the resource type. Implements the Libhub Resource Hash Convention
     As a convenience, if a vocabulary base is provided in the context, concatenate it to etype and the data keys
+
+    ctx - context information governing creation fo the mew entity
+    etype - type IRI for th enew entity
+    unique - scalar or ordered dict of data to use in generating its unique ID, or None in which case one is just randomly generated
     '''
     params = {}
     if ctx.base:
         etype = ctx.base + etype
-    data_full = { ctx.base + k: v for (k, v) in data.items() }
-    # nobody likes non-deterministic ids! ordering matters to hash()
-    data_full = OrderedDict(sorted(data_full.items(), key=lambda x: x[0]))
-    plaintext = json.dumps([etype, data_full], cls=OrderedJsonEncoder)
+    unique_full = unique
+    if isinstance(unique, OrderedDict):
+        unique_full = OrderedDict()
+        for (k, v) in unique.items():
+            unique_full[ k if iri.is_absolute(k) else iri.absolutize(k, ctx.base) ] = v
 
-    if data_full or unique:
-        #We only have a type; no other distinguishing data. Generate a random hash
-        if unique is None:
-            eid = ctx.idgen.send(plaintext)
-        else:
-            eid = ctx.idgen.send([plaintext, unique])
+    if unique_full:
+        plaintext = json.dumps([etype, unique_full], cls=OrderedJsonEncoder)
+        eid = ctx.idgen.send(plaintext)
     else:
+        #We only have a type; no other distinguishing data. Generate a random hash
         eid = next(ctx.idgen)
     return eid
 
@@ -258,7 +261,7 @@ def materialize(typ, rel=None, derive_origin=None, unique=None, links=None, inve
             if derive_origin:
                 #Have been given enough info to derive the origin from context. Ignore origin in current link
                 o = derive_origin(ctx_)
-            computed_unique = unique(ctx_) if unique else None
+            computed_unique = unique(ctx_) if callable(unique) else unique
             objid = materialize_entity(ctx_, _typ, unique=computed_unique)
             objids.append(objid)
             for curr_rel in rels:
