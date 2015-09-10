@@ -163,7 +163,6 @@ def from_markdown(md, output, encoding='utf-8', config=None):
         Some properties have attributes, expressed in markdown as a nested list. If present these attributes
         Are yielded as well, else None is yielded
         '''
-        print(sect, sect.xml_parent())
         #import logging; logging.debug(repr(sect))
         #Pull all the list elements until the next header. This accommodates multiple lists in a section
         sect_body_items = itertools.takewhile(lambda x: HEADER_PAT.match(x.xml_name) is None, select_elements(following_siblings(sect)))
@@ -176,7 +175,6 @@ def from_markdown(md, output, encoding='utf-8', config=None):
             Parse each list item into a property pair
             '''
             if pair.strip():
-                print(pair)
                 matched = REL_PAT.match(pair)
                 if not matched:
                     raise ValueError(_('Syntax error in relationship expression: {0}'.format(pair)))
