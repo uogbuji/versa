@@ -21,6 +21,10 @@ class iriref(str):
     'spam'
     >>> iriref('spam eggs')
     [raises ValueError]
+
+    >>> from versa import I
+    >>> I('spam')
+    'spam'
     '''
     def __new__(cls, value):
         if not iri.matches_uri_ref_syntax(value):

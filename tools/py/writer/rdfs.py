@@ -1,9 +1,6 @@
-#!/usr/bin/env python
+#versa.writer.rdfs
 """
-parse_versa_model
-
-Tool to parse Versa
-
+Render a Versa vocab model as RDFS
 """
 
 import re
