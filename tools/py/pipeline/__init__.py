@@ -99,10 +99,11 @@ def materialize_entity(ctx, etype, unique=None):
     return eid
 
 
-def rename(rel, res=False):
+def rename(rel, res=False, attributes=None):
     '''
     Action function generator to update the label of the relationship to be added to the link space
     '''
+    attributes = attributes or {}
     def _rename(ctx):
         (o, r, t, a) = ctx.current_link
         if res:
@@ -110,7 +111,43 @@ def rename(rel, res=False):
                 t = I(t)
             except ValueError:
                 return []
-        ctx.output_model.add(I(o), I(iri.absolutize(rel, ctx.base)), t, {})
+
+        out_attrs = {}
+        for k, v in attributes.items():
+            k = k(ctx) if callable(k) else k
+            #If k is a list of contexts use it to dynamically execute functions
+            if isinstance(k, list):
+                if k and isinstance(k[0], context):
+                    for newctx in k:
+                        #Presumably the function in question will generate any needed links in the output model
+                        v(newctx)
+                    continue
+
+            #import traceback; traceback.print_stack() #For looking up the call stack e.g. to debug nested materialize
+            #Check that the attributes key is not None, which is a signal not to
+            #generate the item. For example if the key is an ifexists and the
+            #test expression result is False, it will come back as None,
+            #and we don't want to run the v function
+            if k:
+                new_current_link = (o, k, ctx.current_link[TARGET], ctx.current_link[ATTRIBUTES])
+                newctx = ctx.copy(current_link=new_current_link)
+                v = v(newctx) if callable(v) else v
+
+                #If k or v come from pipeline functions as None it signals to skip generating anything else for this link item
+                if v is not None:
+                    v = v(newctx) if callable(v) else v
+                    #FIXME: Fix properly, by slugifying & making sure slugify handles all-numeric case
+                    if k.isdigit(): k = '_' + k
+                    if isinstance(v, list):
+                        for valitems in v:
+                            if valitems:
+                                #out_attrs[k] = valitems
+                                out_attrs[I(iri.absolutize(k, newctx.base))] = valitems
+                    else:
+                        #out_attrs[I(iri.absolutize(k, newctx.base))] = v
+                        out_attrs[k] = v
+
+        ctx.output_model.add(I(o), I(iri.absolutize(rel, ctx.base)), t, out_attrs)
         return
     return _rename
 
@@ -238,11 +275,12 @@ def foreach(origin=None, rel=None, target=None, attributes=None):
     return _foreach
 
 
-def materialize(typ, rel=None, derive_origin=None, unique=None, links=None, inverse=False, split=None):
+def materialize(typ, rel=None, derive_origin=None, unique=None, links=None, inverse=False, split=None, attributes=None):
     '''
     Create a new resource related to the origin
     '''
     links = links or {}
+    attributes = attributes or {}
     def _materialize(ctx):
         #FIXME: Part of the datachef sorting out
         if not ctx.idgen: ctx.idgen = idgen

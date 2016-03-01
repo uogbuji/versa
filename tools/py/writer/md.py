@@ -34,7 +34,6 @@ def abbreviate(rel, bases):
 
 def value_format(val):
     if isinstance(val, I):
-        print(val)
         return str(val)
     else:
         return repr(val)
