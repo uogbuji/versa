@@ -12,7 +12,7 @@ from collections import OrderedDict
 from versa import I, ORIGIN, RELATIONSHIP, TARGET, ATTRIBUTES
 from versa import init_localization
 init_localization()
-from versa import VERSA_BASEIRI
+from versa import VERSA_BASEIRI, VTYPE_REL
 
 def versa_list_to_pylist(m, vlistid):
     return [ s[TARGET] for s in m.match(vlistid, VERSA_BASEIRI + 'item') ]
@@ -57,6 +57,16 @@ def column(m, linkpart):
         if val not in seen:
             seen.add(val)
             yield val
+
+
+def resourcetypes(rid, model):
+    '''
+    Return a list of Versa types for a resource
+    '''
+    types = []
+    for o, r, t, a in model.match(rid, VTYPE_REL):
+        types.append(t)
+    return types
 
 
 #XXX Could use a factory defined on in_m to create out_m, or do we want to use this approach to support append?

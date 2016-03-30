@@ -4,6 +4,7 @@ import locale
 import logging
 from enum import Enum #https://docs.python.org/3.4/library/enum.html
 
+from amara3 import iri
 
 #XXX Try to use enums for this?
 ORIGIN = RESOURCE = SUBJECT = 0
@@ -44,6 +45,8 @@ def init_localization():
 #Intentionally after the localization setup
 from versa.iriref import iriref as I
 VERSA_BASEIRI = I('http://bibfra.me/purl/versa/')
+
+VTYPE_REL = I(iri.absolutize('type', VERSA_BASEIRI))
 
 #from versa.driver import memory
 #from versa.contrib.datachefids import idgen as default_idgen, FROM_EMPTY_HASH
