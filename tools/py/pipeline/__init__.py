@@ -1,3 +1,4 @@
+#versa.pipeline
 '''
 Framework for expressing transforms from one pattern of Versa links to another
 This is especially useful if you've used a tool to extract Versa from some data
@@ -99,9 +100,9 @@ def materialize_entity(ctx, etype, unique=None):
     return eid
 
 
-def rename(rel, res=False, attributes=None):
+def link(rel, res=False, attributes=None):
     '''
-    Action function generator to update the label of the relationship to be added to the link space
+    Action function generator to copy/preserve the label of the relationship to be added to the link space
     '''
     attributes = attributes or {}
     def _rename(ctx):
