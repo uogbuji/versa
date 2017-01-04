@@ -48,16 +48,30 @@ def toversa(htmlsource, model, source_uri):
     next(sink) #Prime the coroutine
     return parse(htmlsource, sink, source_uri)
 
+'''
+import urllib
+import rdflib
+from versa.reader import rdfalite
+from versa.reader.rdfalite import DEFAULT_PREFIXES
 
-def tordf(htmlsource, model, source_uri):
+g = rdflib.Graph()
+for k, v in DEFAULT_PREFIXES.items():
+    g.bind(k, v)
+
+PAGE = 'http://link.houstonlibrary.org/portal/Half-of-a-yellow-sun-Chimamanda-Ngozi/n7KqqbZFJuM/'
+
+with urllib.request.urlopen(PAGE) as fp:
+    rdfalite.tordf(fp, rdfgr, PAGE)
+
+#At this point g has the triples
+'''
+
+
+def tordf(htmlsource, rdfgr, source_uri):
     '''
 
     '''
-    import rdflib
-    g = rdflib.Graph()
-    for k, v in DEFAULT_PREFIXES.items():
-        g.bind(k, v)
-    sink = rdfize(g)
+    sink = rdfize(rdfgr)
     next(sink) #Prime the coroutine
     return parse(htmlsource, sink, source_uri)
 
