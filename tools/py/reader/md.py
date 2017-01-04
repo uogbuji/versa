@@ -91,8 +91,11 @@ PREP_METHODS = {
     VERSA_BASEIRI + 'resourceset': handle_resourceset,
 }
 
+def from_markdown(md, model, encoding='utf-8', config=None):
+    return parse(md, model, encoding, config)
 
-def from_markdown(md, output, encoding='utf-8', config=None):
+#New, consistent API
+def parse(md, model, encoding='utf-8', config=None):
     """
     Translate the Versa Markdown syntax into Versa model relationships
 

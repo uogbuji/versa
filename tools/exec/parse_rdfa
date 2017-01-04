@@ -1,0 +1,93 @@
+#!/usr/bin/env python
+"""
+parse_rdfa
+
+Tool to parse RDFa 1.1 Lite
+
+parse_rdfa --rdfttl=foo.ttl "http://link.houstonlibrary.org/portal/Half-of-a-yellow-sun-Chimamanda-Ngozi/n7KqqbZFJuM/"
+
+"""
+
+import re
+import sys
+import os
+import glob
+import time
+import argparse
+from itertools import islice
+import urllib
+
+import logging
+
+import rdflib
+
+from versa.driver import memory
+from versa import I, ORIGIN, RELATIONSHIP, TARGET, ATTRIBUTES
+from versa.reader.rdfalite import parse, rdfize, DEFAULT_PREFIXES
+
+from amara3 import iri
+
+def run(inputs=None, rdfttl=None, rdfxml=None, verbose=False):
+    '''
+    See the command line help
+    '''
+    logger = logging.getLogger('parse_rdfa')
+    if verbose:
+        logging.basicConfig(level=logging.DEBUG)
+
+    for inp in inputs:
+        def process(fp, uri):
+            if any((rdfttl, rdfxml)):
+                g = rdflib.Graph()
+                for k, v in DEFAULT_PREFIXES.items():
+                    g.bind(k, v)
+                output = rdfize(g)
+                next(output)  #Prime the coroutine
+                parse(fp, output, I(uri))
+                #print(len(g))
+                if rdfttl:
+                    rdfttl.write(g.serialize(format="turtle"))
+                elif rdfxml:
+                    rdfxml.write(g.serialize(format="pretty-xml"))
+
+        if iri.matches_uri_syntax(inp):
+            with urllib.request.urlopen(inp) as resourcefp:
+                process(resourcefp, inp)
+        else:
+            with open(inp) as resourcefp:
+                process(resourcefp, iri.os_path_to_uri(inp))
+
+    #output_list = []
+    #output = dumb_triples(output_list)
+    #Prime coroutine
+    #next(output)
+    #parse(response, I(LINK), output)
+    #import pprint; pprint.pprint(output_list)
+
+    return
+
+
+# Handle the command-line arguments
+
+#import signal
+#import shutil
+
+if __name__ == '__main__':
+    #parser = argparse.ArgumentParser(prog="bootstrap", add_help=False)
+    parser = argparse.ArgumentParser()
+    parser.add_argument('inputs', metavar='URLSORFILES', nargs='*',
+                        help='One or more RDFa Lite URLs or files to be parsed and converted to RDF.')
+    parser.add_argument('--rdfttl', type=argparse.FileType('wb'),
+        help='File where RDF Turtle output should be written')
+    parser.add_argument('--rdfxml', type=argparse.FileType('wb'),
+        help='File where RDF XML output should be written')
+    #parser.add_argument('-b', '--base', metavar="IRI", #dest="base",
+    #    help='Base IRI to be used for parsing the Versa. Can be overridden by a base statement within the docheader')
+    parser.add_argument('-v', '--verbose', action='store_false',
+        help='whether or not to show verbose error messages')
+    #
+    args = parser.parse_args()
+
+    run(inputs=args.inputs, rdfttl=args.rdfttl, rdfxml=args.rdfxml, verbose=args.verbose)
+    if args.rdfttl: args.rdfttl.close()
+    if args.rdfxml: args.rdfxml.close()

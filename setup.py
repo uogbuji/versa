@@ -32,7 +32,13 @@ setup(
     url='https://github.com/uogbuji/versa',
     package_dir={'versa': 'tools/py'},
     packages=['versa', 'versa.driver', 'versa.reader', 'versa.writer', 'versa.query', 'versa.pipeline', 'versa.contrib'],
-    scripts=['tools/exec/build_model_site', 'tools/exec/parse_versa', 'tools/exec/parse_versa_model', 'tools/exec/atom2versa'],
+    scripts=[
+        'tools/exec/build_model_site',
+        'tools/exec/parse_versa',
+        'tools/exec/parse_versa_model',
+        'tools/exec/atom2versa',
+        'tools/exec/parse_rdfa',
+    ],
     keywords = ["web", "data"],
     #scripts=['exec/exhibit_agg', 'exec/exhibit_lint'],
     classifiers = [

@@ -78,7 +78,7 @@ def materialize_entity(ctx, etype, unique=None):
     according to the resource type. Implements the Libhub Resource Hash Convention
     As a convenience, if a vocabulary base is provided in the context, concatenate it to etype and the data keys
 
-    ctx - context information governing creation fo the mew entity
+    ctx - context information governing creation of the new entity
     etype - type IRI for th enew entity
     unique - scalar or ordered dict of data to use in generating its unique ID, or None in which case one is just randomly generated
     '''

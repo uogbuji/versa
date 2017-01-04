@@ -66,7 +66,7 @@ class connection(connection_base):
 
     def match(self, origin=None, rel=None, target=None, attrs=None, include_ids=False):
         '''
-        Retrieve an iterator of relationship IDs that match a pattern of components
+        Iterator over relationship IDs that match a pattern of components
 
         origin - (optional) origin of the relationship (similar to an RDF subject). If omitted any origin will be matched.
         rel - (optional) type IRI of the relationship (similar to an RDF predicate). If omitted any relationship will be matched.
@@ -94,9 +94,10 @@ class connection(connection_base):
                     yield (curr_rel[0], curr_rel[1], curr_rel[2], curr_rel[3].copy())
         return
 
+
     def multimatch(self, origin=None, rel=None, target=None, attrs=None, include_ids=False):
         '''
-        Retrieve an iterator of relationship IDs that match a pattern of components
+        Iterator over relationship IDs that match a pattern of components
 
         origin - (optional) origin of the relationship (similar to an RDF subject), or set of values. If omitted any origin will be matched.
         rel - (optional) type IRI of the relationship (similar to an RDF predicate), or set of values. If omitted any relationship will be matched.
@@ -125,8 +126,8 @@ class connection(connection_base):
                     yield index, (curr_rel[0], curr_rel[1], curr_rel[2], curr_rel[3].copy())
                 else:
                     yield (curr_rel[0], curr_rel[1], curr_rel[2], curr_rel[3].copy())
-
         return
+
 
     def add(self, origin, rel, target, attrs=None, index=None):
         '''
@@ -152,7 +153,6 @@ class connection(connection_base):
         else:
             rid = self.size()
             self._relationships.append(item)
-
         return rid
 
     def add_many(self, rels):

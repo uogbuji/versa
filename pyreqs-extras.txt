@@ -1,3 +1,2 @@
-psycopg2
-#Wait until there is a release that handles this: https://github.com/tomchristie/mkdocs/pull/103
-#mkdocs
+html5lib
+jinja2
