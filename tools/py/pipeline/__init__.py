@@ -74,7 +74,7 @@ class context(object):
 
 def materialize_entity(ctx, etype, unique=None):
     '''
-    Routine for creating a BIBFRAME resource. Takes the entity (resource) type and a data mapping
+    Low-level routine for creating a BIBFRAME resource. Takes the entity (resource) type and a data mapping
     according to the resource type. Implements the Libhub Resource Hash Convention
     As a convenience, if a vocabulary base is provided in the context, concatenate it to etype and the data keys
 
@@ -98,6 +98,39 @@ def materialize_entity(ctx, etype, unique=None):
         #We only have a type; no other distinguishing data. Generate a random hash
         eid = next(ctx.idgen)
     return eid
+
+
+def create_resource(output_model, rtype, unique, links, existing_ids=None, id_helper=None):
+    '''
+    General-purpose routine to create a new resource in the output model, based on data provided
+
+    output_model    - Versa connection to model to be updated
+    rtype           - Type IRI for the new resource, set with Versa type
+    unique          - list of key/value pairs for determining a unique hash for the new resource
+    links           - list of key/value pairs for setting properties on the new resource
+    id_helper       - If a string, a base URL for the generatd ID. If callable, a function used to return the entity. If None, set a default good enough for testing.
+    existing_ids    - set of existing IDs to not recreate, or None, in which case a new resource will always be created
+    '''
+    if isinstance(id_helper, str):
+        idg = idgen(id_helper)
+    elif callable(id_helper):
+        idg = id_helper
+    elif id_helper is None:
+        idg = default_idgen('http://example.org/')
+    else:
+        #FIXME: G11N
+        raise ValueError('id_helper must be string (URL), callable or None')
+    ctx = context(None, None, output_model, base=None, idgen=idg, existing_ids=existing_ids, extras=None)
+    unique = OrderedDict(unique)
+    rid = I(materialize_entity(ctx, rtype, unique=unique))
+    if existing_ids is not None:
+        if rid in existing_ids:
+            return (False, rid)
+        existing_ids.add(rid)
+    output_model.add(rid, VTYPE_REL, rtype)
+    for r, t in links:
+        output_model.add(rid, r, t)
+    return (True, rid)
 
 
 def link(rel, res=False, attributes=None):
