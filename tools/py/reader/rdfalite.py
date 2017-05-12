@@ -3,7 +3,7 @@
 
 import sys
 import logging
-import urllib.request
+import warnings
 from itertools import *
 
 #from versa.writer.rdfs import prep as statement_prep
@@ -20,7 +20,8 @@ from amara3.uxml.treeutil import *
 from amara3.uxml import html5
 
 RDF_NS = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#'
-SCHEMA_NS = 'http://schema.org/'
+#SCHEMAORG_NS is proper name. Deprecate the other
+SCHEMAORG_NS = SCHEMA_NS = 'http://schema.org/'
 FOAF_NS = 'http://xmlns.com/foaf/0.1/'
 DC_NS = 'http://purl.org/dc/terms/'
 BFL_NS = 'http://bibfra.me/vocab/lite/'
@@ -42,6 +43,12 @@ BNODE_ROOT = 'urn:amara-bnode:_'
 
 def toversa(htmlsource, model, source_uri):
     '''
+    >>> import urllib
+    >>> from versa.reader import rdfalite
+    >>> from versa.driver import memory
+    >>> m = memory.connection()
+    >>> burl = 'http://link.delawarelibrary.org/'
+    >>> with urllib.request.urlopen(burl) as resourcefp: rdfalite.toversa(resourcefp.read(), m, burl)
 
     '''
     sink = versalinks(model)
@@ -71,11 +78,6 @@ def parse(htmlsource, statement_sink, source_uri):
         vocab = elem.xml_attributes.get('vocab', vocab)
         #element_satisfied = False
         if vocab:
-            typeof_list = elem.xml_attributes.get('typeof')
-            if typeof_list:
-                for typeof in typeof_list.split():
-                    typeof = I(iri.absolutize(typeof.lstrip('/'), vocab))
-                    statement_sink.send((resource, RDF_NS + 'type', typeof))
             prefix = elem.xml_attributes.get('prefix')
             if prefix:
                 logging.debug('{}'.format(prefix))
@@ -95,7 +97,18 @@ def parse(htmlsource, statement_sink, source_uri):
                     prefixes[p] = ns
             new_resource = elem.xml_attributes.get('resource')
             if new_resource:
-                resource = I(iri.absolutize(new_resource.lstrip('/'), source_uri))
+                try:
+                    resource = I(iri.absolutize(new_resource.lstrip('/'), source_uri))
+                except ValueError:
+                    warnings.warn('Invalid URL or anchor {} found in {}'.format(new_resource, source_uri))
+                    new_resource = None
+
+            typeof_list = elem.xml_attributes.get('typeof')
+            if typeof_list:
+                for typeof in typeof_list.split():
+                    typeof = I(iri.absolutize(typeof.lstrip('/'), vocab))
+                    statement_sink.send((new_resource or resource, RDF_NS + 'type', typeof))
+
             new_prop_list = elem.xml_attributes.get('property')
             new_value = None
             if new_prop_list:

@@ -23,6 +23,11 @@ def simple_lookup(m, orig, rel):
     return links[0][TARGET] if links else None
 
 
+def simple_lookup_byvalue(m, rel, target):
+    links = list(m.match(None, rel, target))
+    return links[0][ORIGIN] if links else None
+
+
 def transitive_closure(m, orig, rel):
     '''
     Generate the closure over a transitive relationship in depth-first fashion

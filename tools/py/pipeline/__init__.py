@@ -24,6 +24,7 @@ import functools
 import logging
 #from enum import Enum #https://docs.python.org/3.4/library/enum.html
 from collections import defaultdict, OrderedDict
+from types import GeneratorType
 
 #import amara3
 from amara3 import iri
@@ -80,19 +81,20 @@ def materialize_entity(ctx, etype, unique=None):
 
     ctx - context information governing creation of the new entity
     etype - type IRI for th enew entity
-    unique - scalar or ordered dict of data to use in generating its unique ID, or None in which case one is just randomly generated
+    unique - list of key/value tuples of data to use in generating its unique ID, or None in which case one is just randomly generated
     '''
     params = {}
     if ctx.base:
         etype = ctx.base + etype
-    unique_full = unique
-    if isinstance(unique, OrderedDict):
-        unique_full = OrderedDict()
-        for (k, v) in unique.items():
-            unique_full[ k if iri.is_absolute(k) else iri.absolutize(k, ctx.base) ] = v
 
-    if unique_full:
-        plaintext = json.dumps([etype, unique_full], cls=OrderedJsonEncoder)
+    unique_computed = []
+    for k, v in unique:
+        k = k if iri.is_absolute(k) else iri.absolutize(k, ctx.base)
+        v = v(ctx) if callable(v) else v
+        unique_computed.append((k, v))
+
+    if unique_computed:
+        plaintext = json.dumps([etype, unique_computed], cls=OrderedJsonEncoder)
         eid = ctx.idgen.send(plaintext)
     else:
         #We only have a type; no other distinguishing data. Generate a random hash
@@ -113,15 +115,14 @@ def create_resource(output_model, rtype, unique, links, existing_ids=None, id_he
     '''
     if isinstance(id_helper, str):
         idg = idgen(id_helper)
-    elif callable(id_helper):
+    elif isinstance(id_helper, GeneratorType):
         idg = id_helper
     elif id_helper is None:
-        idg = default_idgen('http://example.org/')
+        idg = default_idgen(None)
     else:
         #FIXME: G11N
         raise ValueError('id_helper must be string (URL), callable or None')
     ctx = context(None, None, output_model, base=None, idgen=idg, existing_ids=existing_ids, extras=None)
-    unique = OrderedDict(unique)
     rid = I(materialize_entity(ctx, rtype, unique=unique))
     if existing_ids is not None:
         if rid in existing_ids:
@@ -313,7 +314,7 @@ def materialize(typ, rel=None, derive_origin=None, unique=None, links=None, inve
     '''
     Create a new resource related to the origin
     '''
-    links = links or {}
+    links = links or []
     attributes = attributes or {}
     def _materialize(ctx):
         #FIXME: Part of the datachef sorting out
@@ -348,7 +349,7 @@ def materialize(typ, rel=None, derive_origin=None, unique=None, links=None, inve
             if objid not in ctx_.existing_ids:
                 if _typ: ctx.output_model.add(I(objid), VTYPE_REL, I(iri.absolutize(_typ, ctx_.base)), {})
                 #FIXME: Should we be using Python Nones to mark blanks, or should Versa define some sort of null resource?
-                for k, v in links.items():
+                for k, v in links:
                     k = k(ctx_) if callable(k) else k
                     #If k is a list of contexts use it to dynamically execute functions
                     if isinstance(k, list):

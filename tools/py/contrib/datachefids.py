@@ -1,7 +1,7 @@
-#datachef.ids
+#versa.contrib.datachefids
 
 '''
->>> from datachef.ids import simple_hashstring
+>>> from versa.contrib.datachefids import simple_hashstring
 >>> simple_hashstring("The quick brown fox jumps over the lazy dog")
 'B7x7vEvj'
 '''
@@ -10,7 +10,14 @@ import re
 import base64
 import struct
 
-import mmh3
+#Install the C version if available, or fall back to the Python
+try:
+    #Note re: https://github.com/PeterScott/murmur3/blob/master/murmur3.c
+    #"The x86 and x64 versions do _not_ produce the same results, as the algorithms are optimized for their respective platforms. You can still compile and run any of them on any platform, but your performance with the non-native version will be less than optimal."
+    import mmh3 as mmh3
+except ImportError:
+    #Generally for PyPy. Use pure Python version included from  https://github.com/wc-duck/pymmh3
+    from . import pymmh3 as mmh3
 
 from amara3 import iri
 from amara3.util import coroutine
@@ -30,7 +37,7 @@ def simple_hashstring(obj, bits=48):
     Creates a simple hash in brief string form from obj
     bits is an optional bit width, defaulting to 48, and should be in multiples of 8
 
-    >>> from datachef.ids import simple_hashstring
+    >>> from versa.contrib.datachefids import simple_hashstring
     >>> simple_hashstring("The quick brown fox jumps over the lazy dog")
     'B7x7vEvj'
     '''
@@ -55,7 +62,7 @@ def create_slug(title, plain_len=None):
     title - a unicode object with a title to use as basis of the slug
     plain_len - the maximum character length preserved (from the beginning) of the title
 
-    >>> from datachef.ids import create_slug
+    >>> from versa.contrib.datachefids import create_slug
     >>> create_slug(u"The  quick brown fox jumps over the lazy dog")
     'the_quick_brown_fox_jumps_over_the_lazy_dog'
     >>> create_slug(u"The  quick brown fox jumps over the lazy dog", 20)
@@ -118,4 +125,3 @@ def idgen(idbase, tint=None):
         to_hash = simple_hashstring(to_hash)
         to_hash = yield iri.absolutize(to_hash, idbase) if idbase else to_hash
         counter += 1
-
