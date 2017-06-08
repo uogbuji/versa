@@ -48,7 +48,8 @@ def write(models, out=None, base=None, propertybase=None, shorteners=None, logge
     if not isinstance(models, list): models = [models]
     shorteners = shorteners or {}
 
-    all_propertybase = [propertybase, VERSA_BASEIRI]
+    all_propertybase = [propertybase] if propertybase else []
+    all_propertybase.append(VERSA_BASEIRI)
 
     if any((base, propertybase, shorteners)):
         out.write('# @docheader\n\n* @iri:\n')

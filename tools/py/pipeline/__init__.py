@@ -159,6 +159,7 @@ def link(rel, res=False, attributes=None):
                     continue
 
             #import traceback; traceback.print_stack() #For looking up the call stack e.g. to debug nested materialize
+
             #Check that the attributes key is not None, which is a signal not to
             #generate the item. For example if the key is an ifexists and the
             #test expression result is False, it will come back as None,
@@ -321,6 +322,7 @@ def materialize(typ, rel=None, derive_origin=None, unique=None, links=None, inve
         if not ctx.idgen: ctx.idgen = idgen
         _typ = typ(ctx) if callable(typ) else typ
         _rel = rel(ctx) if callable(rel) else rel
+        _unique = unique(ctx) if callable(unique) else unique
         (o, r, t, a) = ctx.current_link
         #FIXME: On redesign implement split using function composition instead
         targets = [ sub_t.strip() for sub_t in t.split(split) ] if split else [t]
@@ -329,12 +331,25 @@ def materialize(typ, rel=None, derive_origin=None, unique=None, links=None, inve
             _rel = [r]
         rels = _rel if isinstance(_rel, list) else ([_rel] if rel else [])
         objids = []
+
         for target in targets:
             ctx_ = ctx.copy(current_link=(o, r, target, a))
             if derive_origin:
                 #Have been given enough info to derive the origin from context. Ignore origin in current link
                 o = derive_origin(ctx_)
-            computed_unique = unique(ctx_) if callable(unique) else unique
+
+            computed_unique = [] if _unique else None
+            if _unique:
+                # strip None values from computed unique list, including pairs where v is None
+                for k, v in _unique:
+                    if None in (k, v): continue
+                    v = v if isinstance(v, list) else [v]
+                    for subitem in v:
+                        subval = subitem(ctx) if callable(subitem) else subitem
+                        if subval:
+                            subval = subval if isinstance(subval, list) else [subval]
+                            computed_unique.extend([(k, s) for s in subval])
+
             objid = materialize_entity(ctx_, _typ, unique=computed_unique)
             objids.append(objid)
             for curr_rel in rels:

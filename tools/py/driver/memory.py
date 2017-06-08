@@ -146,6 +146,9 @@ class connection(connection_base):
         if type(attrs) != type(self._attr_cls):
             attrs = self._attr_cls(attrs or {})
 
+        #No, could be an I instance, fails assertion
+        #assert isinstance(origin, str) and isinstance(origin, str) and isinstance(origin, str) and isinstance(origin, dict), (origin, rel, target, attrs)
+
         item = (origin, rel, target, attrs)
         if index is not None:
             rid = index
