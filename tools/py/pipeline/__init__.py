@@ -364,13 +364,14 @@ def materialize(typ, rel=None, derive_origin=None, unique=None, links=None, inve
             if objid not in ctx_.existing_ids:
                 if _typ: ctx.output_model.add(I(objid), VTYPE_REL, I(iri.absolutize(_typ, ctx_.base)), {})
                 #FIXME: Should we be using Python Nones to mark blanks, or should Versa define some sort of null resource?
+                #XXX: Note, links are only processed on new objects! This needs some thought
                 for k, v in links:
                     k = k(ctx_) if callable(k) else k
                     #If k is a list of contexts use it to dynamically execute functions
                     if isinstance(k, list):
                         if k and isinstance(k[0], context):
                             for newctx in k:
-                                #Presumably the function in question will generate any needed links in the output model
+                                #The function in question will generate any needed links in the output model
                                 v(newctx)
                             continue
 
