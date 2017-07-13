@@ -8,7 +8,7 @@ import functools
 from versa import I, VERSA_BASEIRI, ORIGIN, RELATIONSHIP, TARGET
 from versa.driver import memory
 from versa.pipeline import *
-from versa.contrib.datachefids import idgen, FROM_EMPTY_HASH
+from versa.contrib.datachefids import idgen, FROM_EMPTY_64BIT_HASH
 from versa.util import jsondump, jsonload
 
 
@@ -45,10 +45,10 @@ def test_pipeline1():
 
     TRANSFORMS = {
         'id': discard(),
-        'title': rename(rel='name'),
-        'author': materialize('Person', rel='author', unique=run('target'), links={'name': run('target')}),
-        'link': rename(rel='link'),
-        'cover': rename(rel='cover'),
+        'title': link(rel='name'),
+        'author': materialize('Person', rel='author', unique=[('name', run('target'))], links=[('name', run('target'))]),
+        'link': link(rel='link'),
+        'cover': link(rel='cover'),
     }
     #'type': functools.partial(relabel, rel=VTYPE_REL),
 
@@ -57,11 +57,11 @@ def test_pipeline1():
     rid = SIMPLE_BOOK['id']
     out_m.add(rid, VTYPE_REL, BOOK_TYPE)
     for k, v in SIMPLE_BOOK.items():
-        link = (rid, k, v, {})
+        ctxlink = (rid, k, v, {})
         func = TRANSFORMS.get(k)
         if func:
             in_m = memory.connection(baseiri='http://example.org/')
-            ctx = context(link, in_m, out_m, base=SCHEMA_ORG, idgen=idg)
+            ctx = context(ctxlink, in_m, out_m, base=SCHEMA_ORG, idgen=idg)
             func(ctx)
     
     assert out_m.size() == 7, repr(out_m)
@@ -75,11 +75,11 @@ def test_pipeline2():
 
     TRANSFORMS = [
         ('id', discard()),
-        ('title', rename(rel='name')),
+        ('title', link(rel='name')),
         #For testing; doesn't make much sense, really, otherwise 
-        ('author', materialize('Person', rel='author', unique=run('target'), links={'name': run('target')}, inverse=True)),
-        ('link', rename(rel='link')),
-        ('cover', rename(rel='cover')),
+        ('author', materialize('Person', rel='author', unique=[('name', run('target'))], links=[('name', run('target'))], inverse=True)),
+        ('link', link(rel='link')),
+        ('cover', link(rel='cover')),
     ]
 
     out_m = memory.connection(baseiri='http://example.org/')
@@ -87,11 +87,11 @@ def test_pipeline2():
     rid = SIMPLE_BOOK['id']
     out_m.add(rid, VTYPE_REL, BOOK_TYPE)
     for k, v in SIMPLE_BOOK.items():
-        link = (rid, k, v, {})
+        ctxlink = (rid, k, v, {})
         for rel, func in TRANSFORMS:
             if k == rel:
                 in_m = memory.connection(baseiri='http://example.org/')
-                ctx = context(link, in_m, out_m, base=SCHEMA_ORG, idgen=idg)
+                ctx = context(ctxlink, in_m, out_m, base=SCHEMA_ORG, idgen=idg)
                 func(ctx)
     
     assert out_m.size() == 7, repr(out_m)

@@ -35,7 +35,7 @@ from versa import util
 from versa.util import simple_lookup, OrderedJsonEncoder
 from versa.driver import memory
 
-from versa.contrib.datachefids import idgen as default_idgen, FROM_EMPTY_HASH
+from versa.contrib.datachefids import idgen as default_idgen, FROM_EMPTY_64BIT_HASH
 
 VTYPE_REL = I(iri.absolutize('type', VERSA_BASEIRI))
 
