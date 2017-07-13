@@ -136,6 +136,9 @@ def create_resource(output_model, rtype, unique, links, existing_ids=None, id_he
 
 def link(rel, res=False, attributes=None):
     '''
+    Create a link based the context's current link, specifying the output link
+    IRI and a target value to be constructed for the link
+
     Action function generator to copy/preserve the label of the relationship to be added to the link space
     '''
     attributes = attributes or {}
@@ -190,7 +193,7 @@ def link(rel, res=False, attributes=None):
 
 def links(origin, rel, target, attributes=None):
     '''
-    Action function generator to create a new link in the output
+    Action function generator to create new links in the output based on the combinations of input sequences
     '''
     def _links(ctx):
         _origin = origin(ctx) if callable(origin) else origin
@@ -280,7 +283,7 @@ def ifexists(test, value, alt=None):
 
 def foreach(origin=None, rel=None, target=None, attributes=None):
     '''
-    Action function generator to compute a combination of links and fun the
+    Action function generator to compute a combination of links
 
     :return: Versa action function to do the actual work
     '''

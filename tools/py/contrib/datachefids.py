@@ -89,32 +89,32 @@ def slugify(value, hyphenate=True, lower=True):
     return _CHANGEME_RE.sub(replacement, value)
 
 
-FROM_EMPTY_HASH = 'AAAAAAAA'
+FROM_EMPTY_64BIT_HASH = 'AAAAAAAAAAA'
 
 #from datachef.ids import simple_hashstring
 @coroutine
-def idgen(idbase, tint=None):
+def idgen(idbase, tint=None, bits=64):
     '''
     Generate an IRI as a hash of given information, or just make one up if None given
     idbase -- Base URI for generating links
     tint -- String that affects the sequence of IDs generated if sent None
 
-    >>> from datachef.ids import idgen
+    >>> from bibframe.contrib.datachefids import idgen
     >>> g = idgen(None)
     >>> next(g) #Or g.send(None)
-    'RtW-3skq'
+    'gKNG1b7eySo'
     >>> next(g)
-    'e4r-u_tx'
+    'cXx7iv67-3E'
     >>> g.send('spam')
-    'ThKLPHvp'
+    'OZxOEos8e-k'
     >>> next(g)
-    'YbGlkNf9'
+    'mCFhsaWQ1_0'
     >>> g.send('spam')
-    'ThKLPHvp'
+    'OZxOEos8e-k'
     >>> g.send('eggs')
-    'HeBrpNON'
+    'xQAd4Guk040'
     >>> g.send('')
-    'AAAAAAAA'
+    'AAAAAAAAAAA'
     '''
     counter = -1
     to_hash = None
@@ -122,6 +122,6 @@ def idgen(idbase, tint=None):
         if to_hash is None:
             to_hash = str(counter)
             if tint: to_hash += tint
-        to_hash = simple_hashstring(to_hash)
+        to_hash = simple_hashstring(to_hash, bits=bits)
         to_hash = yield iri.absolutize(to_hash, idbase) if idbase else to_hash
         counter += 1
