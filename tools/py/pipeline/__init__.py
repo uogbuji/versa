@@ -39,6 +39,7 @@ from versa.contrib.datachefids import idgen as default_idgen, FROM_EMPTY_64BIT_H
 
 VTYPE_REL = I(iri.absolutize('type', VERSA_BASEIRI))
 
+
 class context(object):
     #Default way to create a model for the transform output, if one is not provided
     transform_factory = memory.connection
@@ -189,22 +190,8 @@ def link(origin=None, rel=None, value=None, attributes=None, source=None):
 
 def links(origin, rel, target, attributes=None):
     '''
-    Action function generator to create new links in the output based on the combinations of input sequences
     '''
-    def _links(ctx):
-        _origin = origin(ctx) if callable(origin) else origin
-        _origin = _origin if isinstance(_origin, set) else set([_origin])
-        _rel = rel(ctx) if callable(rel) else rel
-        _rel = _rel if isinstance(_rel, set) else set([_rel])
-        _target = target(ctx) if callable(target) else target
-        _target = _target if isinstance(_target, set) else set([_target])
-        _attributes = attributes(ctx) if callable(attributes) else {} if attributes is None else attributes
-        #(origin, rel, target, attributes) = ctx.current_link
-
-        for (o, r, t, a) in [ (o, r, t, a) for o in _origin for r in _rel for t in _target for a in [_attributes] ]:
-            ctx.output_model.add(o, r, t, a)
-        return
-    return _links
+    raise NotImplementedError('You can just use link() for this now.')
 
 
 def var(name):
@@ -310,13 +297,54 @@ def foreach(origin=None, rel=None, target=None, attributes=None):
     return _foreach
 
 
-def materialize(typ, rel=None, derive_origin=None, unique=None, links=None, inverse=False, split=None, attributes=None):
+def materialize(typ, rel=None, origin=None, unique=None, links=None, inverse=False, split=None, attributes=None):
     '''
     Create a new resource related to the origin
+
+    :param typ: IRI of the type for the resource to be materialized,
+    which becomes the target of the main link, and the origin of any
+    additional links given in the links param
+
+    :param rel: IRI of the relationship between the origin and the materialized
+    target, or a list of relationship IRIs, each of which will be used to create
+    a separate link, or a versa action function to derive this relationship or
+    list of relationships at run time, or None. If none, use the action context.
+
+    :param origin: Literal IRI or Versa action function for origin of the
+    main generated link. If none, use the action context.
+
+    :param unique: Versa action function to be invoked in order to
+    derive a unique hash key input for the materialized resource, in the form of
+    multiple key, value pairs (or key, list-of-values)
+
+    :param links: Dictionary of links from the newly materialized resource.
+    Each keys can be a relationship IRIs, a Versa action function returning
+    a relationship IRI, a Versa action function returning a list of Versa
+    contexts, which can be used to guide a sequence pattern of generated
+    links, or a Versa action function returning None, which signals that
+    the particular link is skipped entirely.
+
+    :param postprocess: IRI or list of IRI queueing up actiona to be postprocessed
+    for this materialized resource. None, the default, signals no special postprocessing
+
+    For examples of all these scenarios see marcpatterns.py
+
+    :return: Versa action function to do the actual work
     '''
     links = links or []
     attributes = attributes or {}
     def _materialize(ctx):
+        '''
+        Inserts at least two main links in the context's output_model, one or more for
+        the relationship from the origin to the materialized resource, one for the
+        type of the materialized resource, and links according to the links parameter
+
+        :param ctx: Runtime Versa context used in processing (e.g. includes the prototype link)
+        :return: None
+
+        This function is intricate in its use and shifting of Versa context, but the
+        intricacies are all designed to make the marcpatterns mini language more natural.
+        '''
         #FIXME: Part of the datachef sorting out
         if not ctx.idgen: ctx.idgen = idgen
         _typ = typ(ctx) if callable(typ) else typ
@@ -333,9 +361,9 @@ def materialize(typ, rel=None, derive_origin=None, unique=None, links=None, inve
 
         for target in targets:
             ctx_ = ctx.copy(current_link=(o, r, target, a))
-            if derive_origin:
+            if origin:
                 #Have been given enough info to derive the origin from context. Ignore origin in current link
-                o = derive_origin(ctx_)
+                o = origin(ctx_)
 
             computed_unique = [] if _unique else None
             if _unique:
