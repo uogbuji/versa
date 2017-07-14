@@ -133,62 +133,58 @@ def create_resource(output_model, rtype, unique, links, existing_ids=None, id_he
         output_model.add(rid, r, t)
     return (True, rid)
 
+#iritype = object()
+#force_iritype = object()
 
-def link(rel, res=False, attributes=None):
+
+def link(origin=None, rel=None, value=None, attributes=None, source=None):
     '''
-    Create a link based the context's current link, specifying the output link
-    IRI and a target value to be constructed for the link
+    Action function generator to create a link based on the context's current link, or on provided parameters
 
-    Action function generator to copy/preserve the label of the relationship to be added to the link space
+    :param origin: IRI/string, or list of same; origins for the created relationships.
+    If None, the action context provides the parameter.
+
+    :param rel: IRI/string, or list of same; IDs for the created relationships.
+    If None, the action context provides the parameter.
+    
+    :param value: IRI/string, or list of same; values/targets for the created relationships.
+    If None, the action context provides the parameter.
+    
+    :param source: pattern action to be executed, generating contexts to determine the output statements. If given, overrides specific origin, rel or value params
+
+    :return: Versa action function to do the actual work
     '''
     attributes = attributes or {}
-    def _rename(ctx):
-        (o, r, t, a) = ctx.current_link
-        if res:
-            try:
-                t = I(t)
-            except ValueError:
-                return []
+    #rel = I(iri.absolutize(rel, ctx.base))
+    def _link(ctx):
+        if source:
+            if not callable(source):
+                raise ValueError('Link source must be a pattern action function')
+            contexts = source(ctx)
+            for ctx in contexts:
+                ctx.output_model.add(ctx.current_link[ORIGIN], ctx.current_link[RELATIONSHIP], ctx.current_link[TARGET], attributes)
+            return
 
-        out_attrs = {}
-        for k, v in attributes.items():
-            k = k(ctx) if callable(k) else k
-            #If k is a list of contexts use it to dynamically execute functions
-            if isinstance(k, list):
-                if k and isinstance(k[0], context):
-                    for newctx in k:
-                        #Presumably the function in question will generate any needed links in the output model
-                        v(newctx)
-                    continue
+        (o, r, v, a) = ctx.current_link
+        _origin = origin(ctx) if callable(origin) else origin
+        o_list = [o] if _origin is None else (_origin if isinstance(_origin, list) else [_origin])
+        #_origin = _origin if isinstance(_origin, set) else set([_origin])
+        _rel = rel(ctx) if callable(rel) else rel
+        r_list = [r] if _rel is None else (_rel if isinstance(_rel, list) else [_rel])
+        #_rel = _rel if isinstance(_rel, set) else set([_rel])
+        _value = value(ctx) if callable(value) else value
+        v_list = [v] if _value is None else (_value if isinstance(_value, list) else [_value])
+        #_target = _target if isinstance(_target, set) else set([_target])
+        _attributes = attributes(ctx) if callable(attributes) else attributes
 
-            #import traceback; traceback.print_stack() #For looking up the call stack e.g. to debug nested materialize
+        #(ctx_o, ctx_r, ctx_t, ctx_a) = ctx.current_link
 
-            #Check that the attributes key is not None, which is a signal not to
-            #generate the item. For example if the key is an ifexists and the
-            #test expression result is False, it will come back as None,
-            #and we don't want to run the v function
-            if k:
-                new_current_link = (o, k, ctx.current_link[TARGET], ctx.current_link[ATTRIBUTES])
-                newctx = ctx.copy(current_link=new_current_link)
-                v = v(newctx) if callable(v) else v
+        #FIXME: Add test for IRI output via wrapper action function
+        for (o, r, v, a) in [ (o, r, v, a) for o in o_list for r in r_list for v in v_list ]:
+            ctx.output_model.add(o, r, v, attributes)
 
-                #If k or v come from pipeline functions as None it signals to skip generating anything else for this link item
-                if v is not None:
-                    v = v(newctx) if callable(v) else v
-                    #FIXME: Fix properly, by slugifying & making sure slugify handles all-numeric case
-                    if k.isdigit(): k = '_' + k
-                    if isinstance(v, list):
-                        for valitems in v:
-                            if valitems:
-                                #out_attrs[k] = valitems
-                                out_attrs[I(iri.absolutize(k, newctx.base))] = valitems
-                    else:
-                        #out_attrs[I(iri.absolutize(k, newctx.base))] = v
-                        out_attrs[k] = v
-
-        ctx.output_model.add(I(o), I(iri.absolutize(rel, ctx.base)), t, out_attrs)
         return
-    return _rename
+    return _link
 
 
 def links(origin, rel, target, attributes=None):

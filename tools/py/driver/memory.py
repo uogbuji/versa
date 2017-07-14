@@ -140,7 +140,11 @@ class connection(connection_base):
         index - optional position for the relationship to be inserted
         '''
         #FIXME: return an ID (IRI) for the resulting relationship?
-        assert rel
+
+        if not origin: 
+            raise ValueError('Relationship origin cannot be null')
+        if not rel: 
+            raise ValueError('Relationship ID cannot be null')
 
         # convert attribute class to the expected type
         if type(attrs) != type(self._attr_cls):
