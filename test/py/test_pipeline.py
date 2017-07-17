@@ -5,6 +5,8 @@ Structured Data Validators Structured Data Linter http://linter.structured-data.
 import logging
 import functools
 
+import pytest
+
 from versa import I, VERSA_BASEIRI, ORIGIN, RELATIONSHIP, TARGET
 from versa.driver import memory
 from versa.pipeline import *
@@ -36,69 +38,69 @@ SIMPLE_BOOK = {
 
 #logging.basicConfig(level=logging.DEBUG)
 BOOK_TYPE = 'http://schema.org/Book'
-SCHEMA_ORG = 'http://schema.org/'
+SCH = SCHEMA_ORG = 'http://schema.org/'
 EXAMPLE_ORG = 'http://example.org/'
 
-def test_pipeline1():
+BOOK_ID = 'http://example.org/book/catcher-in-the-rye'
+SCHEMA_NAME = I(iri.absolutize('name', SCHEMA_ORG))
+SCHEMA_AUTHOR = I(iri.absolutize('author', SCHEMA_ORG))
+
+#Not really needed.
+IN_M = memory.connection(baseiri='http://example.org/')
+
+BOOK_CASES = []
+
+transforms = {
+    'id': discard(),
+    'title': link(rel=SCH+'name'),
+    'author': materialize(SCH+'Person', rel=SCH+'author', unique=[(SCH+'name', run('target'))], links=[(SCH+'name', run('target'))]),
+    'link': link(rel=SCH+'link'),
+    'cover': link(rel=SCH+'cover'),
+}
+
+def asserter(out_m):
+    assert out_m.size() == 7, repr(out_m)
+    assert next(out_m.match(BOOK_ID, VTYPE_REL))[TARGET] == BOOK_TYPE
+    assert next(out_m.match(BOOK_ID, SCHEMA_NAME))[TARGET] == 'The Catcher in the Rye'
+
+BOOK_CASES.append(('simple1', transforms, asserter))
+
+transforms = {
+    'id': discard(),
+    'title': link(rel=SCH+'name'),
+    #For testing; doesn't make much sense, really, otherwise 
+    'author': materialize(SCH+'Person', rel=SCH+'author', unique=[(SCH+'name', run('target'))], links=[(SCH+'name', run('target'))], inverse=True),
+    'link': link(rel=SCH+'link'),
+    'cover': link(rel=SCH+'cover'),
+}
+
+def asserter(out_m):
+    assert out_m.size() == 7, repr(out_m)
+    assert next(out_m.match(BOOK_ID, VTYPE_REL))[TARGET] == BOOK_TYPE
+    assert next(out_m.match(BOOK_ID, SCHEMA_NAME))[TARGET] == 'The Catcher in the Rye'
+    author = next(out_m.match(None, SCHEMA_AUTHOR), BOOK_ID)[ORIGIN]
+    assert next(out_m.match(author, SCHEMA_NAME), None)[TARGET] == 'J.D. Salinger'
+
+BOOK_CASES.append(('simple2', transforms, asserter))
+
+
+@pytest.mark.parametrize('label,transforms,asserter', BOOK_CASES)
+def test_book_cases(label, transforms, asserter):
     idg = idgen(EXAMPLE_ORG)
     existing_ids = set()
-
-    TRANSFORMS = {
-        'id': discard(),
-        'title': link(rel='name'),
-        'author': materialize('Person', rel='author', unique=[('name', run('target'))], links=[('name', run('target'))]),
-        'link': link(rel='link'),
-        'cover': link(rel='cover'),
-    }
-    #'type': functools.partial(relabel, rel=VTYPE_REL),
-
     out_m = memory.connection(baseiri='http://example.org/')
 
     rid = SIMPLE_BOOK['id']
     out_m.add(rid, VTYPE_REL, BOOK_TYPE)
+
     for k, v in SIMPLE_BOOK.items():
         ctxlink = (rid, k, v, {})
-        func = TRANSFORMS.get(k)
+        func = transforms.get(k)
         if func:
-            in_m = memory.connection(baseiri='http://example.org/')
-            ctx = context(ctxlink, in_m, out_m, base=SCHEMA_ORG, idgen=idg)
+            ctx = context(ctxlink, IN_M, out_m, base=SCHEMA_ORG, idgen=idg)
             func(ctx)
-    
-    assert out_m.size() == 7, repr(out_m)
-    assert next(out_m.match('http://example.org/book/catcher-in-the-rye', VTYPE_REL))[TARGET] == BOOK_TYPE
-    assert next(out_m.match('http://example.org/book/catcher-in-the-rye', I(iri.absolutize('name', SCHEMA_ORG))))[TARGET] == 'The Catcher in the Rye'
 
-
-def test_pipeline2():
-    idg = idgen(EXAMPLE_ORG)
-    existing_ids = set()
-
-    TRANSFORMS = [
-        ('id', discard()),
-        ('title', link(rel='name')),
-        #For testing; doesn't make much sense, really, otherwise 
-        ('author', materialize('Person', rel='author', unique=[('name', run('target'))], links=[('name', run('target'))], inverse=True)),
-        ('link', link(rel='link')),
-        ('cover', link(rel='cover')),
-    ]
-
-    out_m = memory.connection(baseiri='http://example.org/')
-
-    rid = SIMPLE_BOOK['id']
-    out_m.add(rid, VTYPE_REL, BOOK_TYPE)
-    for k, v in SIMPLE_BOOK.items():
-        ctxlink = (rid, k, v, {})
-        for rel, func in TRANSFORMS:
-            if k == rel:
-                in_m = memory.connection(baseiri='http://example.org/')
-                ctx = context(ctxlink, in_m, out_m, base=SCHEMA_ORG, idgen=idg)
-                func(ctx)
-    
-    assert out_m.size() == 7, repr(out_m)
-    assert next(out_m.match('http://example.org/book/catcher-in-the-rye', VTYPE_REL))[TARGET] == BOOK_TYPE
-    assert next(out_m.match('http://example.org/book/catcher-in-the-rye', I(iri.absolutize('name', SCHEMA_ORG))))[TARGET] == 'The Catcher in the Rye'
-    author = next(out_m.match(None, I(iri.absolutize('author', SCHEMA_ORG))), 'http://example.org/book/catcher-in-the-rye')[ORIGIN]
-    assert next(out_m.match(author, I(iri.absolutize('name', SCHEMA_ORG))), None)[TARGET] == 'J.D. Salinger'
+    asserter(out_m)
 
 
 if __name__ == '__main__':
