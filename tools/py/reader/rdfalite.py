@@ -98,7 +98,7 @@ def parse(htmlsource, statement_sink, source_uri):
             new_resource = elem.xml_attributes.get('resource')
             if new_resource:
                 try:
-                    resource = I(iri.absolutize(new_resource.lstrip('/'), source_uri))
+                    resource = new_resource = I(iri.absolutize(new_resource, source_uri))
                 except ValueError:
                     warnings.warn('Invalid URL or anchor {} found in {}'.format(new_resource, source_uri))
                     new_resource = None
@@ -106,7 +106,7 @@ def parse(htmlsource, statement_sink, source_uri):
             typeof_list = elem.xml_attributes.get('typeof')
             if typeof_list:
                 for typeof in typeof_list.split():
-                    typeof = I(iri.absolutize(typeof.lstrip('/'), vocab))
+                    typeof = I(iri.absolutize(typeof, vocab))
                     statement_sink.send((new_resource or resource, RDF_NS + 'type', typeof))
 
             new_prop_list = elem.xml_attributes.get('property')
@@ -127,9 +127,9 @@ def parse(htmlsource, statement_sink, source_uri):
                         if not p in prefixes:
                             #FIXME: Silent error for now
                             continue
-                        prop = I(iri.absolutize(local.lstrip('/'), prefixes[p]))
+                        prop = I(iri.absolutize(local, prefixes[p]))
                     else:
-                        prop = I(iri.absolutize(new_prop.lstrip('/'), vocab))
+                        prop = I(iri.absolutize(new_prop, vocab))
                     value = new_value or elem.xml_attributes.get('content') or elem.xml_value
                     statement_sink.send((resource, prop, value))
                     #print((resource, prop, value))

@@ -31,7 +31,7 @@ SIMPLE_BOOK = {
     'id': 'http://example.org/book/catcher-in-the-rye',
     'title': 'The Catcher in the Rye',
     'type': 'http://ogp.me/ns/books#books.book',
-    'link': 'http://example.org/book/catcher-in-the-rye.html',
+    'link': 'https://en.wikipedia.org/wiki/The_Catcher_in_the_Rye',
     'author': 'J.D. Salinger',
     'cover': 'http://example.org/book/catcher-in-the-rye-book-cover.jpg',
 }
