@@ -130,7 +130,7 @@ def parse(htmlsource, statement_sink, source_uri):
                         prop = I(iri.absolutize(local, prefixes[p]))
                     else:
                         prop = I(iri.absolutize(new_prop, vocab))
-                    value = new_value or elem.xml_attributes.get('content') or elem.xml_value
+                    value = new_value or elem.xml_attributes.get('content') or elem.xml_attributes.get('href') or elem.xml_attributes.get('src') or elem.xml_value
                     statement_sink.send((resource, prop, value))
                     #print((resource, prop, value))
                     logging.debug('{}'.format((resource, prop, value)))
