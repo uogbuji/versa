@@ -28,6 +28,11 @@ def simple_lookup_byvalue(m, rel, target):
     return links[0][ORIGIN] if links else None
 
 
+def lookup(m, orig, rel):
+    for link in m.match(orig, rel):
+        yield link[TARGET]
+
+
 def transitive_closure(m, orig, rel):
     '''
     Generate the closure over a transitive relationship in depth-first fashion

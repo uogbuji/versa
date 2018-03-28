@@ -11,8 +11,13 @@ from versa import I, VERSA_BASEIRI, ORIGIN, RELATIONSHIP, TARGET, ATTRIBUTES
 
 from versa.reader import statement_prep, dumb_triples, rdfize, versalinks
 
-from rdflib import URIRef, Literal
-from rdflib import BNode
+try:
+    from rdflib import BNode as bnode
+    RDFLIB_AVAILABLE = True
+except:
+    def bnode(object):
+        pass
+    RDFLIB_AVAILABLE = False
 
 from amara3 import iri
 from amara3.uxml import tree
@@ -61,6 +66,15 @@ def tordf(htmlsource, rdfgr, source_uri):
 
     '''
     sink = rdfize(rdfgr)
+    next(sink) #Prime the coroutine
+    return parse(htmlsource, sink, source_uri)
+
+
+def totriples(htmlsource, triples, source_uri):
+    '''
+
+    '''
+    sink = dumb_triples(triples)
     next(sink) #Prime the coroutine
     return parse(htmlsource, sink, source_uri)
 
@@ -114,7 +128,7 @@ def parse(htmlsource, statement_sink, source_uri):
             if new_prop_list:
                 #FIXME: Should this only be when about is used?
                 if typeof_list and not new_resource:
-                    new_value = BNode()
+                    new_value = bnode()
                     #new_value = I(BNODE_ROOT + str(g_bnode_counter))
                     #g_bnode_counter += 1
                 elif new_resource:

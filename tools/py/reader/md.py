@@ -14,7 +14,6 @@ import re
 import itertools
 
 import markdown
-from versa.contrib import mkdcomments
 
 from amara3 import iri #for absolutize & matches_uri_syntax
 from amara3.uxml.parser import parse, event
@@ -22,14 +21,17 @@ from amara3.uxml.tree import treebuilder, element, text
 from amara3.uxml.treeutil import *
 #from amara import namespaces
 
+from versa.contrib import mkdcomments
 from versa import I, VERSA_BASEIRI
+from versa.contrib.datachefids import idgen, FROM_EMPTY_64BIT_HASH
 
 TEXT_VAL, RES_VAL, UNKNOWN_VAL = 1, 2, 3
 
 TYPE_REL = I(iri.absolutize('type', VERSA_BASEIRI))
 
 #Does not support the empty URL <> as a property name
-REL_PAT = re.compile('((<(.+)>)|([@\\-_\\w#/]+)):\s*((<(.+)>)|("(.*?)")|(\'(.*?)\')|(.*))', re.DOTALL)
+#REL_PAT = re.compile('((<(.+)>)|([@\\-_\\w#/]+)):\s*((<(.+)>)|("(.*?)")|(\'(.*?)\')|(.*))', re.DOTALL)
+REL_PAT = re.compile('((<(.+)>)|([@\\-_\\w#/]+)):\s*((<(.+)>)|("(.*)")|(\'(.*)\')|(.*))', re.DOTALL)
 
 #
 URI_ABBR_PAT = re.compile('@([\\-_\\w]+)([#/@])(.+)', re.DOTALL)
@@ -100,7 +102,7 @@ def parse(md, model, encoding='utf-8', config=None):
     Translate the Versa Markdown syntax into Versa model relationships
 
     md -- markdown source text
-    output -- Versa model to take the output relationship
+    model -- Versa model to take the output relationship
     encoding -- character encoding (defaults to UTF-8)
 
     Returns: The overall base URI (`@base`) specified in the Markdown file, or None
@@ -137,6 +139,9 @@ def parse(md, model, encoding='utf-8', config=None):
                 interpretations[prop] = lambda x, **kwargs: x
 
     setup_interpretations(interp_stanza)
+
+    #Prep ID generator, in case needed
+    idg = idgen(None)
 
     #Parse the Markdown
     #Alternately:
@@ -263,10 +268,10 @@ def parse(md, model, encoding='utf-8', config=None):
             rid = document_iri or base
             fullprop = I(iri.absolutize(prop, propbase or base))
             if fullprop in interpretations:
-                val = interpretations[fullprop](val, rid=rid, fullprop=fullprop, base=base, model=output)
-                if val is not None: output.add(rid, fullprop, val)
+                val = interpretations[fullprop](val, rid=rid, fullprop=fullprop, base=base, model=model)
+                if val is not None: model.add(rid, fullprop, val)
             else:
-                output.add(rid, fullprop, val)
+                model.add(rid, fullprop, val)
 
 
     #Default IRI prefixes if @iri/@base is set
@@ -284,17 +289,19 @@ def parse(md, model, encoding='utf-8', config=None):
             raise ValueError(_('Syntax error in resource header: {0}'.format(sect.xml_value)))
         rid = matched.group(1)
         rtype = matched.group(3)
+        if rtype:
+            rtype = I(iri.absolutize(rtype, base))
+
         if rid:
             rid = I(iri.absolutize(rid, base))
         if not rid:
-            rid = I(iri.absolutize(output.generate_resource(), base))
-        if rtype:
-            rtype = I(iri.absolutize(rtype, base))
+            rid = next(idg)
+
         #Resource type might be set by syntax config
         if not rtype:
             rtype = syntaxtypemap.get(sect.xml_name)
         if rtype:
-            output.add(rid, TYPE_REL, rtype)
+            model.add(rid, TYPE_REL, rtype)
         #Add the property
         for prop, val, typeindic, subfield_list in fields(sect):
             attrs = {}
@@ -311,7 +318,7 @@ def parse(md, model, encoding='utf-8', config=None):
                 elif atype == UNKNOWN_VAL:
                     attrs[aprop] = aval
                     if aprop in interpretations:
-                        aval = interpretations[aprop](aval, rid=rid, fullprop=aprop, base=base, model=output)
+                        aval = interpretations[aprop](aval, rid=rid, fullprop=aprop, base=base, model=model)
                         if aval is not None: attrs[aprop] = aval
                     else:
                         attrs[aprop] = aval
@@ -328,21 +335,21 @@ def parse(md, model, encoding='utf-8', config=None):
                     val = URI_ABBR_PAT.sub(uri + '\\2\\3', val)
                 else:
                     val = I(iri.absolutize(val, rtbase))
-                output.add(rid, fullprop, val, attrs)
+                model.add(rid, fullprop, val, attrs)
             elif typeindic == TEXT_VAL:
                 if '@lang' not in attrs: attrs['@lang'] = default_lang
-                output.add(rid, fullprop, val, attrs)
+                model.add(rid, fullprop, val, attrs)
             elif typeindic == UNKNOWN_VAL:
                 if fullprop in interpretations:
-                    val = interpretations[fullprop](val, rid=rid, fullprop=fullprop, base=base, model=output)
-                    if val is not None: output.add(rid, fullprop, val)
+                    val = interpretations[fullprop](val, rid=rid, fullprop=fullprop, base=base, model=model)
+                    if val is not None: model.add(rid, fullprop, val)
                 else:
-                    output.add(rid, fullprop, val, attrs)
+                    model.add(rid, fullprop, val, attrs)
             #resinfo = AB_RESOURCE_PAT.match(val)
             #if resinfo:
             #    val = resinfo.group(1)
             #    valtype = resinfo.group(3)
-            #    if not val: val = output.generate_resource()
+            #    if not val: val = model.generate_resource()
             #    if valtype: attrs[TYPE_REL] = valtype
 
     return document_iri
