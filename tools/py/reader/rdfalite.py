@@ -9,22 +9,14 @@ from itertools import *
 #from versa.writer.rdfs import prep as statement_prep
 from versa import I, VERSA_BASEIRI, ORIGIN, RELATIONSHIP, TARGET, ATTRIBUTES
 
-from versa.reader import statement_prep, dumb_triples, rdfize, versalinks
-
-try:
-    from rdflib import BNode as bnode
-    RDFLIB_AVAILABLE = True
-except:
-    def bnode(object):
-        pass
-    RDFLIB_AVAILABLE = False
+from . import statement_prep, dumb_triples, rdfize, versalinks
+from versa.writer.rdf import mock_bnode, prep, RDF_TYPE, RDF_NS
 
 from amara3 import iri
 from amara3.uxml import tree
 from amara3.uxml.treeutil import *
 from amara3.uxml import html5
 
-RDF_NS = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#'
 #SCHEMAORG_NS is proper name. Deprecate the other
 SCHEMAORG_NS = SCHEMA_NS = 'http://schema.org/'
 FOAF_NS = 'http://xmlns.com/foaf/0.1/'
@@ -43,8 +35,6 @@ logger = logging.getLogger('rdfalite')
 verbose = True
 if verbose:
     logger.setLevel(logging.DEBUG)
-
-BNODE_ROOT = 'urn:amara-bnode:_'
 
 def toversa(htmlsource, model, source_uri):
     '''
@@ -85,9 +75,7 @@ def parse(htmlsource, statement_sink, source_uri):
     '''
     root = html5.parse(htmlsource)
 
-    g_bnode_counter = 1
     def do_parse(elem, resource, vocab=None, prop=None, prefixes=None):
-        nonlocal g_bnode_counter
         prefixes = prefixes or DEFAULT_PREFIXES.copy()
         vocab = elem.xml_attributes.get('vocab', vocab)
         #element_satisfied = False
@@ -114,24 +102,23 @@ def parse(htmlsource, statement_sink, source_uri):
                 try:
                     resource = new_resource = I(iri.absolutize(new_resource, source_uri))
                 except ValueError:
-                    warnings.warn('Invalid URL or anchor {} found in {}'.format(new_resource, source_uri))
+                    warnings.warn('Invalid URL or anchor {} found in {}. Ignored.'.format(new_resource, source_uri))
                     new_resource = None
 
             typeof_list = elem.xml_attributes.get('typeof')
             if typeof_list:
+                if not new_resource: new_resource = mock_bnode('')
                 for typeof in typeof_list.split():
-                    typeof = I(iri.absolutize(typeof, vocab))
+                    try:
+                        typeof = I(iri.absolutize(typeof, vocab))
+                    except ValueError:
+                        warnings.warn('Invalid URL or anchor {} found in {}. Ignored'.format(typeof, source_uri))
                     statement_sink.send((new_resource or resource, RDF_NS + 'type', typeof))
 
             new_prop_list = elem.xml_attributes.get('property')
             new_value = None
             if new_prop_list:
-                #FIXME: Should this only be when about is used?
-                if typeof_list and not new_resource:
-                    new_value = bnode()
-                    #new_value = I(BNODE_ROOT + str(g_bnode_counter))
-                    #g_bnode_counter += 1
-                elif new_resource:
+                if new_resource:
                     new_value = new_resource
                 for new_prop in new_prop_list.split():
                     if new_prop == 'about':
@@ -141,13 +128,34 @@ def parse(htmlsource, statement_sink, source_uri):
                         if not p in prefixes:
                             #FIXME: Silent error for now
                             continue
-                        prop = I(iri.absolutize(local, prefixes[p]))
+                        try:
+                            prop = I(iri.absolutize(local, prefixes[p]))
+                        except ValueError:
+                            warnings.warn('Invalid URL or anchor {} found in {}. Ignored'.format(local, source_uri))
+                            continue
                     else:
-                        prop = I(iri.absolutize(new_prop, vocab))
-                    value = new_value or elem.xml_attributes.get('content') or elem.xml_attributes.get('href') or elem.xml_attributes.get('src') or elem.xml_value
+                        try:
+                            prop = I(iri.absolutize(new_prop, vocab))
+                        except ValueError:
+                            warnings.warn('Invalid URL or anchor {} found in {}. Ignored'.format(new_prop, source_uri))
+                            continue
+                    href_res = elem.xml_attributes.get('href')
+                    if href_res:
+                        try:
+                            href_res = I(href_res)
+                        except ValueError:
+                            warnings.warn('Invalid URL or anchor {} found in {}. Ignored'.format(href_res, source_uri))
+                            continue
+                    href_src = elem.xml_attributes.get('src')
+                    if href_src:
+                        try:
+                            href_src = I(href_src)
+                        except ValueError:
+                            warnings.warn('Invalid URL or anchor {} found in {}. Ignored'.format(href_src, source_uri))
+                            continue
+                    value = new_value or elem.xml_attributes.get('content') or href_res or href_src or elem.xml_value
                     statement_sink.send((resource, prop, value))
-                    #print((resource, prop, value))
-                    logging.debug('{}'.format((resource, prop, value)))
+                    #logging.debug('{}'.format((resource, prop, value)))
                     #element_satisfied = True
             if new_value: resource = new_value
         for child in elem.xml_children:

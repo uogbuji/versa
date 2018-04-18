@@ -79,10 +79,13 @@ class connection(connection_base):
             matches = True
             if origin and origin != curr_rel[ORIGIN]:
                 matches = False
+                continue
             if rel and rel != curr_rel[RELATIONSHIP]:
                 matches = False
+                continue
             if target and target != curr_rel[TARGET]:
                 matches = False
+                continue
             if attrs:
                 for k, v in attrs.items():
                     if k not in curr_rel[ATTRIBUTES] or curr_rel[ATTRIBUTES].get(k) != v:

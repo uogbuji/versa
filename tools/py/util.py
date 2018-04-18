@@ -121,10 +121,26 @@ def duplicate_statements(model, oldorigin, neworigin, rfilter=None):
     :param newres: origin resource IRI for duplication
     :return: None
     '''
-    for link in model.match(oldorigin):
-        o, r, t, a = link
+    for o, r, t, a in model.match(oldorigin):
         if rfilter is None or rfilter(o, r, t, a):
             model.add(I(neworigin), r, t, a)
+    return
+
+
+def uniquify(model):
+    '''
+    Remove all duplicate relationships
+    '''
+    seen = set()
+    to_remove = set()
+    for ix, (o, r, t, a) in model:
+        hashable_link = (o, r, t) + tuple(sorted(a.items()))
+        #print(hashable_link)
+        if hashable_link in seen:
+            to_remove.add(ix)
+        seen.add(hashable_link)
+
+    model.remove(to_remove)
     return
 
 
