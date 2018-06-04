@@ -68,7 +68,7 @@ def bind(models, context=None, ignore_oftypes=None, logger=logging):
         if typ in ignore_oftypes:
             to_remove.append(oid)
             for ref in referents:
-                refobj = obj_pool[ref]
+                refobj, _ = obj_pool[ref]
                 for k in list(refobj.keys()):
                     v = refobj[k]
                     if isinstance(v, list) and obj in v:
@@ -97,6 +97,8 @@ def bind(models, context=None, ignore_oftypes=None, logger=logging):
     for obj in to_remove:
         top_objs.remove(obj)
     #import pprint;pprint.pprint(top_objs)
-    top = {'@context': context, '@graph': top_objs}
-    return top
+    if context and context.get('@output', True):
+        top = {'@context': context, '@graph': top_objs}
+    else:
+        return top_objs
 
