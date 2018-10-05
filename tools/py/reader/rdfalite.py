@@ -82,7 +82,7 @@ def parse(htmlsource, statement_sink, source_uri):
         if vocab:
             prefix = elem.xml_attributes.get('prefix')
             if prefix:
-                logging.debug('{}'.format(prefix))
+                #logging.debug('{}'.format(prefix))
                 prefix_bits = prefix.split()
                 # a, b = tee(prefix.split())
                 # next(b, None)
