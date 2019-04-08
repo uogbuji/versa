@@ -52,15 +52,15 @@ class connection(connection_base):
     def size(self):
         '''Return the number of links in the model'''
         cur = self._conn.cursor()
-        querystr = u"SELECT COUNT(*) FROM relationship;"
+        querystr = "SELECT COUNT(*) FROM relationship;"
         cur.execute(querystr)
         result = cur.fetchone()
         return result[0]
 
     def __iter__(self):
         cur = self._conn.cursor()
-        tables = u"relationship"
-        querystr = u"SELECT relationship.rawid, relationship.origin, relationship.rel, relationship.target, attribute.name, attribute.value FROM relationship FULL JOIN attribute ON relationship.rawid = attribute.rawid;".format(tables)
+        tables = "relationship"
+        querystr = "SELECT relationship.rawid, relationship.origin, relationship.rel, relationship.target, attribute.name, attribute.value FROM relationship FULL JOIN attribute ON relationship.rawid = attribute.rawid;".format(tables)
         cur.execute(querystr)
         return self._process_db_rows_iter(cur)
 
@@ -76,31 +76,31 @@ class connection(connection_base):
         '''
         #FIXME: Implement include_ids
         cur = self._conn.cursor()
-        conditions = u""
-        and_placeholder = u""
-        tables = u"relationship"
+        conditions = ""
+        and_placeholder = ""
+        tables = "relationship"
         params = []
         if origin:
-            conditions += u"relationship.origin = %s"
+            conditions += "relationship.origin = %s"
             params.append(origin)
-            and_placeholder = u" AND "
+            and_placeholder = " AND "
         if target:
-            conditions += and_placeholder + u"relationship.target = %s"
+            conditions += and_placeholder + "relationship.target = %s"
             params.append(target)
-            and_placeholder = u" AND "
+            and_placeholder = " AND "
         if rel:
-            conditions += and_placeholder + u"relationship.rel = %s"
+            conditions += and_placeholder + "relationship.rel = %s"
             params.append(rel)
-            and_placeholder = u" AND "
+            and_placeholder = " AND "
         if attrs:
-            tables = u"relationship, attribute"
+            tables = "relationship, attribute"
             for a_name, a_val in attrs.items():
-                conditions += and_placeholder + u"EXISTS (SELECT 1 from attribute AS subattr WHERE subattr.rawid = relationship.rawid AND subattr.name = %s AND subattr.value = %s)"
+                conditions += and_placeholder + "EXISTS (SELECT 1 from attribute AS subattr WHERE subattr.rawid = relationship.rawid AND subattr.name = %s AND subattr.value = %s)"
                 params.extend((a_name, a_val))
-                and_placeholder = u" AND "
-        #querystr = u"SELECT relationship.rawid, relationship.origin, relationship.rel, relationship.target, attribute.name, attribute.value FROM {0} WHERE {1} ORDER BY relationship.rawid;".format(tables, conditions)
+                and_placeholder = " AND "
+        #querystr = "SELECT relationship.rawid, relationship.origin, relationship.rel, relationship.target, attribute.name, attribute.value FROM {0} WHERE {1} ORDER BY relationship.rawid;".format(tables, conditions)
         #SELECT relationship.rawid, attribute.rawid, relationship.origin, relationship.rel, relationship.target, attribute.name, attribute.value FROM relationship FULL JOIN attribute ON relationship.rawid = attribute.rawid WHERE relationship.origin = 'http://uche.ogbuji.net' AND EXISTS (SELECT 1 from attribute AS subattr WHERE subattr.rawid = relationship.rawid AND subattr.name = '@context' AND subattr.value = 'http://uche.ogbuji.net#_metadata') AND EXISTS (SELECT 1 from attribute AS subattr WHERE subattr.rawid = relationship.rawid AND subattr.name = '@lang' AND subattr.value = 'ig') ORDER BY relationship.rawid;
-        querystr = u"SELECT relationship.rawid, relationship.origin, relationship.rel, relationship.target, attribute.name, attribute.value FROM relationship FULL JOIN attribute ON relationship.rawid = attribute.rawid WHERE {1} ORDER BY relationship.rawid;".format(tables, conditions)
+        querystr = "SELECT relationship.rawid, relationship.origin, relationship.rel, relationship.target, attribute.name, attribute.value FROM relationship FULL JOIN attribute ON relationship.rawid = attribute.rawid WHERE {1} ORDER BY relationship.rawid;".format(tables, conditions)
         #self._logger.debug(x.format(url))
         self._logger.debug(cur.mogrify(querystr, params))
         cur.execute(querystr, params)
@@ -154,14 +154,14 @@ class connection(connection_base):
         cur = self._conn.cursor()
         #relationship.
         if rid:
-            querystr = u"INSERT INTO relationship (origin, rel, target, rid) VALUES (%s, %s, %s, %s) RETURNING rawid;"
+            querystr = "INSERT INTO relationship (origin, rel, target, rid) VALUES (%s, %s, %s, %s) RETURNING rawid;"
             cur.execute(querystr, (origin, rel, target, rid))
         else:
-            querystr = u"INSERT INTO relationship (origin, rel, target) VALUES (%s, %s, %s) RETURNING rawid;"
+            querystr = "INSERT INTO relationship (origin, rel, target) VALUES (%s, %s, %s) RETURNING rawid;"
             cur.execute(querystr, (origin, rel, target))
         rawid = cur.fetchone()[0]
         for a_name, a_val in attrs.items():
-            querystr = u"INSERT INTO attribute (rawid, name, value) VALUES (%s, %s, %s);"
+            querystr = "INSERT INTO attribute (rawid, name, value) VALUES (%s, %s, %s);"
             cur.execute(querystr, (rawid, a_name, a_val))
         self._conn.commit()
         cur.close()
