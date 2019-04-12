@@ -1,19 +1,5 @@
 #versa.pipeline
 '''
-Framework for expressing transforms from one pattern of Versa links to another
-This is especially useful if you've used a tool to extract Versa from some data
-source but would like to tweak the interpretation of that data. It's also useful
-for mapping from one vocabulary to another.
-
-The concept is similar to XProc (http://en.wikipedia.org/wiki/XProc). You define
-the overall transform in terms of transform steps or stages, implemented as
-Python functions. Each function can have inputs, which might be simple Versa
-scalars or even functions in themselves. The outputs are Versa scalars.
-
-There is also a shared environment across the steps, called the context (`versa.context`).
-The context includes a resource which is considered the origin for purposes
-of linking, an input Versa model considered to be an overall input to the transform
-and an output Versa model considered to be an overall output.
 '''
 
 #FIXME: Use __all__
@@ -134,4 +120,44 @@ def create_resource(output_model, rtype, unique, links, existing_ids=None, id_he
 
 #iritype = object()
 #force_iritype = object()
+
+#Generic entry point for pipeline tools
+def transform(record, phases, config, interphase=None, postprocess=None, **kwargs):
+    #Google-style doctrings. Anything but ReST!
+    '''
+    Process an input record in some raw format through a defined sequence of transforms,
+    generating a versa model of output resources
+    
+    Args:
+        record: unit of input to be processed independently into resource output,
+            according to conventions established in the process phases
+        phases: sequence of processing phase functions to be applied to the
+            input record to generate the output, e.g. fingerprint then core mapping
+        interphase: shared dictionary for cooperative data sharing across phases
+        postprocess: optional final transform of the output Versa model,
+            usually to a different format
+
+    Returns:
+        list: Resource objects constructed from the post-transform Versa model
+    '''
+    #FIXME: Convert config into more kwargs?
+    input_model = memory.connection()#baseiri=BFZ)
+    output_model = memory.connection()
+    kwargs['record'] = record
+    #kwargs['logger'] = logger
+
+    resources = []
+
+    #Interphase. One POV: Michael Jackson would have a hernia here. Another POV: This is just basically a heap used by coroutines; not yet quite implemented in coroutine form, but it could be soon
+    if interphase is None: interphase = {}
+    kwargs['interphase'] = interphase
+    for phase in phases:
+        retval = phase(input_model, output_model, **kwargs)
+        if retval is False:
+            #Signal to abort
+            return None
+    if postprocess:
+        return(postprocess(output_model))
+    else:
+        return output_model
 
