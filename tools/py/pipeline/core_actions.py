@@ -149,7 +149,7 @@ def ifexists(test, value, alt=None):
     return _ifexists
 
 
-def foreach(origin=None, rel=None, target=None, attributes=None):
+def foreach(origin=None, rel=None, target=None, attributes=None, action=None):
     '''
     Action function generator to compute a combination of links
 
@@ -173,9 +173,16 @@ def foreach(origin=None, rel=None, target=None, attributes=None):
         a = [a] if _attributes is None else (_attributes if isinstance(_attributes, list) else [_attributes])
         #print([(curr_o, curr_r, curr_t, curr_a) for (curr_o, curr_r, curr_t, curr_a)
         #            in product(o, r, t, a)])
-        return [ ctx.copy(current_link=(curr_o, curr_r, curr_t, curr_a))
+        subcontexts = [ ctx.copy(current_link=(curr_o, curr_r, curr_t, curr_a))
                     for (curr_o, curr_r, curr_t, curr_a)
                     in itertools.product(o, r, t, a) ]
+        if action:
+            if not(callable(action)):
+                raise TypeError('foreach() action arg must be callable')
+            for subctx in subcontexts:
+                action(subctx)
+        else:
+            return subcontexts
         #for (curr_o, curr_r, curr_t, curr_a) in product(origin or [o], rel or [r], target or [t], attributes or [a]):
         #    newctx = ctx.copy(current_link=(curr_o, curr_r, curr_t, curr_a))
             #ctx.output_model.add(I(objid), VTYPE_REL, I(iri.absolutize(_typ, ctx.base)), {})
@@ -248,7 +255,7 @@ def materialize(typ, rel=None, origin=None, unique=None, links=None, inverse=Fal
         #The stem is the relationship from the original to the materialized resource 
         #The veins are any further relationships from materialized resource 
         for target in targets:
-            ctx_stem = ctx.copy(current_link=(o, r, target, a))
+            ctx_stem = ctx.copy(current_link=(ctx.current_link[ORIGIN], ctx.current_link[RELATIONSHIP], target, ctx.current_link[ATTRIBUTES]))
             if origin:
                 #Have been given enough info to derive the origin from context. Ignore origin in current link
                 o = origin(ctx_stem)
@@ -260,30 +267,30 @@ def materialize(typ, rel=None, origin=None, unique=None, links=None, inverse=Fal
                     if None in (k, v): continue
                     v = v if isinstance(v, list) else [v]
                     for subitem in v:
-                        subval = subitem(ctx) if callable(subitem) else subitem
+                        subval = subitem(ctx_stem) if callable(subitem) else subitem
                         if subval:
                             subval = subval if isinstance(subval, list) else [subval]
                             computed_unique.extend([(k, s) for s in subval])
 
-            objid = materialize_entity(ctx, _typ, unique=computed_unique)
+            objid = materialize_entity(ctx_stem, _typ, unique=computed_unique)
             objids.append(objid)
             for curr_rel in rels:
                 #e.g. scenario if passed in rel=ifexists(...)
-                curr_rel = curr_rel(ctx) if callable(curr_rel) else curr_rel
+                curr_rel = curr_rel(ctx_stem) if callable(curr_rel) else curr_rel
                 #FIXME: Fix this properly, by slugifying & making sure slugify handles all numeric case (prepend '_')
                 curr_rel = '_' + curr_rel if curr_rel.isdigit() else curr_rel
                 if curr_rel:
                     if inverse:
-                        ctx.output_model.add(I(objid), I(iri.absolutize(curr_rel, ctx.base)), I(o), {})
+                        ctx_stem.output_model.add(I(objid), I(iri.absolutize(curr_rel, ctx_stem.base)), I(o), {})
                     else:
-                        ctx.output_model.add(I(o), I(iri.absolutize(curr_rel, ctx.base)), I(objid), {})
+                        ctx_stem.output_model.add(I(o), I(iri.absolutize(curr_rel, ctx_stem.base)), I(objid), {})
             #print((objid, ctx_.existing_ids))
-            if objid not in ctx.existing_ids:
-                if _typ: ctx.output_model.add(I(objid), VTYPE_REL, I(iri.absolutize(_typ, ctx.base)), {})
+            if objid not in ctx_stem.existing_ids:
+                if _typ: ctx_stem.output_model.add(I(objid), VTYPE_REL, I(iri.absolutize(_typ, ctx_stem.base)), {})
                 #FIXME: Should we be using Python Nones to mark blanks, or should Versa define some sort of null resource?
                 #XXX: Note, links are only processed on new objects! This needs some thought
                 for k, v in links:
-                    new_current_link = (I(objid), k, ctx.current_link[TARGET], ctx.current_link[ATTRIBUTES])
+                    new_current_link = (I(objid), k, ctx_stem.current_link[TARGET], ctx_stem.current_link[ATTRIBUTES])
                     ctx_vein = ctx_stem.copy(current_link=new_current_link)
                     k = k(ctx_vein) if callable(k) else k
                     #If k is a list of contexts use it to dynamically execute functions
@@ -310,10 +317,10 @@ def materialize(typ, rel=None, origin=None, unique=None, links=None, inverse=Fal
                             if isinstance(v, list):
                                 for valitems in v:
                                     if valitems:
-                                        ctx.output_model.add(I(objid), I(iri.absolutize(k, ctx_vein.base)), valitems, {})
+                                        ctx_stem.output_model.add(I(objid), I(iri.absolutize(k, ctx_vein.base)), valitems, {})
                             else:
-                                ctx.output_model.add(I(objid), I(iri.absolutize(k, ctx_vein.base)), v, {})
-                ctx.existing_ids.add(objid)
+                                ctx_stem.output_model.add(I(objid), I(iri.absolutize(k, ctx_vein.base)), v, {})
+                ctx_stem.existing_ids.add(objid)
         return objids
 
     return _materialize
