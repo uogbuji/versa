@@ -23,8 +23,6 @@ from versa.driver import memory
 
 from versa.contrib.datachefids import idgen as default_idgen, FROM_EMPTY_64BIT_HASH
 
-VTYPE_REL = I(iri.absolutize('type', VERSA_BASEIRI))
-
 class context(object):
     #Default way to create a model for the transform output, if one is not provided
     transform_factory = memory.connection
@@ -81,7 +79,8 @@ def resource_id(etype, unique=None, idgen=default_idgen(None), vocabbase=None):
     '''
     params = {}
     #XXX: Use proper URI normalization? Have a philosophical discussion with Mark about this :)
-    if vocabbase: etype = vocabbase + etype
+    if vocabbase and not iri.is_absolute(etype):
+        etype = vocabbase + etype
 
     unique_computed = []
     for k, v in unique:
@@ -92,7 +91,7 @@ def resource_id(etype, unique=None, idgen=default_idgen(None), vocabbase=None):
 
     if unique_computed:
         unique_computed.insert(0, [VTYPE_REL, etype])
-        plaintext = json.dumps(unique_computed, separators=(',', ':'))
+        plaintext = json.dumps(unique_computed, separators=(',', ':'), cls=OrderedJsonEncoder)
         eid = idgen.send(plaintext)
     else:
         #We only have a type; no other distinguishing data. Generate a random hash
@@ -110,24 +109,10 @@ def materialize_entity(ctx, etype, unique=None):
     etype - type IRI for the new entity
     unique - list of key/value tuples of data to use in generating its unique ID, or None in which case one is just randomly generated
     '''
-    params = {}
-    if ctx.base:
-        etype = ctx.base + etype
-
-    unique_computed = []
-    for k, v in unique:
-        k = k if iri.is_absolute(k) else iri.absolutize(k, ctx.base)
-        v = v(ctx) if callable(v) else v
-        unique_computed.append((k, v))
-
-    if unique_computed:
-        unique_computed.insert(0, [VTYPE_REL, etype])
-        plaintext = json.dumps(unique_computed, separators=(',', ':'), cls=OrderedJsonEncoder)
-        eid = ctx.idgen.send(plaintext)
-    else:
-        #We only have a type; no other distinguishing data. Generate a random hash
-        eid = next(ctx.idgen)
-    return eid
+    for ix, (k, v) in enumerate(unique):
+        if callable(v):
+            unique[ix] = v(ctx)
+    return resource_id(etype, unique=unique, idgen=ctx.idgen, vocabbase=ctx.base)
 
 
 def create_resource(output_model, rtype, unique, links, existing_ids=None, id_helper=None):
