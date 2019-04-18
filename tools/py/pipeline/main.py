@@ -58,6 +58,47 @@ class context(object):
         return context(current_link=current_link, input_model=input_model, output_model=output_model, base=base, extras=extras, idgen=idgen, existing_ids=existing_ids)
 
 
+def resource_id(etype, unique=None, idgen=default_idgen(None), vocabbase=None):
+    '''
+    Lowest level routine for generating a, ID value using the Versa comvention
+    
+    The Versa convention originated as the hash algorithm outlined by
+    the Libhub initiative for for BIBFRAME Lite (Libhub Resource Hash Convention).
+    https://github.com/zepheira/pybibframe/wiki/From-Records-to-Resources:-the-Library.Link-resource-ID-generation-algorithm
+    
+    Takes the entity (resource) type and an ordered data mapping.
+
+    etype - type IRI for th enew entity
+    unique - list of key/value tuples of data to use in generating its unique ID, or None in which case one is just randomly generated
+    defaultvocabbase - for convenience, provided, use to resolve relative etype & data keys
+
+    >>> from versa.pipeline import resource_id
+    >>> resource_id("http://schema.org/Person", [("http://schema.org/name", "Jonathan Bruce Postel"), ("http://schema.org/birthDate", "1943-08-06")])
+    '-7hP9d_Xo8M'
+    >>> resource_id("http://schema.org/Person", [("http://schema.org/name", "Augusta Ada King")])
+    'xjgOrUFiw_o'
+    '''
+    params = {}
+    #XXX: Use proper URI normalization? Have a philosophical discussion with Mark about this :)
+    if vocabbase: etype = vocabbase + etype
+
+    unique_computed = []
+    for k, v in unique:
+        if vocabbase:
+            #XXX OK absolutize used here. Go figure
+            k = k if iri.is_absolute(k) else iri.absolutize(k, vocabbase)
+        unique_computed.append((k, v))
+
+    if unique_computed:
+        unique_computed.insert(0, [VTYPE_REL, etype])
+        plaintext = json.dumps(unique_computed, separators=(',', ':'))
+        eid = idgen.send(plaintext)
+    else:
+        #We only have a type; no other distinguishing data. Generate a random hash
+        eid = next(idgen)
+    return eid
+
+
 def materialize_entity(ctx, etype, unique=None):
     '''
     Low-level routine for creating a BIBFRAME resource. Takes the entity (resource) type and a data mapping
@@ -65,7 +106,7 @@ def materialize_entity(ctx, etype, unique=None):
     As a convenience, if a vocabulary base is provided in the context, concatenate it to etype and the data keys
 
     ctx - context information governing creation of the new entity
-    etype - type IRI for th enew entity
+    etype - type IRI for the new entity
     unique - list of key/value tuples of data to use in generating its unique ID, or None in which case one is just randomly generated
     '''
     params = {}
