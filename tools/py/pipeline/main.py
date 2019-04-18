@@ -23,6 +23,7 @@ from versa.driver import memory
 
 from versa.contrib.datachefids import idgen as default_idgen, FROM_EMPTY_64BIT_HASH
 
+VTYPE_REL = I(iri.absolutize('type', VERSA_BASEIRI))
 
 class context(object):
     #Default way to create a model for the transform output, if one is not provided
@@ -79,7 +80,8 @@ def materialize_entity(ctx, etype, unique=None):
         unique_computed.append((k, v))
 
     if unique_computed:
-        plaintext = json.dumps([etype, unique_computed], cls=OrderedJsonEncoder)
+        unique_computed.insert(0, [VTYPE_REL, etype])
+        plaintext = json.dumps(unique_computed, separators=(',', ':'), cls=OrderedJsonEncoder)
         eid = ctx.idgen.send(plaintext)
     else:
         #We only have a type; no other distinguishing data. Generate a random hash
