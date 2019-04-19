@@ -120,7 +120,7 @@ def create_resource(output_model, rtype, unique, links, existing_ids=None, id_he
     General-purpose routine to create a new resource in the output model, based on data provided
 
     output_model    - Versa connection to model to be updated
-    rtype           - Type IRI for the new resource, set with Versa type
+    rtype           - List of type IRIs for the new resource, set with Versa type. First one is primary
     unique          - list of key/value pairs for determining a unique hash for the new resource
     links           - list of key/value pairs for setting properties on the new resource
     id_helper       - If a string, a base URL for the generatd ID. If callable, a function used to return the entity. If None, set a default good enough for testing.
@@ -135,13 +135,19 @@ def create_resource(output_model, rtype, unique, links, existing_ids=None, id_he
     else:
         #FIXME: G11N
         raise ValueError('id_helper must be string (URL), callable or None')
+
+    _rtype = [rtype] if not isinstance(rtype, list) else rtype
+
     ctx = context(None, None, output_model, base=None, idgen=idg, existing_ids=existing_ids, extras=None)
-    rid = I(materialize_entity(ctx, rtype, unique=unique))
+    rid = I(materialize_entity(ctx, _rtype[0], unique=unique))
     if existing_ids is not None:
         if rid in existing_ids:
             return (False, rid)
         existing_ids.add(rid)
-    output_model.add(rid, VTYPE_REL, rtype)
+
+    for t in _rtype:
+        output_model.add(rid, VTYPE_REL, t)
+
     for r, t in links:
         output_model.add(rid, r, t)
     return (True, rid)
