@@ -14,7 +14,7 @@ from . import context, materialize_entity, create_resource
 #FIXME: Use __all__
 
 
-def link(origin=None, rel=None, value=None, attributes=None, source=None):
+def link(origin=None, rel=None, target=None, value=None, attributes=None, source=None):
     '''
     Action function generator to create a link based on the context's current link, or on provided parameters
 
@@ -24,8 +24,10 @@ def link(origin=None, rel=None, value=None, attributes=None, source=None):
     :param rel: IRI/string, or list of same; IDs for the created relationships.
     If None, the action context provides the parameter.
     
-    :param value: IRI/string, or list of same; values/targets for the created relationships.
+    :param target: IRI/string, or list of same; values/targets for the created relationships.
     If None, the action context provides the parameter.
+
+    :param value: Deprecated synonym for target
     
     :param source: pattern action to be executed, generating contexts to determine the output statements. If given, overrides specific origin, rel or value params
 
@@ -64,19 +66,25 @@ def link(origin=None, rel=None, value=None, attributes=None, source=None):
     return _link
 
 
-def links(origin, rel, target, attributes=None):
-    '''
-    '''
-    raise NotImplementedError('You can just use link() for this now.')
-
-
 def var(name):
     '''
     Action function generator to retrieve a variable from context
     '''
     def _var(ctx):
-        return ctx.variables.get(name)
+        _name = name(ctx) if callable(name) else name
+        return ctx.variables.get(_name)
     return _var
+
+
+def extra(key, default=None):
+    '''
+    Action function generator to retrieve an extra value from context
+    '''
+    def _extra(ctx):
+        _key = key(ctx) if callable(key) else key
+        _default = default(ctx) if callable(default) else default
+        return ctx.extras.get(_key, _default)
+    return _extra
 
 
 def attr(aid):
@@ -84,8 +92,43 @@ def attr(aid):
     Action function generator to retrieve an attribute from the current link
     '''
     def _attr(ctx):
-        return ctx.current_link[ATTRIBUTES].get(aid)
+        _aid = aid(ctx) if callable(aid) else aid
+        return ctx.current_link[ATTRIBUTES].get(_aid)
     return _attr
+
+
+def origin():
+    '''
+    Action function generator to return the origin of the context's current link
+
+    :return: origin of the context's current link
+    '''
+    def _origin(ctx):
+        '''
+        Versa action function Utility to return the origin of the context's current link
+
+        :param ctx: Versa context used in processing (e.g. includes the prototype link
+        :return: origin of the context's current link
+        '''
+        return ctx.current_link[ORIGIN]
+    return _origin
+
+
+def rel():
+    '''
+    Action function generator to return the relationship of the context's current link
+
+    :return: origin of the context's current link
+    '''
+    def _rel(ctx):
+        '''
+        Versa action function Utility to return the relationship of the context's current link
+
+        :param ctx: Versa context used in processing (e.g. includes the prototype link
+        :return: relationship of the context's current link
+        '''
+        return ctx.current_link[RELATIONSHIP]
+    return _rel
 
 
 def target():
@@ -94,7 +137,6 @@ def target():
 
     :return: target of the context's current link
     '''
-    #Action function generator to multiplex a relationship at processing time
     def _target(ctx):
         '''
         Versa action function Utility to return the target of the context's current link
@@ -372,10 +414,6 @@ class resource(object):
 
     def follow(self, rel):
         return simple_lookup(self._input_model, self._origin, I(iri.absolutize(rel, self._base)))
-
-
-def origin(ctx):
-    return resource(ctx.current_link[ORIGIN], ctx.input_model)
 
 
 def run(pycmds):
