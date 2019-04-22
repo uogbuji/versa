@@ -215,9 +215,10 @@ def foreach(origin=None, rel=None, target=None, attributes=None, action=None):
         a = [a] if _attributes is None else (_attributes if isinstance(_attributes, list) else [_attributes])
         #print([(curr_o, curr_r, curr_t, curr_a) for (curr_o, curr_r, curr_t, curr_a)
         #            in product(o, r, t, a)])
+        # Assemble the possible context links, ignoring those with blank or None origins
         subcontexts = [ ctx.copy(current_link=(curr_o, curr_r, curr_t, curr_a))
                     for (curr_o, curr_r, curr_t, curr_a)
-                    in itertools.product(o, r, t, a) ]
+                    in itertools.product(o, r, t, a) if curr_o ]
         if action:
             if not(callable(action)):
                 raise TypeError('foreach() action arg must be callable')
@@ -286,7 +287,7 @@ def materialize(typ, rel=None, origin=None, unique=None, links=None, inverse=Fal
         _unique = unique(ctx) if callable(unique) else unique
         (o, r, t, a) = ctx.current_link
         #FIXME: On redesign implement split using function composition instead
-        targets = [ sub_t.strip() for sub_t in t.split(split) ] if split else [t]
+        targets = [ sub_t.strip() for sub_t in t.split(split) if sub_t.strip() ] if split else [t]
         #Conversions to make sure we end up with a list of relationships out of it all
         if _rel is None:
             _rel = [r]
@@ -301,6 +302,8 @@ def materialize(typ, rel=None, origin=None, unique=None, links=None, inverse=Fal
             if origin:
                 #Have been given enough info to derive the origin from context. Ignore origin in current link
                 o = origin(ctx_stem)
+            if not o: #Defensive coding
+                continue
 
             computed_unique = [] if _unique else None
             if _unique:
