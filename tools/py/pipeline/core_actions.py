@@ -163,18 +163,27 @@ def values(*rels):
         :param ctx: Versa context used in processing (e.g. includes the prototype link
         :return: Tuple of key/value tuples from the attributes; suitable for hashing
         '''
-        computed_rels = [ rel(ctx) if callable(rel) else rel for rel in rels ]
+        computed_rels = []
+        for rel in rels:
+            if callable(rel):
+                rel = rel(ctx)
+
+            if isinstance(rel, list):
+                computed_rels.extend(rel)
+            else:
+                computed_rels.append(rel)
+
         return computed_rels
     return _values
 
 
 def ifexists(test, value, alt=None):
     '''
-    Action function generator providing an if/then/else type primitive
+    Action function generator providing a limited if/then/else type primitive
     :param test: Expression to be tested to determine the branch path
     :param value: Expression providing the result if test is true
     :param alt: Expression providing the result if test is false
-    :return: Versa action function to do the actual work
+    :return: Action representing the actual work
     '''
     def _ifexists(ctx):
         '''
@@ -189,6 +198,44 @@ def ifexists(test, value, alt=None):
         else:
             return alt(ctx) if callable(alt) else alt
     return _ifexists
+
+
+def if_(test, iftrue, iffalse=None, vars_=None):
+    '''
+    Action function generator providing a fuller if/then/else type primitive
+    :param test: Expression to be tested to determine the branch path
+    :param iftrue: Expression to be executed (perhaps for side effects) if test is true
+    :param iffalse: Expression to be executed (perhaps for side effects) if test is false
+    :param vars: Optional dictionary of variables to be used in computing string test
+    :return: Action representing the actual work. This function returns the value computed from iftrue if the test computes to true, otherwise iffalse
+    '''
+    vars_ = vars_ or {}
+    def _if_(ctx):
+        '''
+        Versa action function utility to execute an if/then/else type primitive
+
+        :param ctx: Versa context used in processing (e.g. includes the prototype link)
+        :return: Value computed according to the test expression result
+        '''
+        out_vars = {'target': ctx.current_link[TARGET]}
+        if isinstance(test, str):
+            for k, v in vars_.items():
+                #FIXME: Less crude test
+                assert isinstance(k, str)
+                _v = v(ctx) if callable(v) else v
+                out_vars[k] = _v
+
+            _test = eval(test, out_vars, out_vars)
+            #Test is an expression to be dynamically computed
+            #for m in ACTION_FUNCTION_PAT.findall(test):
+            #    func_name = m.group(1)
+        else:
+            _test = test(ctx) if callable(test) else test
+        if _test:
+            return iftrue(ctx) if callable(iftrue) else iftrue
+        elif iffalse:
+            return iffalse(ctx) if callable(iffalse) else iffalse
+    return _if_
 
 
 def foreach(origin=None, rel=None, target=None, attributes=None, action=None):
@@ -232,7 +279,7 @@ def foreach(origin=None, rel=None, target=None, attributes=None, action=None):
     return _foreach
 
 
-def materialize(typ, rel=None, origin=None, unique=None, links=None, inverse=False, split=None, attributes=None):
+def materialize(typ, rel=None, origin=None, unique=None, links=None, inverse=False, split=None, attributes=None, postprocess=None):
     '''
     Create a new resource related to the origin
 
@@ -241,9 +288,10 @@ def materialize(typ, rel=None, origin=None, unique=None, links=None, inverse=Fal
     additional links given in the links param
 
     :param rel: IRI of the relationship between the origin and the materialized
-    target, or a list of relationship IRIs, each of which will be used to create
-    a separate link, or a versa action function to derive this relationship or
-    list of relationships at run time, or None. If none, use the action context.
+    target (or vice versa if inverse=True), or a list of relationship IRIs,
+    each of which will be used to create a separate link, or a versa action
+    to derive this relationship or list of relationships at run time, or None.
+    If none, use the relationship from the action context link.
 
     :param origin: Literal IRI or Versa action function for origin of the
     main generated link. If none, use the action context.
@@ -261,8 +309,6 @@ def materialize(typ, rel=None, origin=None, unique=None, links=None, inverse=Fal
 
     :param postprocess: IRI or list of IRI queueing up actiona to be postprocessed
     for this materialized resource. None, the default, signals no special postprocessing
-
-    For examples of all these scenarios see marcpatterns.py
 
     :return: Versa action function to do the actual work
     '''
@@ -283,15 +329,14 @@ def materialize(typ, rel=None, origin=None, unique=None, links=None, inverse=Fal
         #FIXME: Part of the datachef sorting out
         if not ctx.idgen: ctx.idgen = idgen
         _typ = typ(ctx) if callable(typ) else typ
-        _rel = rel(ctx) if callable(rel) else rel
         _unique = unique(ctx) if callable(unique) else unique
+        _postprocess = postprocess if isinstance(postprocess, list) else ([postprocess] if postprocess else [])
         (o, r, t, a) = ctx.current_link
         #FIXME: On redesign implement split using function composition instead
         targets = [ sub_t.strip() for sub_t in t.split(split) if sub_t.strip() ] if split else [t]
-        #Conversions to make sure we end up with a list of relationships out of it all
-        if _rel is None:
-            _rel = [r]
-        rels = _rel if isinstance(_rel, list) else ([_rel] if _rel else [])
+        #Make sure we end up with a list
+        rels = rel if isinstance(rel, list) else ([rel] if rel else [r])
+        
         objids = []
 
         #Botanical analogy
@@ -319,18 +364,25 @@ def materialize(typ, rel=None, origin=None, unique=None, links=None, inverse=Fal
 
             objid = materialize_entity(ctx_stem, _typ, unique=computed_unique)
             objids.append(objid)
-            for curr_rel in rels:
+            #rels = [ ('_' + curr_rel if curr_rel.isdigit() else curr_rel) for curr_rel in rels if curr_rel ]
+            computed_rels = []
+            for curr_relobj in rels:
                 #e.g. scenario if passed in rel=ifexists(...)
-                curr_rel = curr_rel(ctx_stem) if callable(curr_rel) else curr_rel
-                #FIXME: Fix this properly, by slugifying & making sure slugify handles all numeric case (prepend '_')
-                curr_rel = '_' + curr_rel if curr_rel.isdigit() else curr_rel
-                if curr_rel:
+                curr_rels = curr_relobj(ctx_stem) if callable(curr_relobj) else curr_relobj
+                curr_rels = curr_rels if isinstance(curr_rels, list) else [curr_rels]
+                for curr_rel in curr_rels:
+                    if not curr_rel: continue
+                    # FIXME: Fix properly, by slugifying & making sure slugify handles  all numeric case (prepend '_')
+                    curr_rel = '_' + curr_rel if curr_rel.isdigit() else curr_rel
                     if inverse:
                         ctx_stem.output_model.add(I(objid), I(iri.absolutize(curr_rel, ctx_stem.base)), I(o), {})
                     else:
                         ctx_stem.output_model.add(I(o), I(iri.absolutize(curr_rel, ctx_stem.base)), I(objid), {})
+                    computed_rels.append(curr_rel)
             #print((objid, ctx_.existing_ids))
             if objid not in ctx_stem.existing_ids:
+                for pp in _postprocess:
+                    ctx.extras['postprocessing'].append((pp, computed_rels, I(objid)))
                 if _typ: ctx_stem.output_model.add(I(objid), VTYPE_REL, I(iri.absolutize(_typ, ctx_stem.base)), {})
                 #FIXME: Should we be using Python Nones to mark blanks, or should Versa define some sort of null resource?
                 #XXX: Note, links are only processed on new objects! This needs some thought
@@ -371,14 +423,101 @@ def materialize(typ, rel=None, origin=None, unique=None, links=None, inverse=Fal
     return _materialize
 
 
-def res(arg):
+def toiri(arg, base=None, ignore_refs=True):
     '''
-    Convert the argument into an IRI ref
+    Convert the argument into an IRI ref or list thereof
+
+    :param base: base IRI to resolve relative references against
+    :param ignore_refs: if True, make no attempt to convert would-be IRI refs to IRI type
     '''
-    def _res(ctx):
+    def _toiri(ctx):
         _arg = arg(ctx) if callable(arg) else arg
-        return I(arg)
-    return _res
+        _arg = [_arg] if not isinstance(_arg, list) else _arg
+        ret = []
+        for u in _arg:
+            iu = u
+            if not (ignore_refs and not iri.is_absolute(iu)):
+                # coerce into an IRIref, but fallout as untyped text otherwise
+                try:
+                    iu = I(iu)
+                except ValueError as e:
+                    # attempt to recover by percent encoding
+                    try:
+                        iu = I(iri.percent_encode(iu))
+                    except ValueError as e:
+                        ctx.extras['logger'].warn('Unable to convert "{}" to IRI reference:\n{}'.format(iu, e))
+
+                if base is not None and isinstance(iu, I):
+                    iu = I(iri.absolutize(iu, base))
+
+            ret.append(iu)
+
+        return ret
+    return _toiri
+
+# Legacy aliases
+res = url = toiri
+
+
+def lookup(table, key):
+    '''
+    Generic lookup mechanism
+    '''
+    def _lookup(ctx):
+        table_mapping = ctx.extras['lookups']
+        _key = key(ctx) if callable(key) else key
+        return table_mapping[table].get(_key)
+    return _lookup
+
+
+def lookup_inline(mapping, value=None):
+    '''
+    Action function generator to look up a value from a provided mapping
+
+    :param mapping: dictionary for the lookup
+    :param pattern: value to use instead of the current link target
+    :return: Versa action function to do the actual work
+    '''
+    def _lookup_inline(ctx):
+        '''
+        Versa action function Utility to do the text replacement
+
+        :param ctx: Versa context used in processing (e.g. includes the prototype link)
+        :return: Replacement text, or input text if not found
+        '''
+        (origin, _, t, a) = ctx.current_link
+        _value = value(ctx) if callable(value) else (t if value is None else value)
+        result = mapping.get(_value, _value)
+        return result
+    return _lookup_inline
+
+
+def regex_match_modify(pattern, group_or_func, value=None):
+    '''
+    Action function generator to take some text and modify it either according to a named group or a modification function for the match
+
+    :param pattern: regex string or compiled pattern
+    :param group_or_func: string or function that takes a regex match. If string, a named group to use for the result. If a function, executed to return the result
+    :param pattern: value to use instead of the current link target
+    :return: Versa action function to do the actual work
+    '''
+    def _regex_modify(ctx):
+        '''
+        Versa action function Utility to do the text replacement
+
+        :param ctx: Versa context used in processing (e.g. includes the prototype link)
+        :return: Replacement text
+        '''
+        _pattern = re.compile(pattern) if isinstance(pattern, str) else pattern
+        (origin, _, t, a) = ctx.current_link
+        _value = value(ctx) if callable(value) else (t if value is None else value)
+        match = _pattern.match(_value)
+        if not match: return _value
+        if callable(group_or_func):
+            return group_or_func(match)
+        else:
+            return match.groupdict().get(group_or_func, '')
+    return _regex_modify
 
 
 def compose(*funcs):
@@ -395,14 +534,50 @@ def compose(*funcs):
     return _compose
 
 
-def discard():
+def ignore():
     '''
-    Action function generator that's pretty much a no-op. Just ignore the proposed link set
+    Action function generator that's pretty much a no-op/ignore input
 
     :return: None
     '''
-    def _discard(ctx): return
-    return _discard
+    def _ignore(ctx): return
+    return _ignore
+
+
+def replace_from(patterns, old_text):
+    '''
+    Action function generator to take some text and replace it with another value based on a regular expression pattern
+
+    :param specs: List of replacement specifications to use, each one a (pattern, replacement) tuple
+    :param old_text: Source text for the value to be created. If this is a list, the return value will be a list processed from each item
+    :return: Versa action function to do the actual work
+    '''
+    def _replace_from(ctx):
+        '''
+        Versa action function Utility to do the text replacement
+
+        :param ctx: Versa context used in processing (e.g. includes the prototype link)
+        :return: Replacement text
+        '''
+        #If we get a list arg, take the first
+        _old_text = old_text(ctx) if callable(old_text) else old_text
+        _old_text = [] if _old_text is None else _old_text
+        old_text_list = isinstance(_old_text, list)
+        _old_text = _old_text if old_text_list else [_old_text]
+        #print(old_text_list, _old_text)
+        new_text_list = set()
+        for text in _old_text:
+            new_text = text #So just return the original string, if a replacement is not processed
+            for pat, repl in patterns:
+                m = pat.match(text)
+                if not m: continue
+                new_text = pat.sub(repl, text)
+
+            new_text_list.add(new_text)
+        #print(new_text_list)
+        return list(new_text_list) if old_text_list else list(new_text_list)[0]
+    return _replace_from
+
 
 # ----
 # Still needed?
