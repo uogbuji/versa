@@ -34,6 +34,7 @@ def link(origin=None, rel=None, target=None, value=None, attributes=None, source
     :return: Versa action function to do the actual work
     '''
     attributes = attributes or {}
+    if not target: target = value
     #rel = I(iri.absolutize(rel, ctx.base))
     def _link(ctx):
         if source:
@@ -44,23 +45,23 @@ def link(origin=None, rel=None, target=None, value=None, attributes=None, source
                 ctx.output_model.add(ctx.current_link[ORIGIN], ctx.current_link[RELATIONSHIP], ctx.current_link[TARGET], attributes)
             return
 
-        (o, r, v, a) = ctx.current_link
+        (o, r, t, a) = ctx.current_link
         _origin = origin(ctx) if callable(origin) else origin
         o_list = [o] if _origin is None else (_origin if isinstance(_origin, list) else [_origin])
         #_origin = _origin if isinstance(_origin, set) else set([_origin])
         _rel = rel(ctx) if callable(rel) else rel
         r_list = [r] if _rel is None else (_rel if isinstance(_rel, list) else [_rel])
         #_rel = _rel if isinstance(_rel, set) else set([_rel])
-        _value = value(ctx) if callable(value) else value
-        v_list = [v] if _value is None else (_value if isinstance(_value, list) else [_value])
+        _target = target(ctx) if callable(target) else target
+        t_list = [t] if _target is None else (_target if isinstance(_target, list) else [_target])
         #_target = _target if isinstance(_target, set) else set([_target])
         _attributes = attributes(ctx) if callable(attributes) else attributes
 
         #(ctx_o, ctx_r, ctx_t, ctx_a) = ctx.current_link
 
         #FIXME: Add test for IRI output via wrapper action function
-        for (o, r, v, a) in [ (o, r, v, a) for o in o_list for r in r_list for v in v_list ]:
-            ctx.output_model.add(o, r, v, attributes)
+        for (o, r, t, a) in [ (o, r, t, a) for o in o_list for r in r_list for t in t_list ]:
+            ctx.output_model.add(o, r, t, attributes)
 
         return
     return _link
