@@ -101,13 +101,15 @@ def resource_id(etype, unique=None, idgen=default_idgen(None), vocabbase=None):
 
 def materialize_entity(ctx, etype, unique=None):
     '''
-    Low-level routine for creating a BIBFRAME resource. Takes the entity (resource) type and a data mapping
-    according to the resource type. Implements the Libhub Resource Hash Convention
-    As a convenience, if a vocabulary base is provided in the context, concatenate it to etype and the data keys
+    Low-level routine for creating a resource. Takes the entity (resource) type
+    and a data mapping according to the resource type. As a convenience, if a
+    vocabulary base is provided in the context, concatenate it to etype and
+    data keys
 
     ctx - context information governing creation of the new entity
     etype - type IRI for the new entity
-    unique - list of key/value tuples of data to use in generating its unique ID, or None in which case one is just randomly generated
+    unique - list of key/value tuples of data to use in generating
+                unique ID, or None in which case one is randomly generated
     '''
     for ix, (k, v) in enumerate(unique):
         if callable(v):

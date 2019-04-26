@@ -285,7 +285,7 @@ def foreach(origin=None, rel=None, target=None, attributes=None, action=None):
     return _foreach
 
 
-def materialize(typ, rel=None, origin=None, unique=None, links=None, inverse=False, split=None, attributes=None, postprocess=None):
+def materialize(typ, rel=None, origin=None, unique=None, links=None, inverse=False, split=None, attributes=None):
     '''
     Create a new resource related to the origin
 
@@ -313,9 +313,6 @@ def materialize(typ, rel=None, origin=None, unique=None, links=None, inverse=Fal
     links, or a Versa action function returning None, which signals that
     the particular link is skipped entirely.
 
-    :param postprocess: IRI or list of IRI queueing up actiona to be postprocessed
-    for this materialized resource. None, the default, signals no special postprocessing
-
     :return: Versa action function to do the actual work
     '''
     links = links or []
@@ -336,7 +333,6 @@ def materialize(typ, rel=None, origin=None, unique=None, links=None, inverse=Fal
         if not ctx.idgen: ctx.idgen = idgen
         _typ = typ(ctx) if callable(typ) else typ
         _unique = unique(ctx) if callable(unique) else unique
-        _postprocess = postprocess if isinstance(postprocess, list) else ([postprocess] if postprocess else [])
         (o, r, t, a) = ctx.current_link
         #FIXME: On redesign implement split using function composition instead
         targets = [ sub_t.strip() for sub_t in t.split(split) if sub_t.strip() ] if split else [t]
@@ -387,8 +383,6 @@ def materialize(typ, rel=None, origin=None, unique=None, links=None, inverse=Fal
                     computed_rels.append(curr_rel)
             #print((objid, ctx_.existing_ids))
             if objid not in ctx_stem.existing_ids:
-                for pp in _postprocess:
-                    ctx.extras['postprocessing'].append((pp, computed_rels, I(objid)))
                 if _typ: ctx_stem.output_model.add(I(objid), VTYPE_REL, I(iri.absolutize(_typ, ctx_stem.base)), {})
                 #FIXME: Should we be using Python Nones to mark blanks, or should Versa define some sort of null resource?
                 #XXX: Note, links are only processed on new objects! This needs some thought
@@ -424,6 +418,9 @@ def materialize(typ, rel=None, origin=None, unique=None, links=None, inverse=Fal
                             else:
                                 ctx_stem.output_model.add(I(objid), I(iri.absolutize(k, ctx_vein.base)), v, {})
                 ctx_stem.existing_ids.add(objid)
+                if '@new-entity-hook' in ctx.extras:
+                    ctx.extras['@new-entity-hook'](objid)
+            
         return objids
 
     return _materialize
