@@ -13,6 +13,8 @@ from . import context, materialize_entity, create_resource
 
 #FIXME: Use __all__
 
+SKIP = object()
+
 
 def link(origin=None, rel=None, target=None, value=None, attributes=None, source=None):
     '''
@@ -34,7 +36,7 @@ def link(origin=None, rel=None, target=None, value=None, attributes=None, source
     :return: Versa action function to do the actual work
     '''
     attributes = attributes or {}
-    if not target: target = value
+    if target is None: target = value #Cover legacy
     #rel = I(iri.absolutize(rel, ctx.base))
     def _link(ctx):
         if source:
@@ -60,7 +62,10 @@ def link(origin=None, rel=None, target=None, value=None, attributes=None, source
         #(ctx_o, ctx_r, ctx_t, ctx_a) = ctx.current_link
 
         #FIXME: Add test for IRI output via wrapper action function
-        for (o, r, t, a) in [ (o, r, t, a) for o in o_list for r in r_list for t in t_list ]:
+        for (o, r, t, a) in [ (o, r, t, a) for o in o_list
+                                            for r in r_list
+                                            for t in t_list
+                                            if None not in (o, r, t) ]:
             ctx.output_model.add(o, r, t, attributes)
 
         return
@@ -460,37 +465,37 @@ def toiri(arg, base=None, ignore_refs=True):
 res = url = toiri
 
 
-def lookup(table, key):
+def lookup(mapping, key=None, onmiss=None):
     '''
-    Generic lookup mechanism
+    Action function generator to look up a value from a mapping provided inline or in context
+
+    Args:
+        mapping: dictionary for the lookup, or string key of such a mapping in ctx.extras
+        key: value to look up instead of the current link target
+        onmiss: value to be returned in case of a miss (lookup value not found in mapping)
+
+    Return:
+        Versa action function to do the actual work
     '''
     def _lookup(ctx):
-        table_mapping = ctx.extras['lookups']
-        _key = key(ctx) if callable(key) else key
-        return table_mapping[table].get(_key)
-    return _lookup
-
-
-def lookup_inline(mapping, value=None):
-    '''
-    Action function generator to look up a value from a provided mapping
-
-    :param mapping: dictionary for the lookup
-    :param pattern: value to use instead of the current link target
-    :return: Versa action function to do the actual work
-    '''
-    def _lookup_inline(ctx):
         '''
         Versa action function Utility to do the text replacement
 
         :param ctx: Versa context used in processing (e.g. includes the prototype link)
         :return: Replacement text, or input text if not found
         '''
+        _mapping = ctx.extras[mapping] if isinstance(mapping, str) else mapping
         (origin, _, t, a) = ctx.current_link
-        _value = value(ctx) if callable(value) else (t if value is None else value)
-        result = mapping.get(_value, _value)
+        _key = key(ctx) if callable(key) else (t if key is None else key)
+
+        _onmiss = onmiss
+        if onmiss == None:
+            _onmiss = key
+        elif onmiss == SKIP:
+            _onmiss = None
+        result = mapping.get(_key, _onmiss)
         return result
-    return _lookup_inline
+    return _lookup
 
 
 def regex_match_modify(pattern, group_or_func, value=None):
