@@ -4,6 +4,32 @@ from versa.driver import memory
 from .parser import parser
 from .miniparser import parser as miniparser
 
+def execute(model, q, variables=None, extras=None):
+    '''
+    >>> from versa.query import execute as vquery
+    >>> from versa.reader import rdfalite
+    >>> from versa.driver import memory
+    >>> m = memory.connection()
+    >>> HTML5 = 'http://www.w3.org/TR/html5/'; U = 'http://uche.ogbuji.net#'
+    >>> LINKS = [
+    >>> ["http://uche.ogbuji.net/ndewo/", "http://www.w3.org/TR/html5/title", "Ndewo, Colorado", {"@lang": "en"}],
+    >>> ["http://uche.ogbuji.net/ndewo/", "http://www.w3.org/TR/html5/link-type/author", "http://uche.ogbuji.net/", {"link/description": "Uche Ogbuji"}],
+    >>> ["http://uche.ogbuji.net/ndewo/", "http://www.w3.org/TR/html5/link-type/see-also", "", {"@label": "Goodreads"}],
+    >>> ["http://uche.ogbuji.net/", "http://www.w3.org/TR/html5/link-type/see-also", "http://uche.ogbuji.net/ndewo/", {}]
+    >>> ]
+    >>> [ m.add(*l) for l in LINKS ]
+    >>> vquery(m, "?($a, DC 'title', *)", variables={'DC': 'http://purl.org/dc/elements/1.1/'})
+    >>> 
+    '''
+    ctxlink = next(iter(model), None)
+    if not ctxlink:
+        raise RuntimeError('Empty model.')
+    ctx = context(ctxlink, model, variables=variables, extras=extras)
+    q_ast = parser.parse(q)
+    result = q_ast.evaluate(ctx)
+    return result
+
+
 def parse(q):
     '''
 

@@ -6,6 +6,7 @@ Utilities to help deal with constructs expressed in Versa
 #from amara.lib import iri
 #import logging
 
+import re
 import json
 from collections import OrderedDict
 
@@ -69,12 +70,12 @@ def column(m, linkpart):
             yield val
 
 
-def resourcetypes(rid, model):
+def resourcetypes(m, rid):
     '''
     Return a list of Versa types for a resource
     '''
     types = []
-    for o, r, t, a in model.match(rid, VTYPE_REL):
+    for o, r, t, a in m.match(rid, VTYPE_REL):
         types.append(t)
     return types
 
@@ -189,3 +190,4 @@ class OrderedJsonEncoder(json.JSONEncoder):
             return '{'+','.join(( self.encode(k)+':'+self.encode(v) for (k,v) in o.items() ))+'}'
         else:
             return json.JSONEncoder.encode(self, o)
+
