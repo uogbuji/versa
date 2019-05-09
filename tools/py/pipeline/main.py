@@ -122,7 +122,7 @@ def create_resource(output_model, rtype, unique, links, existing_ids=None, id_he
     General-purpose routine to create a new resource in the output model, based on data provided
 
     output_model    - Versa connection to model to be updated
-    rtype           - Type IRI for the new resource, set with Versa type
+    rtype           - Type IRI for the new resource, set with Versa type. If you need multiple types, see create_resource_mt
     unique          - list of key/value pairs for determining a unique hash for the new resource
     links           - list of key/value pairs for setting properties on the new resource
     id_helper       - If a string, a base URL for the generatd ID. If callable, a function used to return the entity. If None, set a default good enough for testing.
@@ -147,6 +147,25 @@ def create_resource(output_model, rtype, unique, links, existing_ids=None, id_he
     for r, t in links:
         output_model.add(rid, r, t)
     return (True, rid)
+
+
+def create_resource_mt(output_model, rtypes, unique, links, existing_ids=None, id_helper=None):
+    '''
+    Convenience variation of create_resource which supports multiple entity types.
+    The first is taken as primary
+
+    output_model    - Versa connection to model to be updated
+    rtypes          - Type IRIor list of IRIs for the new resource, set with Versa type
+    unique          - list of key/value pairs for determining a unique hash for the new resource
+    links           - list of key/value pairs for setting properties on the new resource
+    id_helper       - If a string, a base URL for the generatd ID. If callable, a function used to return the entity. If None, set a default good enough for testing.
+    existing_ids    - set of existing IDs to not recreate, or None, in which case a new resource will always be created
+    '''
+    rtypes = rtypes if isinstance(rtypes, list) else [rtypes]
+    rtype, *moretypes = rtypes
+    for t in moretypes:
+        links.append([VTYPE_REL, t])
+    return create_resource(output_model, rtype, unique, links, existing_ids=None, id_helper=None)
 
 #iritype = object()
 #force_iritype = object()
