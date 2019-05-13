@@ -80,6 +80,20 @@ def resourcetypes(m, rid):
     return types
 
 
+def static_index(m, rel):
+    index = {}
+    for o, r, t, a in m.match(None, rel):
+        if o in index:
+            curr = index[o]
+            if isinstance(curr, list):
+                curr.append((t, a))
+            else:
+                index[o] = [curr, (t, a)]
+        else:
+            index[o] = (t, a)
+    return index    
+    
+
 #XXX Could use a factory defined on in_m to create out_m, or do we want to use this approach to support append?
 def replace_values(in_m, out_m, map_from=(), map_to=()):
     '''
