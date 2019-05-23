@@ -33,7 +33,7 @@ def test_basics():
     results = model.match(origin='http://uche.ogbuji.net', attrs={u'@lang': u'ig'})
     logging.debug('BASICS PART 2')
     results = tuple(list(results))
-    import pprint; pprint.pprint(results)
+    #import pprint; pprint.pprint(results)
     for result in results:
         logging.debug('Result: {0}'.format(repr(result)))
         #assert result == ()

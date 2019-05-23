@@ -114,6 +114,7 @@ class connection(connection_base):
                     yield index, (origin, rel.format(**abbrevs), target.format(**abbrevs), attribs)
                     index += 1
 
+    # FIXME: Statement indices don't work sensibly without some inefficient additions. Use e.g. match for delete instead
     def match(self, origin=None, rel=None, target=None, attrs=None, include_ids=False):
         '''
         Iterator over relationship IDs that match a pattern of components
@@ -134,11 +135,12 @@ class connection(connection_base):
         for origin in extent:
             if origin.startswith('@'):
                 continue
-            for xrel, xtargetplus in self._db[origin].items():
+            for xrel, xtargetplus in self._db.get(origin, {}).items():
                 fullxrel = xrel.format(**abbrevs)
                 if rel and rel != fullxrel:
                     continue
                 for xtarget, xattrs in xtargetplus:
+                    index += 1
                     xtarget = xtarget.format(**abbrevs)
                     if target and target != xtarget:
                         continue
@@ -152,7 +154,6 @@ class connection(connection_base):
                             yield index, (origin, xrel, xtarget, xattrs)
                         else:
                             yield origin, xrel, xtarget, xattrs
-                        index += 1
 
         return
 

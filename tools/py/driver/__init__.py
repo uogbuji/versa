@@ -9,6 +9,13 @@ The optional attributes are metadata bound to the statement itself
 '''
 
 class connection_base(object):
+    @classmethod
+    def newmodel(cls, baseiri=None):
+        '''
+        Return a new, empty Versa model
+        '''
+        return cls(baseiri=baseiri)
+
     def query(self, expr):
         '''Execute a Versa query'''
         raise NotImplementedError
