@@ -36,14 +36,24 @@ def test_basics_1(tmp_path, rels_1):
         model.add(subj, pred, obj, attrs)
     assert model.size() == 5
 
-    results = model.match(origin='http://copia.ogbuji.net')
-    results = list(results)
+    results = list(model.match(origin='http://copia.ogbuji.net'))
     assert len(results) == 2
 
-    #results = model.match(origin='http://uche.ogbuji.net', attrs={u'@lang': u'ig'})
-    results = model.match(origin='http://uche.ogbuji.net')
-    results = list(results)
+    results = list(model.match(origin='http://uche.ogbuji.net'))
     assert len(results) == 3
+
+    # Does it behave properly on non-matches?
+    results = list(model.match(origin='SPAM'))
+    assert len(results) == 0
+
+    results = list(model.match(rel='SPAM'))
+    assert len(results) == 0
+
+    results = list(model.match(target='SPAM'))
+    assert len(results) == 0
+
+    results = list(model.match(attrs={'SPAM': 'EGGS'}))
+    assert len(results) == 0
 
 
 def test_attribute_basics_1(tmp_path, rels_1):
@@ -52,14 +62,23 @@ def test_attribute_basics_1(tmp_path, rels_1):
         model.add(subj, pred, obj, attrs)
     assert model.size() == 5
 
-    results = model.match(origin='http://uche.ogbuji.net', attrs={u'@lang': u'ig'})
-    results = list([r[1] for r in results])
+    results = list(model.match(origin='http://uche.ogbuji.net', attrs={u'@lang': u'ig'}))
     assert len(results) == 1
     assert results[0][TARGET] == 'Ulo Uche'
 
-    results = model.match(origin='http://uche.ogbuji.net', attrs={u'@lang': u'en'})
-    results = list(results)
+    results = list(model.match(origin='http://uche.ogbuji.net', attrs={u'@lang': u'ig'}, include_ids=True))
     assert len(results) == 1
+    results = [r[1] for r in results]
+    assert results[0][TARGET] == 'Ulo Uche'
+
+    results = list(model.match(origin='http://uche.ogbuji.net', attrs={u'@lang': u'en'}))
+    assert len(results) == 1
+    assert results[0][TARGET] == 'Uche\'s home'
+
+    results = list(model.match(origin='http://uche.ogbuji.net', attrs={u'@lang': u'en'}, include_ids=True))
+    assert len(results) == 1
+    results = [r[1] for r in results]
+    assert results[0][TARGET] == 'Uche\'s home'
 
 
 if __name__ == '__main__':

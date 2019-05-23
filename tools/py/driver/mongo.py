@@ -145,6 +145,7 @@ class connection(connection_base):
                 if rel and rel != xrelid:
                     continue
                 for xtarget, xattrs in xrel_obj['instances']:
+                    index += 1
                     xtarget = xtarget.format(**abbrevs)
                     if target and target != xtarget:
                         continue
@@ -154,8 +155,10 @@ class connection(connection_base):
                             if k not in xattrs or xattrs.get(k) != v:
                                 matches = False
                     if matches:
-                        yield index, (origin, xrelid, xtarget, xattrs)
-                        index += 1
+                        if include_ids:
+                            yield index, (origin, xrelid, xtarget, xattrs)
+                        else:
+                            yield origin, xrelid, xtarget, xattrs
 
                     #if matches:
                     #    if include_ids:
