@@ -103,11 +103,19 @@ def attr(aid):
     return _attr
 
 
-def origin():
+def origin(unique=None):
     '''
     Action function generator to return the origin of the context's current link
 
-    :return: origin of the context's current link
+    Arguments:
+        unique - Used to derive a unique hash key input for the materialized resource,
+        May be a list of key, value pairs, from which the ID is derived through
+        the Versa hash convention, or may be an action function that returns the ID
+        If a list of key, value pairs, the key of the first value must be the Versa type relationship
+        And the first value is used in the hash generation
+
+    Returns:
+        origin of the context's current link, or origin computed from provided unique arg
     '''
     def _origin(ctx):
         '''
@@ -116,7 +124,29 @@ def origin():
         :param ctx: Versa context used in processing (e.g. includes the prototype link
         :return: origin of the context's current link
         '''
-        return ctx.current_link[ORIGIN]
+        o = ctx.current_link[ORIGIN]
+        if callable(unique):
+            o = unique(ctx)
+        elif unique:
+            # strip None values from computed unique list, including pairs where v is None
+            typ = None
+            computed_unique = []
+            for k, v in unique:
+                if typ is None:
+                    if k != VTYPE_REL:
+                        raise ValueError('Key of the first unique list pair must be the Versa type relationship')
+                    typ = v
+                if None in (k, v): continue
+                v = v if isinstance(v, list) else [v]
+                for subitem in v:
+                    subval = subitem(ctx) if callable(subitem) else subitem
+                    if subval:
+                        subval = subval if isinstance(subval, list) else [subval]
+                        computed_unique.extend([(k, s) for s in subval])
+
+            o = materialize_entity(ctx, typ, unique=computed_unique)
+            #print(o, ctx.extras)
+        return o
     return _origin
 
 
@@ -198,6 +228,7 @@ def ifexists(test, value, alt=None):
         :param ctx: Versa context used in processing (e.g. includes the prototype link)
         :return: Value computed according to the test expression result
         '''
+        _test = test(ctx) if callable(test) else test
         _test = test(ctx) if callable(test) else test
         if _test:
             return value(ctx) if callable(value) else value
@@ -302,9 +333,9 @@ def materialize(typ, rel=None, origin=None, unique=None, links=None, inverse=Fal
     :param origin: Literal IRI or Versa action function for origin of the
     main generated link. If none, use the action context.
 
-    :param unique: Versa action function to be invoked in order to
-    derive a unique hash key input for the materialized resource, in the form of
-    multiple key, value pairs (or key, list-of-values)
+    :param unique: Used to derive a unique hash key input for the materialized resource,
+    May be a list of key, value pairs, from which the ID is derived through
+    the Versa hash convention, or may be an action function that returns the ID
 
     :param links: Dictionary of links from the newly materialized resource.
     Each keys can be a relationship IRIs, a Versa action function returning
@@ -490,7 +521,7 @@ def lookup(mapping, key=None, onmiss=None):
             _onmiss = key
         elif onmiss == SKIP:
             _onmiss = None
-        result = mapping.get(_key, _onmiss)
+        result = _mapping.get(_key, _onmiss)
         return result
     return _lookup
 
