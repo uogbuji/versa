@@ -31,7 +31,7 @@ def rels_1():
     ]
 
 def test_basics_1(tmp_path, rels_1):
-    model = newmodel(dbdir=tmp_path.name)
+    model = newmodel(dbdir=str(tmp_path))
     for (subj, pred, obj, attrs) in rels_1:
         model.add(subj, pred, obj, attrs)
     assert model.size() == 5
@@ -57,7 +57,7 @@ def test_basics_1(tmp_path, rels_1):
 
 
 def test_attribute_basics_1(tmp_path, rels_1):
-    model = newmodel(dbdir=tmp_path.name)
+    model = newmodel(dbdir=str(tmp_path))
     for (subj, pred, obj, attrs) in rels_1:
         model.add(subj, pred, obj, attrs)
     assert model.size() == 5

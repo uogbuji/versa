@@ -136,11 +136,12 @@ class connection(connection_base):
             if origin.startswith('@'):
                 continue
             for xrel, xtargetplus in self._db.get(origin, {}).items():
-                fullxrel = xrel.format(**abbrevs)
-                if rel and rel != fullxrel:
+                xrel = xrel.format(**abbrevs)
+                if rel and rel != xrel:
                     continue
                 for xtarget, xattrs in xtargetplus:
                     index += 1
+                    # FIXME: only expand target abbrevs if of resource type?
                     xtarget = xtarget.format(**abbrevs)
                     if target and target != xtarget:
                         continue
