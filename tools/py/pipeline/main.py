@@ -54,7 +54,7 @@ class context(object):
         extras = extras if extras else self.extras
         idgen = idgen if idgen else self.idgen
         existing_ids = existing_ids if existing_ids else self.existing_ids
-        return context(current_link=current_link, input_model=input_model, output_model=output_model, base=base, extras=extras, idgen=idgen, existing_ids=existing_ids)
+        return context(current_link=current_link, input_model=input_model, output_model=output_model, base=base, variables=variables, extras=extras, idgen=idgen, existing_ids=existing_ids)
 
 
 def resource_id(etype, unique=None, idgen=default_idgen(None), vocabbase=None):

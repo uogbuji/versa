@@ -229,7 +229,6 @@ def ifexists(test, value, alt=None):
         :return: Value computed according to the test expression result
         '''
         _test = test(ctx) if callable(test) else test
-        _test = test(ctx) if callable(test) else test
         if _test:
             return value(ctx) if callable(value) else value
         else:
