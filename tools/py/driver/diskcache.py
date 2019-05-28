@@ -279,7 +279,8 @@ class connection(connection_base):
         and afterward there will be an entry in the prefix map from 'a23' to 'http://example.org/spam/'
         The map can then easily be used with str.format
         '''
-        if not isinstance(rid, str) or not iri.matches_uri_syntax(rid): return rid
+        if not isinstance(rid, str) or '/' not in rid or not iri.matches_uri_syntax(rid):
+            return rid
         head, tail = rid.rsplit('/', 1)
         head += '/'
         pmap = self._db['@_abbreviations']
