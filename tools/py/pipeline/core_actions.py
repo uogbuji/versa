@@ -521,7 +521,7 @@ def lookup(mapping, key=None, onmiss=None):
         elif onmiss == SKIP:
             _onmiss = None
         result = _mapping.get(_key, _onmiss)
-        return result
+        return [result]
     return _lookup
 
 
