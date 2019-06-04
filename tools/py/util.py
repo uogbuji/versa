@@ -80,7 +80,7 @@ def resourcetypes(m, rid):
     return types
 
 
-def static_index(m, rel, setvals=False):
+def static_index(m, rel, setvals=False, include_attrs=True):
     '''
     Create a static index for a relationship, a mapping from origin to
     targets and attributes of all matching relations from that origin
@@ -98,19 +98,20 @@ def static_index(m, rel, setvals=False):
     '''
     index = {}
     for o, r, t, a in m.match(None, rel):
+        val = (t, a) if include_attrs else t
         curr = index.get(o)
         if curr is None:
             if setvals:
-                index[o] = ((t, a),)
+                index[o] = set((val,))
             else:
-                index[o] = (t, a)
+                index[o] = val
         else:
             if setvals:
-                index[o] += ((t, a),)
+                index[o].add(val)
             elif isinstance(curr, list):
-                curr.append((t, a))
+                curr.append(val)
             else:
-                index[o] = [curr, (t, a)]
+                index[o] = [curr, val]
     return index    
     
 
