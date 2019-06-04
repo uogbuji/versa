@@ -80,17 +80,37 @@ def resourcetypes(m, rid):
     return types
 
 
-def static_index(m, rel):
+def static_index(m, rel, setvals=False):
+    '''
+    Create a static index for a relationship, a mapping from origin to
+    targets and attributes of all matching relations from that origin
+    
+    Args:
+        m - model from which to create the index
+        rel - relationship to match in creating the index
+        setvals - Optional. If false (the default) values in the mapping
+            might be target, attribute tuples or might be a list of such tuples.
+            If true all values are a tuple of such tuples, even if there
+            is only one matching relationship
+    
+    Return:
+        the created index (mapping)
+    '''
     index = {}
     for o, r, t, a in m.match(None, rel):
-        if o in index:
-            curr = index[o]
-            if isinstance(curr, list):
+        curr = index.get(o)
+        if curr is None:
+            if setvals:
+                index[o] = ((t, a),)
+            else:
+                index[o] = (t, a)
+        else:
+            if setvals:
+                index[o] += ((t, a),)
+            elif isinstance(curr, list):
                 curr.append((t, a))
             else:
                 index[o] = [curr, (t, a)]
-        else:
-            index[o] = (t, a)
     return index    
     
 
