@@ -14,6 +14,7 @@ from . import context, materialize_entity, create_resource
 #FIXME: Use __all__
 
 SKIP = object()
+DEFAULT_ARG = object()
 
 
 def link(origin=None, rel=None, target=None, value=None, attributes=None, source=None):
@@ -35,8 +36,12 @@ def link(origin=None, rel=None, target=None, value=None, attributes=None, source
 
     :return: Versa action function to do the actual work
     '''
+    # Separate defaulting from potential None returns from action functions
+    if origin is None: origin = DEFAULT_ARG
+    if rel is None: rel = DEFAULT_ARG
+    if target is None: target = value or DEFAULT_ARG # Checking value covers deprecated legacy
     attributes = attributes or {}
-    if target is None: target = value #Cover legacy
+    if target is None: target =  
     #rel = I(iri.absolutize(rel, ctx.base))
     def _link(ctx):
         if source:
@@ -49,13 +54,13 @@ def link(origin=None, rel=None, target=None, value=None, attributes=None, source
 
         (o, r, t, a) = ctx.current_link
         _origin = origin(ctx) if callable(origin) else origin
-        o_list = [o] if _origin is None else (_origin if isinstance(_origin, list) else [_origin])
+        o_list = [o] if _origin is DEFAULT_ARG else (_origin if isinstance(_origin, list) else [_origin])
         #_origin = _origin if isinstance(_origin, set) else set([_origin])
         _rel = rel(ctx) if callable(rel) else rel
-        r_list = [r] if _rel is None else (_rel if isinstance(_rel, list) else [_rel])
+        r_list = [r] if _rel is DEFAULT_ARG else (_rel if isinstance(_rel, list) else [_rel])
         #_rel = _rel if isinstance(_rel, set) else set([_rel])
         _target = target(ctx) if callable(target) else target
-        t_list = [t] if _target is None else (_target if isinstance(_target, list) else [_target])
+        t_list = [t] if _target is DEFAULT_ARG else (_target if isinstance(_target, list) else [_target])
         #_target = _target if isinstance(_target, set) else set([_target])
         _attributes = attributes(ctx) if callable(attributes) else attributes
 
@@ -521,7 +526,7 @@ def lookup(mapping, key=None, onmiss=None):
         elif onmiss == SKIP:
             _onmiss = None
         result = _mapping.get(_key, _onmiss)
-        return [result]
+        return result
     return _lookup
 
 
