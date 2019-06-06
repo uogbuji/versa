@@ -41,7 +41,6 @@ def link(origin=None, rel=None, target=None, value=None, attributes=None, source
     if rel is None: rel = DEFAULT_ARG
     if target is None: target = value or DEFAULT_ARG # Checking value covers deprecated legacy
     attributes = attributes or {}
-    if target is None: target =  
     #rel = I(iri.absolutize(rel, ctx.base))
     def _link(ctx):
         if source:
