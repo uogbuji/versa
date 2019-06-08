@@ -17,6 +17,13 @@ Value is list:
     ]}
 ]
 
+Re use of use_bin_type=True & raw=False it's as given in the msgpack docs:
+
+>>> import msgpack
+>>> msgpack.unpackb(msgpack.packb([b'spam', 'eggs']))
+[b'spam', b'eggs']
+>>> msgpack.unpackb(msgpack.packb([b'spam', 'eggs'], use_bin_type=True), raw=False)
+[b'spam', 'eggs']
 
 '''
 
@@ -24,32 +31,38 @@ import functools
 #from itertools import groupby
 #from operator import itemgetter
 
-from diskcache import Index #pip install diskcache
+import lmdb
+import msgpack
 
 from amara3 import iri #for absolutize & matches_uri_syntax
 
 from versa.driver import connection_base
 from versa import I, ORIGIN, RELATIONSHIP, TARGET, ATTRIBUTES
 
+#1GB
+DEFAULT_MAP_SIZE = 1024 * 1024 * 1024
 
-def newmodel(dbdir, baseiri=None):
+
+def newmodel(dbname, baseiri=None, map_size=DEFAULT_MAP_SIZE):
     '''
-    Return a new, empty Versa model with DiskCache back end
-    Warning: if there is DiskCache data already in dbdir, it will be erased.
+    Return a new, empty Versa model with lmdb back end
+    Warning: if there is data already in this file, it will be erased.
     '''
-    model = connection(dbdir=dbdir, baseiri=baseiri, clear=True)
+    # XXX Mandate mapsize?
+    model = connection(dbname=dbname, baseiri=baseiri, clear=True, map_size=map_size)
     return model
 
 
 class connection(connection_base):
-    def __init__(self, dbdir=None, baseiri=None, clear=False):
+    def __init__(self, dbname=None, baseiri=None, map_size=DEFAULT_MAP_SIZE, clear=False):
         '''
         Versa connection object built from DiskCache collection object
         '''
-        self._dbdir = dbdir
-        self._db = Index(dbdir)
-        if clear: self._db.clear()
-        self._ensure_abbreviations()
+        self._dbname = dbname
+        self._db_env = lmdb.open(dbname, map_size=map_size)
+        #if clear: self._db.clear()
+        with self._db_env.begin(write=True) as txn:
+            self._ensure_abbreviations(txn)
         #self.create_model()
         self._baseiri = baseiri
         self._abbr_index = 0
@@ -57,7 +70,7 @@ class connection(connection_base):
 
     def copy(self, contents=True):
         '''Create a copy of this model, optionally without contents (i.e. just configuration)'''
-        cp = connection(dbdir=self._dbdir, baseiri=self._baseiri)
+        cp = connection(dbname=self._dbname, baseiri=self._baseiri)
         # FIXME!!!!!
         if contents: cp.add_many(self._relationships)
         return cp
@@ -69,11 +82,13 @@ class connection(connection_base):
     def size(self):
         '''Return the number of links in the model'''
         count = 0
-        for origin in self._db:
-            if origin.startswith('@'):
-                continue
-            for rel, targetplus in self._db[origin].items():
-                count += len(targetplus)
+        with self._db_env.begin() as txn:
+            for origin_b, nodedata in txn.cursor():
+                if origin_b.startswith(b'@'):
+                    continue
+                nodedata = msgpack.loads(nodedata, raw=False)
+                for rel, targetplus in nodedata.items():
+                    count += len(targetplus)
         return count
         #return  self._db_coll.count() - connection.META_ITEM_COUNT
 
@@ -101,36 +116,40 @@ class connection(connection_base):
         attrs - (optional) attribute mapping of relationship metadata, i.e. {attrname1: attrval1, attrname2: attrval2}. If any attribute is specified, an exact match is made (i.e. the attribute name and value must match).
         include_ids - If true include statement IDs with yield values
         '''
-        abbrevs = self._abbreviations()
         index = 0
-        if origin is None:
-            extent = self._db
-        else:
-            extent = [origin]
+        with self._db_env.begin() as txn:
+            abbrevs = self._abbreviations(txn)
+            if origin is None:
+                extent = txn.cursor()
+            else:
+                origin_b = origin.encode('utf-8')
+                extent = [(origin_b, txn.get(origin_b))]
 
-        for origin in extent:
-            if origin.startswith('@'):
-                continue
-            for xrel, xtargetplus in self._db.get(origin, {}).items():
-                xrel = xrel.format(**abbrevs)
-                if rel and rel != xrel:
+            for origin_b, nodedata in extent:
+                if origin_b.startswith(b'@') or nodedata is None:
                     continue
-                for xtarget, xattrs in xtargetplus:
-                    index += 1
-                    # FIXME: only expand target abbrevs if of resource type?
-                    xtarget = xtarget.format(**abbrevs)
-                    if target and target != xtarget:
+                xorigin = origin_b.decode('utf-8')
+                nodedata = msgpack.loads(nodedata, raw=False)
+                for xrel, xtargetplus in nodedata.items():
+                    xrel = xrel.format(**abbrevs)
+                    if rel and rel != xrel:
                         continue
-                    matches = True
-                    if attrs:
-                        for k, v in attrs.items():
-                            if k not in xattrs or xattrs.get(k) != v:
-                                matches = False
-                    if matches:
-                        if include_ids:
-                            yield index, (origin, xrel, xtarget, xattrs)
-                        else:
-                            yield origin, xrel, xtarget, xattrs
+                    for xtarget, xattrs in xtargetplus:
+                        index += 1
+                        # FIXME: only expand target abbrevs if of resource type?
+                        xtarget = xtarget.format(**abbrevs)
+                        if target and target != xtarget:
+                            continue
+                        matches = True
+                        if attrs:
+                            for k, v in attrs.items():
+                                if k not in xattrs or xattrs.get(k) != v:
+                                    matches = False
+                        if matches:
+                            if include_ids:
+                                yield index, (xorigin, xrel, xtarget, xattrs)
+                            else:
+                                yield xorigin, xrel, xtarget, xattrs
 
         return
 
@@ -183,15 +202,16 @@ class connection(connection_base):
 
         attrs = attrs or {}
 
-        origin_obj = self._db.get(origin)
-        rel = self._abbreviate(rel)
-        target = self._abbreviate(target)
-        
-        if origin_obj is None:
-            self._db[origin] = {rel: [(target, attrs)]}
-        else:
-            origin_obj.setdefault(rel, []).append((target, attrs))
-            self._db[origin] = origin_obj
+        with self._db_env.begin(write=True) as txn:
+            rel = self._abbreviate(rel, txn)
+            target = self._abbreviate(target, txn)
+            nodedata = txn.get(origin.encode('utf-8'))
+            if nodedata is None:
+                nodedata = {rel: [[target, attrs]]}
+            else:
+                nodedata = msgpack.loads(nodedata, raw=False)
+                nodedata.setdefault(rel, []).append([target, attrs])
+            txn.put(origin.encode('utf-8'), msgpack.dumps(nodedata, use_bin_type=True))
         return
 
     def add_many(self, rels):
@@ -241,11 +261,12 @@ class connection(connection_base):
     def __eq__(self, other):
         return repr(other) == repr(self)
 
-    def _abbreviations(self):
-        abbrev_obj = self._db['@_abbreviations']
-        return abbrev_obj
+    def _abbreviations(self, txn):
+        prefix_map = txn.get(b'@_abbreviations')
+        prefix_map = msgpack.loads(prefix_map, raw=False)
+        return prefix_map
         
-    def _abbreviate(self, rid):
+    def _abbreviate(self, rid, txn):
         '''
         Abbreviate a relationship or resource ID target for efficient storage
         in the DB. Works only with a prefix/suffix split of hierarchical HTTP-like IRIs,
@@ -257,22 +278,25 @@ class connection(connection_base):
             return rid
         head, tail = rid.rsplit('/', 1)
         head += '/'
-        pmap = self._db['@_abbreviations']
-        assert pmap is not None
+        prefix_map = txn.get(b'@_abbreviations')
+        assert prefix_map is not None
+        prefix_map = msgpack.loads(prefix_map, raw=False)
         #FIXME: probably called too often to do this every time
-        inv_pmap = {v: k for k, v in pmap.items()}
-        if head in inv_pmap:
-            prefix = inv_pmap[head]
+        inv_prefix_map = {v: k for k, v in prefix_map.items()}
+        if head in inv_prefix_map:
+            prefix = inv_prefix_map[head]
         else:
             prefix = f'a{self._abbr_index}'
-            pmap[prefix] = head
+            prefix_map[prefix] = head
             self._abbr_index += 1
-            self._db['@_abbreviations'] = pmap
+            txn.put(b'@_abbreviations', msgpack.dumps(prefix_map, use_bin_type=True))
         post_rid = '{' + prefix + '}' + tail
         return post_rid
         
-    def _ensure_abbreviations(self):
-        if '@_abbreviations' not in self._db:
-            self._db['@_abbreviations'] = {}
+    def _ensure_abbreviations(self, txn):
+        txn.put(b'@_abbreviations', msgpack.dumps({}))
         return
-        
+
+    def __del__(self):
+        #self._db_env.close()
+        pass
