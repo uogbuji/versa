@@ -100,9 +100,17 @@ class connection(connection_base):
             if origin.startswith('@'):
                 continue
             for rel, targetplus in self._db[origin].items():
+                try:
+                    rel = rel.format(**abbrevs)
+                except KeyError:
+                    pass
                 count += len(targetplus)
                 for target, attribs in targetplus:
-                    yield index, (origin, rel.format(**abbrevs), target.format(**abbrevs), attribs)
+                    try:
+                        target = target.format(**abbrevs)
+                    except KeyError:
+                        pass
+                    yield index, (origin, rel, target, attribs)
                     index += 1
 
     # FIXME: Statement indices don't work sensibly without some inefficient additions. Use e.g. match for delete instead
@@ -131,13 +139,19 @@ class connection(connection_base):
                 xorigin = origin_b.decode('utf-8')
                 nodedata = msgpack.loads(nodedata, raw=False)
                 for xrel, xtargetplus in nodedata.items():
-                    xrel = xrel.format(**abbrevs)
+                    try:
+                        xrel = xrel.format(**abbrevs)
+                    except KeyError:
+                        pass
                     if rel and rel != xrel:
                         continue
                     for xtarget, xattrs in xtargetplus:
                         index += 1
                         # FIXME: only expand target abbrevs if of resource type?
-                        xtarget = xtarget.format(**abbrevs)
+                        try:
+                            xtarget = xtarget.format(**abbrevs)
+                        except KeyError:
+                            pass
                         if target and target != xtarget:
                             continue
                         matches = True
@@ -290,7 +304,7 @@ class connection(connection_base):
             prefix_map[prefix] = head
             self._abbr_index += 1
             txn.put(b'@_abbreviations', msgpack.dumps(prefix_map, use_bin_type=True))
-        post_rid = '{' + prefix + '}' + tail
+        post_rid = '{' + prefix + '}' + tail.replace('{', '{{').replace('}', '}}')
         return post_rid
         
     def _ensure_abbreviations(self, txn):

@@ -30,6 +30,12 @@ def rels_1():
         ("http://uche.ogbuji.net", "http://purl.org/dc/elements/1.1/title", "Ulo Uche", {"@context": "http://uche.ogbuji.net#_metadata", '@lang': 'ig'}),
     ]
 
+@pytest.fixture
+def rels_2():
+    return [
+        ("http://copia.ogbuji.net/{braces}/{{double-braces}}/{{{triple-braces}}}", "http://example.org/{braces}/{{double-braces}}/{{{triple-braces}}}", "{braces} {{double braces}} {{{triple braces}}}", {"{braces}/{{double-braces}}/{{{triple-braces}}}": "{braces}/{{double braces}}/{{{triple braces}}}"}),
+    ]
+
 def test_basics_1(tmp_path, rels_1):
     model = newmodel(dbname=str(tmp_path))
     for (subj, pred, obj, attrs) in rels_1:
@@ -79,6 +85,25 @@ def test_attribute_basics_1(tmp_path, rels_1):
     assert len(results) == 1
     results = [r[1] for r in results]
     assert results[0][TARGET] == 'Uche\'s home'
+
+
+def test_handling_braces(tmp_path, rels_2):
+    model = newmodel(dbname=str(tmp_path))
+    for (subj, pred, obj, attrs) in rels_2:
+        model.add(subj, pred, obj, attrs)
+    assert model.size() == 1
+
+    results = list(model.match(origin="http://copia.ogbuji.net/{braces}/{{double-braces}}/{{{triple-braces}}}"))
+    assert len(results) == 1
+
+    results = list(model.match(rel="http://example.org/{braces}/{{double-braces}}/{{{triple-braces}}}"))
+    assert len(results) == 1
+
+    results = list(model.match(target="{braces} {{double braces}} {{{triple braces}}}"))
+    assert len(results) == 1
+
+    results = list(model.match(attrs={"{braces}/{{double-braces}}/{{{triple-braces}}}": "{braces}/{{double braces}}/{{{triple braces}}}"}))
+    assert len(results) == 1
 
 
 if __name__ == '__main__':
