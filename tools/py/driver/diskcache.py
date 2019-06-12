@@ -87,13 +87,13 @@ class connection(connection_base):
             for rel, targetplus in self._db[origin].items():
                 try:
                     rel = rel.format(**abbrevs)
-                except KeyError, ValueError:
+                except (KeyError, ValueError):
                     pass
                 count += len(targetplus)
                 for target, attribs in targetplus:
                     try:
                         target = target.format(**abbrevs)
-                    except KeyError, ValueError:
+                    except (KeyError, ValueError):
                         pass
                     yield index, (origin, rel, target, attribs)
                     index += 1
@@ -122,7 +122,7 @@ class connection(connection_base):
             for xrel, xtargetplus in self._db.get(origin, {}).items():
                 try:
                     xrel = xrel.format(**abbrevs)
-                except KeyError, ValueError:
+                except (KeyError, ValueError):
                     pass
                 if rel and rel != xrel:
                     continue
@@ -131,7 +131,7 @@ class connection(connection_base):
                     # FIXME: only expand target abbrevs if of resource type?
                     try:
                         xtarget = xtarget.format(**abbrevs)
-                    except KeyError, ValueError:
+                    except (KeyError, ValueError):
                         pass
                     if target and target != xtarget:
                         continue

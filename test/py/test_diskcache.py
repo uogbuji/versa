@@ -34,6 +34,8 @@ def rels_1():
 def rels_2():
     return [
         ("http://copia.ogbuji.net/{braces}/{{double-braces}}/{{{triple-braces}}}", "http://example.org/{braces}/{{double-braces}}/{{{triple-braces}}}", "{braces} {{double braces}} {{{triple braces}}}", {"{braces}/{{double-braces}}/{{{triple-braces}}}": "{braces}/{{double braces}}/{{{triple braces}}}"}),
+        ("http://copia.ogbuji.net/lbrace{/ldbrace{{", "http://example.org/lbrace{/ldbrace{{", "lbrace{ ldbrace{{", {"lbrace{/ldbrace{{": "lbrace{ ldbrace{{"}),
+        ("http://copia.ogbuji.net/rbrace}/rdbrace}}", "http://example.org/rbrace}/rdbrace}}", "rbrace} rdbrace}}", {"rbrace}/rdbrace}}": "rbrace} rdbrace}}"}),
     ]
 
 def test_basics_1(tmp_path, rels_1):
@@ -91,7 +93,7 @@ def test_handling_braces(tmp_path, rels_2):
     model = newmodel(dbdir=str(tmp_path))
     for (subj, pred, obj, attrs) in rels_2:
         model.add(subj, pred, obj, attrs)
-    assert model.size() == 1
+    assert model.size() == 3
 
     results = list(model.match(origin="http://copia.ogbuji.net/{braces}/{{double-braces}}/{{{triple-braces}}}"))
     assert len(results) == 1
@@ -103,6 +105,30 @@ def test_handling_braces(tmp_path, rels_2):
     assert len(results) == 1
 
     results = list(model.match(attrs={"{braces}/{{double-braces}}/{{{triple-braces}}}": "{braces}/{{double braces}}/{{{triple braces}}}"}))
+    assert len(results) == 1
+
+    results = list(model.match(origin="http://copia.ogbuji.net/lbrace{/ldbrace{{"))
+    assert len(results) == 1
+
+    results = list(model.match(rel="http://example.org/lbrace{/ldbrace{{"))
+    assert len(results) == 1
+
+    results = list(model.match(target="lbrace{ ldbrace{{"))
+    assert len(results) == 1
+
+    results = list(model.match(attrs={"lbrace{/ldbrace{{": "lbrace{ ldbrace{{"}))
+    assert len(results) == 1
+
+    results = list(model.match(origin="http://copia.ogbuji.net/rbrace}/rdbrace}}"))
+    assert len(results) == 1
+
+    results = list(model.match(rel="http://example.org/rbrace}/rdbrace}}"))
+    assert len(results) == 1
+
+    results = list(model.match(target="rbrace} rdbrace}}"))
+    assert len(results) == 1
+
+    results = list(model.match(attrs={"rbrace}/rdbrace}}": "rbrace} rdbrace}}"}))
     assert len(results) == 1
 
 
