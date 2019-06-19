@@ -7,6 +7,7 @@ Utilities to help deal with constructs expressed in Versa
 #import logging
 
 import re
+import sys
 import json
 from collections import OrderedDict
 
