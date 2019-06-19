@@ -100,7 +100,7 @@ def static_index(m, rel, setvals=False, include_attrs=True, intern=False):
     '''
     index = {}
     for o, r, t, a in m.match(None, rel):
-        if intern: o, t = sys.intern(o), sys.intern(t)
+        if intern: o, t = sys.intern(str(o)), sys.intern(str(t))
         val = (t, a) if include_attrs else t
         curr = index.get(o)
         if curr is None:
