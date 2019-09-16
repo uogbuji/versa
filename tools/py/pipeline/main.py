@@ -1,20 +1,18 @@
-#versa.pipeline
+# versa.pipeline
 '''
 '''
 
-#FIXME: Use __all__
+# FIXME: Use __all__
 
 import json
 import itertools
 import functools
 import logging
-#from enum import Enum #https://docs.python.org/3.4/library/enum.html
+# from enum import Enum #https://docs.python.org/3.4/library/enum.html
 from collections import defaultdict, OrderedDict
 from types import GeneratorType
 
-#import amara3
 from amara3 import iri
-#from amara3.util import coroutine
 
 from versa import I, VERSA_BASEIRI, ORIGIN, RELATIONSHIP, TARGET, ATTRIBUTES, VTYPE_REL
 from versa import util
@@ -22,6 +20,9 @@ from versa.util import simple_lookup, OrderedJsonEncoder
 from versa.driver import memory
 
 from versa.contrib.datachefids import idgen as default_idgen, FROM_EMPTY_64BIT_HASH
+
+# VERSA_PIPELINE_WILDCARD = 'https://github.com/uogbuji/versa/pipeline/wildcard'
+
 
 class context(object):
     #Default way to create a model for the transform output, if one is not provided
@@ -41,7 +42,7 @@ class context(object):
         self.base = base
         self.variables = variables or {}
         self.extras = extras or {}
-        #FIXME: idgen requires a base IRI. Think this over.
+        # FIXME: idgen requires a base IRI. Think this over.
         self.idgen = idgen or default_idgen(base)
         self.existing_ids = existing_ids or set()
 

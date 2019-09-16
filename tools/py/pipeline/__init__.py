@@ -1,4 +1,4 @@
-#versa.pipeline
+# versa.pipeline
 '''
 Framework for expressing transforms from one pattern of Versa links to another
 Useful for iterative processing or vocabulary mapping
@@ -20,4 +20,3 @@ and then iterate through the other defined transform stages.
 
 from .main import *
 from .core_actions import *
-
