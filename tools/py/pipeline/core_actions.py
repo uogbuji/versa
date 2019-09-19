@@ -149,7 +149,7 @@ def origin(unique=None):
                         computed_unique.extend([(k, s) for s in subval])
 
             o = materialize_entity(ctx, typ, unique=computed_unique)
-            #print(o, ctx.extras)
+            # print(o, ctx.extras)
         return o
     return _origin
 
@@ -278,6 +278,7 @@ def if_(test, iftrue, iffalse=None, vars_=None):
     return _if_
 
 
+# XXX: Top-level Target function is shadowed in here
 def foreach(origin=None, rel=None, target=None, attributes=None, action=None):
     '''
     Action function generator to compute a combination of links
@@ -300,7 +301,7 @@ def foreach(origin=None, rel=None, target=None, attributes=None, action=None):
         t = [t] if _target is None else (_target if isinstance(_target, list) else [_target])
         #a = [a] if _attributes is None else _attributes
         a = [a] if _attributes is None else (_attributes if isinstance(_attributes, list) else [_attributes])
-        #print([(curr_o, curr_r, curr_t, curr_a) for (curr_o, curr_r, curr_t, curr_a)
+        # print([(curr_o, curr_r, curr_t, curr_a) for (curr_o, curr_r, curr_t, curr_a)
         #            in product(o, r, t, a)])
         # Assemble the possible context links, ignoring those with blank or None origins
         subcontexts = [ ctx.copy(current_link=(curr_o, curr_r, curr_t, curr_a))
@@ -319,35 +320,44 @@ def foreach(origin=None, rel=None, target=None, attributes=None, action=None):
     return _foreach
 
 
-def materialize(typ, rel=None, origin=None, unique=None, links=None, inverse=False, split=None, attributes=None):
+def materialize(typ, rel=None, origin=None, unique=None, links=None, split=None, attributes=None, attach=True):
     '''
     Create a new resource related to the origin
 
-    :param typ: IRI of the type for the resource to be materialized,
-    which becomes the target of the main link, and the origin of any
-    additional links given in the links param
+    Args:
 
-    :param rel: IRI of the relationship between the origin and the materialized
-    target (or vice versa if inverse=True), or a list of relationship IRIs,
-    each of which will be used to create a separate link, or a versa action
-    to derive this relationship or list of relationships at run time, or None.
-    If none, use the relationship from the action context link.
+        typ: IRI of the type for the resource to be materialized,
+            which becomes the target of the main link, and the origin of any
+            additional links given in the links param
 
-    :param origin: Literal IRI or Versa action function for origin of the
-    main generated link. If none, use the action context.
+        rel: relationship between the origin and the materialized target,
+            added to the output model if attach=True. Can be an IRI,
+            or a list of relationship IRIs, each of which will be used
+            to create a separate link, or a versa action to derive
+            this relationship or list of relationships at run time,
+            or None, in which case use the relationship from the action
+            context link.
 
-    :param unique: Used to derive a unique hash key input for the materialized resource,
-    May be a list of key, value pairs, from which the ID is derived through
-    the Versa hash convention, or may be an action function that returns the ID
+        origin: Literal IRI or Versa action function for origin of the
+            main generated link. If none, use the action context.
 
-    :param links: Dictionary of links from the newly materialized resource.
-    Each keys can be a relationship IRIs, a Versa action function returning
-    a relationship IRI, a Versa action function returning a list of Versa
-    contexts, which can be used to guide a sequence pattern of generated
-    links, or a Versa action function returning None, which signals that
-    the particular link is skipped entirely.
+        unique: Used to derive a unique hash key input for the materialized
+            resource. May be a list of key, value pairs, from which the ID
+            is derived through the Versa hash convention, or may be an action
+            function that returns the ID
 
-    :return: Versa action function to do the actual work
+        links: List of links to create with the newly materialized resource
+            as origin. Each can be a rel/target pair or an origin/rel/target
+            triple. Each rel can be a simple IRIs, a Versa action function
+            returning and IRI, a Versa action function returning a list of
+            Versa contexts used to generate links, or a Versa action function
+            returning None, which signals that a particular link is skipped entirely.
+
+        attach: if True (the default) attach the newly materialized resource
+            to the context origin
+
+    Return:
+        Versa action function to do the actual work
     '''
     links = links or []
     attributes = attributes or {}
@@ -375,9 +385,8 @@ def materialize(typ, rel=None, origin=None, unique=None, links=None, inverse=Fal
         
         objids = []
 
-        #Botanical analogy
-        #The stem is the relationship from the original to the materialized resource 
-        #The veins are any further relationships from materialized resource 
+        # Botanical analogy: stem context is from the caller (e.g. connection point of newly materialized resource)
+        # vein comtexts derive from the stem
         for target in targets:
             ctx_stem = ctx.copy(current_link=(ctx.current_link[ORIGIN], ctx.current_link[RELATIONSHIP], target, ctx.current_link[ATTRIBUTES]))
             if origin:
@@ -410,26 +419,36 @@ def materialize(typ, rel=None, origin=None, unique=None, links=None, inverse=Fal
                     if not curr_rel: continue
                     # FIXME: Fix properly, by slugifying & making sure slugify handles  all numeric case (prepend '_')
                     curr_rel = '_' + curr_rel if curr_rel.isdigit() else curr_rel
-                    if inverse:
-                        ctx_stem.output_model.add(I(objid), I(iri.absolutize(curr_rel, ctx_stem.base)), I(o), {})
-                    else:
+                    if attach:
                         ctx_stem.output_model.add(I(o), I(iri.absolutize(curr_rel, ctx_stem.base)), I(objid), {})
                     computed_rels.append(curr_rel)
-            #print((objid, ctx_.existing_ids))
+            # print((objid, ctx_.existing_ids))
+            # XXX: Means links are only processed on new objects! This needs some thought
             if objid not in ctx_stem.existing_ids:
                 if _typ: ctx_stem.output_model.add(I(objid), VTYPE_REL, I(iri.absolutize(_typ, ctx_stem.base)), {})
-                #FIXME: Should we be using Python Nones to mark blanks, or should Versa define some sort of null resource?
-                #XXX: Note, links are only processed on new objects! This needs some thought
-                for k, v in links:
-                    new_current_link = (I(objid), k, ctx_stem.current_link[TARGET], ctx_stem.current_link[ATTRIBUTES])
-                    ctx_vein = ctx_stem.copy(current_link=new_current_link)
-                    k = k(ctx_vein) if callable(k) else k
-                    #If k is a list of contexts use it to dynamically execute functions
-                    if isinstance(k, list):
-                        if k and isinstance(k[0], context):
-                            for newctx in k:
+                # XXX: Use Nones to mark blanks, or should Versa define some sort of null resource?
+                for l in links:
+                    if len(l) == 2:
+                        lo = I(objid)
+                        lr, lt = l
+                    elif len(l) == 3:
+                        lo, lr, lt = l
+                    # If explicitly None, use context 
+                    lo = lo or ctx_stem.current_link[ORIGIN]
+                    lr = lr or ctx_stem.current_link[RELATIONSHIP]
+                    lt = lt or ctx_stem.current_link[TARGET]
+
+                    lo = lo(ctx_stem) if callable(lo) else lo
+                    # XXX: Do we need to use the new origin context?
+                    # new_current_link = (lo, ctx_stem.current_link[RELATIONSHIP], ctx_stem.current_link[TARGET], ctx_stem.current_link[ATTRIBUTES])
+                    # ctx_vein = ctx_stem.copy(current_link=new_current_link)
+                    lr = lr(ctx_stem) if callable(lr) else lr
+                    # If k is a list of contexts use it to dynamically execute functions
+                    if isinstance(lr, list):
+                        if lr and isinstance(lr[0], context):
+                            for newctx in lr:
                                 #The function in question will generate any needed links in the output model
-                                v(newctx)
+                                lt(newctx)
                             continue
 
                     #import traceback; traceback.print_stack() #For looking up the call stack e.g. to debug nested materialize
@@ -437,20 +456,19 @@ def materialize(typ, rel=None, origin=None, unique=None, links=None, inverse=Fal
                     #generate the item. For example if the key is an ifexists and the
                     #test expression result is False, it will come back as None,
                     #and we don't want to run the v function
-                    if k:
-                        v = v(ctx_vein) if callable(v) else v
+                    if lr:
+                        lt = lt(ctx_stem) if callable(lt) else lt
 
-                        #If k or v come from pipeline functions as None it signals to skip generating anything else for this link item
-                        if v is not None:
-                            v = v(ctx_vein) if callable(v) else v
-                            #FIXME: Fix properly, by slugifying & making sure slugify handles all-numeric case
-                            if k.isdigit(): k = '_' + k
-                            if isinstance(v, list):
-                                for valitems in v:
+                        # If k or v come from pipeline functions as None it signals to skip generating anything else for this link item
+                        if lt is not None:
+                            # FIXME: Fix properly, by slugifying & making sure slugify handles all-numeric case
+                            if lr.isdigit(): lr = '_' + lr
+                            if isinstance(lt, list):
+                                for valitems in lt:
                                     if valitems:
-                                        ctx_stem.output_model.add(I(objid), I(iri.absolutize(k, ctx_vein.base)), valitems, {})
+                                        ctx_stem.output_model.add(lo, I(iri.absolutize(lr, ctx_stem.base)), valitems, {})
                             else:
-                                ctx_stem.output_model.add(I(objid), I(iri.absolutize(k, ctx_vein.base)), v, {})
+                                ctx_stem.output_model.add(lo, I(iri.absolutize(lr, ctx_stem.base)), lt, {})
                 ctx_stem.existing_ids.add(objid)
                 if '@new-entity-hook' in ctx.extras:
                     ctx.extras['@new-entity-hook'](objid)
@@ -601,7 +619,7 @@ def replace_from(patterns, old_text):
         _old_text = [] if _old_text is None else _old_text
         old_text_list = isinstance(_old_text, list)
         _old_text = _old_text if old_text_list else [_old_text]
-        #print(old_text_list, _old_text)
+        # print(old_text_list, _old_text)
         new_text_list = set()
         for text in _old_text:
             new_text = text #So just return the original string, if a replacement is not processed
@@ -611,7 +629,7 @@ def replace_from(patterns, old_text):
                 new_text = pat.sub(repl, text)
 
             new_text_list.add(new_text)
-        #print(new_text_list)
+        # print(new_text_list)
         return list(new_text_list) if old_text_list else list(new_text_list)[0]
     return _replace_from
 
