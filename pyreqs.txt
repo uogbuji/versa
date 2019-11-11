@@ -1,6 +1,0 @@
-amara3-iri
-amara3-xml
-Markdown
-#nose
-#nose-testconfig
-#jinja2
