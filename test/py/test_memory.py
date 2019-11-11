@@ -8,14 +8,14 @@ py.test test/py/test_memory.py --tc=debug:y --nologcapture
 
 import logging
 
-from testconfig import config
+#from testconfig import config
 
 from versa.driver import memory
 
 #If you do this you also need --nologcapture
 #Handle  --tc=debug:y option
-if config.get('debug', 'n').startswith('y'):
-    logging.basicConfig(level=logging.DEBUG)
+#if config.get('debug', 'n').startswith('y'):
+#    logging.basicConfig(level=logging.DEBUG)
 
 
 def test_basics():
