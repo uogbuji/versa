@@ -23,19 +23,23 @@ from versa import I, ORIGIN, RELATIONSHIP, TARGET, ATTRIBUTES
 
 
 class connection(connection_base):
-    def __init__(self, baseiri=None, attr_cls=dict, logger=None):
+    def __init__(self, baseiri=None, attr_cls=dict):
         '''
+        Initialize connection object
+            
+        Args:
+            baseiri: IRI used by default to resolve relative IRIs
+            attr_cls: class used to hold relationship attributes. By default use dict
         '''
-        self._attr_cls = attr_cls # class used to hold attributes within a relationship
+        self._attr_cls = attr_cls
         self.create_space()
         self._baseiri = baseiri
         self._id_counter = 1
-        self._logger = logger or logging
         return
 
     def copy(self, contents=True):
         '''Create a copy of this model, optionally without contents (i.e. just configuration)'''
-        cp = connection(self._baseiri, self._attr_cls, self._logger)
+        cp = connection(self._baseiri, self._attr_cls)
         if contents: cp.add_many(self._relationships)
 
         return cp
