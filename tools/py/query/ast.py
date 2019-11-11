@@ -148,7 +148,7 @@ class funccall(query):
 
     def _evaluate(self, ctx):
         if self.name == '?':
-            passed_args = [ None if isinstance(a, variable) else a.evaluate() for a in self.arglist ]
+            passed_args = [ None if isinstance(a, variable) else a.evaluate(ctx) for a in self.arglist ]
             #Match request
             result = match_result(ctx)
             for ix, link in ctx.model.match(*passed_args):

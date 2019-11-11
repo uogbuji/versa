@@ -6,6 +6,8 @@ Utilities to help deal with constructs expressed in Versa
 #from amara.lib import iri
 #import logging
 
+import re
+import sys
 import json
 from collections import OrderedDict
 
@@ -69,15 +71,52 @@ def column(m, linkpart):
             yield val
 
 
-def resourcetypes(rid, model):
+def resourcetypes(m, rid):
     '''
     Return a list of Versa types for a resource
     '''
     types = []
-    for o, r, t, a in model.match(rid, VTYPE_REL):
+    for o, r, t, a in m.match(rid, VTYPE_REL):
         types.append(t)
     return types
 
+
+def static_index(m, rel, setvals=False, include_attrs=True, intern=False):
+    '''
+    Create a static index for a relationship, a mapping from origin to
+    targets and attributes of all matching relations from that origin
+    
+    Args:
+        m - model from which to create the index
+        rel - relationship to match in creating the index
+        setvals - optional. If false (the default) values in the mapping
+            might be target, attribute tuples or might be a list of such tuples.
+            If true all values are a tuple of such tuples, even if there
+            is only one matching relationship
+        intern - use string interning for speedup & memory savings
+    
+    Return:
+        the created index (mapping)
+    '''
+    index = {}
+    for o, r, t, a in m.match(None, rel):
+        if intern: o, t = sys.intern(str(o)), sys.intern(str(t))
+        val = (t, a) if include_attrs else t
+        curr = index.get(o)
+        if curr is None:
+            if setvals:
+                index[o] = set((val,))
+            else:
+                index[o] = val
+        else:
+            if setvals:
+                index[o].add(val)
+            elif isinstance(curr, list):
+                curr.append(val)
+            else:
+                index[o] = [curr, val]
+    return index    
+    
 
 #XXX Could use a factory defined on in_m to create out_m, or do we want to use this approach to support append?
 def replace_values(in_m, out_m, map_from=(), map_to=()):
@@ -189,3 +228,4 @@ class OrderedJsonEncoder(json.JSONEncoder):
             return '{'+','.join(( self.encode(k)+':'+self.encode(v) for (k,v) in o.items() ))+'}'
         else:
             return json.JSONEncoder.encode(self, o)
+
