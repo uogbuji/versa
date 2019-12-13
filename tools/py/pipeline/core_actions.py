@@ -533,7 +533,7 @@ def lookup(mapping, key=None, onmiss=None):
         :param ctx: Versa context used in processing (e.g. includes the prototype link)
         :return: Replacement text, or input text if not found
         '''
-        _mapping = ctx.extras[mapping] if isinstance(mapping, str) else mapping
+        _mapping = ctx.extras['lookups'][mapping] if (isinstance(mapping, str) and 'lookups' in ctx.extras) else mapping
         (origin, _, t, a) = ctx.current_link
         _key = key(ctx) if callable(key) else (t if key is None else key)
 
