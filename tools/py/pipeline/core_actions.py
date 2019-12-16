@@ -517,9 +517,11 @@ res = url = toiri
 def lookup(mapping, key=None, onmiss=None):
     '''
     Action function generator to look up a value from a mapping provided inline or in context
+    (either as ctx.extras[mapping-name] or ctx.extras['lookups'][mapping-name]) if that special,
+    reserved item 'lookups' is found in extras
 
     Args:
-        mapping: dictionary for the lookup, or string key of such a mapping in ctx.extras
+        mapping: dictionary for the lookup, or string key of such a mapping in ctx.extras or in ctx.extras['lookups']
         key: value to look up instead of the current link target
         onmiss: value to be returned in case of a miss (lookup value not found in mapping)
 
@@ -533,7 +535,10 @@ def lookup(mapping, key=None, onmiss=None):
         :param ctx: Versa context used in processing (e.g. includes the prototype link)
         :return: Replacement text, or input text if not found
         '''
-        _mapping = ctx.extras[mapping] if isinstance(mapping, str) else mapping
+        if isinstance(mapping, str):
+            _mapping = ctx.extras['lookups'][mapping] if 'lookups' in ctx.extras else ctx.extras[mapping]
+        else:
+            _mapping = mapping
         (origin, _, t, a) = ctx.current_link
         _key = key(ctx) if callable(key) else (t if key is None else key)
 
