@@ -2,6 +2,7 @@
 #FIXME: Use __all__
 
 import itertools
+import re
 
 from amara3 import iri
 
