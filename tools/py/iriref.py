@@ -36,3 +36,15 @@ class iriref(str):
 
     def __repr__(self):
         return u'I(' + str(self) + ')'
+
+    def __call__(self, tail):
+        '''
+        >>> from versa import I
+        >>> base = I('https://example.org/')
+        >>> a = base('a')
+        >>> a
+        I(https://example.org/a)
+        '''
+        # Just dumb concatenation for now
+        return iriref(str(self) + str(tail))
+

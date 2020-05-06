@@ -9,7 +9,7 @@ from versa import I, VERSA_BASEIRI, ORIGIN, RELATIONSHIP, TARGET, ATTRIBUTES, VT
 from versa import util
 from versa.util import simple_lookup
 
-from . import context, materialize_entity, create_resource
+from . import context, materialize_entity, create_resource, is_pipeline_action
 
 #FIXME: Use __all__
 
@@ -44,7 +44,7 @@ def link(origin=None, rel=None, target=None, value=None, attributes=None, source
     #rel = I(iri.absolutize(rel, ctx.base))
     def _link(ctx):
         if source:
-            if not callable(source):
+            if not is_pipeline_action(source):
                 raise ValueError('Link source must be a pattern action function')
             contexts = source(ctx)
             for ctx in contexts:
@@ -52,16 +52,16 @@ def link(origin=None, rel=None, target=None, value=None, attributes=None, source
             return
 
         (o, r, t, a) = ctx.current_link
-        _origin = origin(ctx) if callable(origin) else origin
+        _origin = origin(ctx) if is_pipeline_action(origin) else origin
         o_list = [o] if _origin is DEFAULT_ARG else (_origin if isinstance(_origin, list) else [_origin])
         #_origin = _origin if isinstance(_origin, set) else set([_origin])
-        _rel = rel(ctx) if callable(rel) else rel
+        _rel = rel(ctx) if is_pipeline_action(rel) else rel
         r_list = [r] if _rel is DEFAULT_ARG else (_rel if isinstance(_rel, list) else [_rel])
         #_rel = _rel if isinstance(_rel, set) else set([_rel])
-        _target = target(ctx) if callable(target) else target
+        _target = target(ctx) if is_pipeline_action(target) else target
         t_list = [t] if _target is DEFAULT_ARG else (_target if isinstance(_target, list) else [_target])
         #_target = _target if isinstance(_target, set) else set([_target])
-        _attributes = attributes(ctx) if callable(attributes) else attributes
+        _attributes = attributes(ctx) if is_pipeline_action(attributes) else attributes
 
         #(ctx_o, ctx_r, ctx_t, ctx_a) = ctx.current_link
 
@@ -73,6 +73,7 @@ def link(origin=None, rel=None, target=None, value=None, attributes=None, source
             ctx.output_model.add(o, r, t, attributes)
 
         return
+    _link.is_pipeline_action = True
     return _link
 
 
@@ -81,8 +82,9 @@ def var(name):
     Action function generator to retrieve a variable from context
     '''
     def _var(ctx):
-        _name = name(ctx) if callable(name) else name
+        _name = name(ctx) if is_pipeline_action(name) else name
         return ctx.variables.get(_name)
+    _var.is_pipeline_action = True
     return _var
 
 
@@ -91,9 +93,10 @@ def extra(key, default=None):
     Action function generator to retrieve an extra value from context
     '''
     def _extra(ctx):
-        _key = key(ctx) if callable(key) else key
-        _default = default(ctx) if callable(default) else default
+        _key = key(ctx) if is_pipeline_action(key) else key
+        _default = default(ctx) if is_pipeline_action(default) else default
         return ctx.extras.get(_key, _default)
+    _extra.is_pipeline_action = True
     return _extra
 
 
@@ -102,8 +105,9 @@ def attr(aid):
     Action function generator to retrieve an attribute from the current link
     '''
     def _attr(ctx):
-        _aid = aid(ctx) if callable(aid) else aid
+        _aid = aid(ctx) if is_pipeline_action(aid) else aid
         return ctx.current_link[ATTRIBUTES].get(_aid)
+    _attr.is_pipeline_action = True
     return _attr
 
 
@@ -129,7 +133,7 @@ def origin(unique=None):
         :return: origin of the context's current link
         '''
         o = ctx.current_link[ORIGIN]
-        if callable(unique):
+        if is_pipeline_action(unique):
             o = unique(ctx)
         elif unique:
             # strip None values from computed unique list, including pairs where v is None
@@ -143,7 +147,7 @@ def origin(unique=None):
                 if None in (k, v): continue
                 v = v if isinstance(v, list) else [v]
                 for subitem in v:
-                    subval = subitem(ctx) if callable(subitem) else subitem
+                    subval = subitem(ctx) if is_pipeline_action(subitem) else subitem
                     if subval:
                         subval = subval if isinstance(subval, list) else [subval]
                         computed_unique.extend([(k, s) for s in subval])
@@ -151,6 +155,7 @@ def origin(unique=None):
             o = materialize_entity(ctx, typ, unique=computed_unique)
             # print(o, ctx.extras)
         return o
+    _origin.is_pipeline_action = True
     return _origin
 
 
@@ -168,6 +173,7 @@ def rel():
         :return: relationship of the context's current link
         '''
         return ctx.current_link[RELATIONSHIP]
+    _rel.is_pipeline_action = True
     return _rel
 
 
@@ -185,6 +191,7 @@ def target():
         :return: Target of the context's current link
         '''
         return ctx.current_link[TARGET]
+    _target.is_pipeline_action = True
     return _target
 
 
@@ -205,7 +212,7 @@ def values(*rels):
         '''
         computed_rels = []
         for rel in rels:
-            if callable(rel):
+            if is_pipeline_action(rel):
                 rel = rel(ctx)
 
             if isinstance(rel, list):
@@ -214,6 +221,7 @@ def values(*rels):
                 computed_rels.append(rel)
 
         return computed_rels
+    _extra.is_pipeline_action = True
     return _values
 
 
@@ -232,11 +240,12 @@ def ifexists(test, value, alt=None):
         :param ctx: Versa context used in processing (e.g. includes the prototype link)
         :return: Value computed according to the test expression result
         '''
-        _test = test(ctx) if callable(test) else test
+        _test = test(ctx) if is_pipeline_action(test) else test
         if _test:
-            return value(ctx) if callable(value) else value
+            return value(ctx) if is_pipeline_action(value) else value
         else:
-            return alt(ctx) if callable(alt) else alt
+            return alt(ctx) if is_pipeline_action(alt) else alt
+    _ifexists.is_pipeline_action = True
     return _ifexists
 
 
@@ -262,7 +271,7 @@ def if_(test, iftrue, iffalse=None, vars_=None):
             for k, v in vars_.items():
                 #FIXME: Less crude test
                 assert isinstance(k, str)
-                _v = v(ctx) if callable(v) else v
+                _v = v(ctx) if is_pipeline_action(v) else v
                 out_vars[k] = _v
 
             _test = eval(test, out_vars, out_vars)
@@ -270,11 +279,12 @@ def if_(test, iftrue, iffalse=None, vars_=None):
             #for m in ACTION_FUNCTION_PAT.findall(test):
             #    func_name = m.group(1)
         else:
-            _test = test(ctx) if callable(test) else test
+            _test = test(ctx) if is_pipeline_action(test) else test
         if _test:
-            return iftrue(ctx) if callable(iftrue) else iftrue
+            return iftrue(ctx) if is_pipeline_action(iftrue) else iftrue
         elif iffalse:
-            return iffalse(ctx) if callable(iffalse) else iffalse
+            return iffalse(ctx) if is_pipeline_action(iffalse) else iffalse
+    _if_.is_pipeline_action = True
     return _if_
 
 
@@ -291,10 +301,10 @@ def foreach(origin=None, rel=None, target=None, attributes=None, action=None):
 
         :param ctx: Versa context used in processing (e.g. includes the prototype link)
         '''
-        _origin = origin(ctx) if callable(origin) else origin
-        _rel = rel(ctx) if callable(rel) else rel
-        _target = target(ctx) if callable(target) else target
-        _attributes = attributes(ctx) if callable(attributes) else attributes
+        _origin = origin(ctx) if is_pipeline_action(origin) else origin
+        _rel = rel(ctx) if is_pipeline_action(rel) else rel
+        _target = target(ctx) if is_pipeline_action(target) else target
+        _attributes = attributes(ctx) if is_pipeline_action(attributes) else attributes
         (o, r, t, a) = ctx.current_link
         o = [o] if _origin is None else (_origin if isinstance(_origin, list) else [_origin])
         r = [r] if _rel is None else (_rel if isinstance(_rel, list) else [_rel])
@@ -308,7 +318,7 @@ def foreach(origin=None, rel=None, target=None, attributes=None, action=None):
                     for (curr_o, curr_r, curr_t, curr_a)
                     in itertools.product(o, r, t, a) if curr_o ]
         if action:
-            if not(callable(action)):
+            if not(is_pipeline_action(action)):
                 raise TypeError('foreach() action arg must be callable')
             for subctx in subcontexts:
                 action(subctx)
@@ -317,6 +327,7 @@ def foreach(origin=None, rel=None, target=None, attributes=None, action=None):
         #for (curr_o, curr_r, curr_t, curr_a) in product(origin or [o], rel or [r], target or [t], attributes or [a]):
         #    newctx = ctx.copy(current_link=(curr_o, curr_r, curr_t, curr_a))
             #ctx.output_model.add(I(objid), VTYPE_REL, I(iri.absolutize(_typ, ctx.base)), {})
+    _foreach.is_pipeline_action = True
     return _foreach
 
 
@@ -375,8 +386,8 @@ def materialize(typ, rel=None, origin=None, unique=None, links=None, split=None,
         '''
         #FIXME: Part of the datachef sorting out
         if not ctx.idgen: ctx.idgen = idgen
-        _typ = typ(ctx) if callable(typ) else typ
-        _unique = unique(ctx) if callable(unique) else unique
+        _typ = typ(ctx) if is_pipeline_action(typ) else typ
+        _unique = unique(ctx) if is_pipeline_action(unique) else unique
         (o, r, t, a) = ctx.current_link
         #FIXME: On redesign implement split using function composition instead
         targets = [ sub_t.strip() for sub_t in t.split(split) if sub_t.strip() ] if split else [t]
@@ -402,7 +413,7 @@ def materialize(typ, rel=None, origin=None, unique=None, links=None, split=None,
                     if None in (k, v): continue
                     v = v if isinstance(v, list) else [v]
                     for subitem in v:
-                        subval = subitem(ctx_stem) if callable(subitem) else subitem
+                        subval = subitem(ctx_stem) if is_pipeline_action(subitem) else subitem
                         if subval:
                             subval = subval if isinstance(subval, list) else [subval]
                             computed_unique.extend([(k, s) for s in subval])
@@ -413,7 +424,7 @@ def materialize(typ, rel=None, origin=None, unique=None, links=None, split=None,
             computed_rels = []
             for curr_relobj in rels:
                 #e.g. scenario if passed in rel=ifexists(...)
-                curr_rels = curr_relobj(ctx_stem) if callable(curr_relobj) else curr_relobj
+                curr_rels = curr_relobj(ctx_stem) if is_pipeline_action(curr_relobj) else curr_relobj
                 curr_rels = curr_rels if isinstance(curr_rels, list) else [curr_rels]
                 for curr_rel in curr_rels:
                     if not curr_rel: continue
@@ -438,11 +449,11 @@ def materialize(typ, rel=None, origin=None, unique=None, links=None, split=None,
                     lr = lr or ctx_stem.current_link[RELATIONSHIP]
                     lt = lt or ctx_stem.current_link[TARGET]
 
-                    lo = lo(ctx_stem) if callable(lo) else lo
+                    lo = lo(ctx_stem) if is_pipeline_action(lo) else lo
                     # XXX: Do we need to use the new origin context?
                     # new_current_link = (lo, ctx_stem.current_link[RELATIONSHIP], ctx_stem.current_link[TARGET], ctx_stem.current_link[ATTRIBUTES])
                     # ctx_vein = ctx_stem.copy(current_link=new_current_link)
-                    lr = lr(ctx_stem) if callable(lr) else lr
+                    lr = lr(ctx_stem) if is_pipeline_action(lr) else lr
                     # If k is a list of contexts use it to dynamically execute functions
                     if isinstance(lr, list):
                         if lr and isinstance(lr[0], context):
@@ -457,7 +468,7 @@ def materialize(typ, rel=None, origin=None, unique=None, links=None, split=None,
                     #test expression result is False, it will come back as None,
                     #and we don't want to run the v function
                     if lr:
-                        lt = lt(ctx_stem) if callable(lt) else lt
+                        lt = lt(ctx_stem) if is_pipeline_action(lt) else lt
 
                         # If k or v come from pipeline functions as None it signals to skip generating anything else for this link item
                         if lt is not None:
@@ -475,6 +486,7 @@ def materialize(typ, rel=None, origin=None, unique=None, links=None, split=None,
             
         return objids
 
+    _materialize.is_pipeline_action = True
     return _materialize
 
 
@@ -486,7 +498,7 @@ def toiri(arg, base=None, ignore_refs=True):
     :param ignore_refs: if True, make no attempt to convert would-be IRI refs to IRI type
     '''
     def _toiri(ctx):
-        _arg = arg(ctx) if callable(arg) else arg
+        _arg = arg(ctx) if is_pipeline_action(arg) else arg
         _arg = [_arg] if not isinstance(_arg, list) else _arg
         ret = []
         for u in _arg:
@@ -508,10 +520,8 @@ def toiri(arg, base=None, ignore_refs=True):
             ret.append(iu)
 
         return ret
+    _toiri.is_pipeline_action = True
     return _toiri
-
-# Legacy aliases
-res = url = toiri
 
 
 def lookup(mapping, key=None, onmiss=None):
@@ -540,7 +550,7 @@ def lookup(mapping, key=None, onmiss=None):
         else:
             _mapping = mapping
         (origin, _, t, a) = ctx.current_link
-        _key = key(ctx) if callable(key) else (t if key is None else key)
+        _key = key(ctx) if is_pipeline_action(key) else (t if key is None else key)
 
         _onmiss = onmiss
         if onmiss == None:
@@ -549,6 +559,7 @@ def lookup(mapping, key=None, onmiss=None):
             _onmiss = None
         result = _mapping.get(_key, _onmiss)
         return result
+    _lookup.is_pipeline_action = True
     return _lookup
 
 
@@ -570,13 +581,14 @@ def regex_match_modify(pattern, group_or_func, value=None):
         '''
         _pattern = re.compile(pattern) if isinstance(pattern, str) else pattern
         (origin, _, t, a) = ctx.current_link
-        _value = value(ctx) if callable(value) else (t if value is None else value)
+        _value = value(ctx) if is_pipeline_action(value) else (t if value is None else value)
         match = _pattern.match(_value)
         if not match: return _value
-        if callable(group_or_func):
+        if is_pipeline_action(group_or_func):
             return group_or_func(match)
         else:
             return match.groupdict().get(group_or_func, '')
+    _regex_modify.is_pipeline_action = True
     return _regex_modify
 
 
@@ -591,6 +603,7 @@ def compose(*funcs):
             _result = f(_result)
 
         return _result
+    _compose.is_pipeline_action = True
     return _compose
 
 
@@ -601,6 +614,7 @@ def ignore():
     :return: None
     '''
     def _ignore(ctx): return
+    _ignore.is_pipeline_action = True
     return _ignore
 
 
@@ -620,7 +634,7 @@ def replace_from(patterns, old_text):
         :return: Replacement text
         '''
         #If we get a list arg, take the first
-        _old_text = old_text(ctx) if callable(old_text) else old_text
+        _old_text = old_text(ctx) if is_pipeline_action(old_text) else old_text
         _old_text = [] if _old_text is None else _old_text
         old_text_list = isinstance(_old_text, list)
         _old_text = _old_text if old_text_list else [_old_text]
@@ -636,33 +650,6 @@ def replace_from(patterns, old_text):
             new_text_list.add(new_text)
         # print(new_text_list)
         return list(new_text_list) if old_text_list else list(new_text_list)[0]
+    _replace_from.is_pipeline_action = True
     return _replace_from
-
-
-# ----
-# Still needed?
-
-
-class resource(object):
-    def __init__(self, ctx):
-        self._origin = ctx.current_link[ORIGIN]
-        self._input_model = ctx.input_model
-        self._base = ctx.base
-        return
-
-    def follow(self, rel):
-        return simple_lookup(self._input_model, self._origin, I(iri.absolutize(rel, self._base)))
-
-
-def run(pycmds):
-    def _run(ctx):
-        gdict = {
-            'origin': ctx.current_link[ORIGIN],
-            #'origin': resource(ctx),
-            #'origin': resource(link[ORIGIN], ctx),
-            'target': ctx.current_link[TARGET],
-        }
-        result = eval(pycmds, gdict)
-        return result
-    return _run
 

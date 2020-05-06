@@ -100,6 +100,10 @@ def resource_id(etype, unique=None, idgen=default_idgen(None), vocabbase=None):
     return eid
 
 
+def is_pipeline_action(f):
+    return callable(f) and getattr(f, 'is_pipeline_action', False)
+
+
 def materialize_entity(ctx, etype, unique=None):
     '''
     Low-level routine for creating a resource. Takes the entity (resource) type
@@ -113,7 +117,7 @@ def materialize_entity(ctx, etype, unique=None):
                 unique ID, or None in which case one is randomly generated
     '''
     for ix, (k, v) in enumerate(unique):
-        if callable(v):
+        if is_pipeline_action(v):
             unique[ix] = v(ctx)
     return I(resource_id(etype, unique=unique, idgen=ctx.idgen, vocabbase=ctx.base))
 
@@ -168,11 +172,13 @@ def create_resource_mt(output_model, rtypes, unique, links, existing_ids=None, i
         links.append([VTYPE_REL, t])
     return create_resource(output_model, rtype, unique, links, existing_ids=None, id_helper=None)
 
+
 #iritype = object()
 #force_iritype = object()
 
 #Generic entry point for pipeline tools
-def transform(record, phases, config, interphase=None, postprocess=None, **kwargs):
+def transform(phases, input_model=None, raw_source=None,
+                output_model=None, **kwargs):
     #Google-style doctrings. Anything but ReST!
     '''
     Process an input record in some raw format through a defined sequence of transforms,
@@ -184,30 +190,24 @@ def transform(record, phases, config, interphase=None, postprocess=None, **kwarg
         phases: sequence of processing phase functions to be applied to the
             input record to generate the output, e.g. fingerprint then core mapping
         interphase: shared dictionary for cooperative data sharing across phases
-        postprocess: optional final transform of the output Versa model,
-            usually to a different format
 
     Returns:
         list: Resource objects constructed from the post-transform Versa model
     '''
-    #FIXME: Convert config into more kwargs?
-    input_model = memory.connection()#baseiri=BFZ)
-    output_model = memory.connection()
-    kwargs['record'] = record
-    #kwargs['logger'] = logger
+    input_model = input_model or memory.connection()#baseiri=BFZ)
+    output_model = output_model or memory.connection()
+
+    # Interphase is basically a heap used as shared state by the phases
+    interphase = kwargs.copy()
+    interphase['raw_source'] = raw_source
+    interphase['fingerprints'] = []
 
     resources = []
 
-    #Interphase. One POV: Michael Jackson would have a hernia here. Another POV: This is just basically a heap used by coroutines; not yet quite implemented in coroutine form, but it could be soon
-    if interphase is None: interphase = {}
-    kwargs['interphase'] = interphase
     for phase in phases:
-        retval = phase(input_model, output_model, **kwargs)
+        retval = phase(input_model, output_model, **interphase)
         if retval is False:
             #Signal to abort
-            return None
-    if postprocess:
-        return(postprocess(output_model))
-    else:
-        return output_model
+            return output_model, interphase
+    return output_model, interphase
 

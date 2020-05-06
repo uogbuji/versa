@@ -46,15 +46,18 @@ def transitive_closure(m, orig, rel):
         yield from transitive_closure(m, target, rel)
 
 
-def all_origins(m):
+def all_origins(m, only_types=None):
     '''
     Generate all unique statement origins in the given model
     '''
     seen = set()
+    only_types = set(only_types) if only_types else None
     for link in m.match():
         origin = link[ORIGIN]
         if origin not in seen:
             seen.add(origin)
+            if only_types and not (only_types & set(resourcetypes(m, origin))):
+                continue
             yield origin
 
 
