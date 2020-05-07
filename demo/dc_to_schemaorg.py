@@ -83,11 +83,11 @@ DC_TO_SCH_RULES = {
     DC_NS('creator'): materialize(SCH_NS('Person'),
                           unique=[
                               (VTYPE_REL, SCH_NS('Person')),
-                              (SCH_NS('name'), attr('name')),
+                              (SCH_NS('name'), attr(DC_NS('name'))),
                               (SCH_NS('birthDate'), attr(DC_NS('date'))),
                           ],
                           links=[
-                              (SCH_NS('name'), attr('name')),
+                              (SCH_NS('name'), attr(DC_NS('name'))),
                               (SCH_NS('birthDate'), attr(DC_NS('date'))),
                           ]
     ),
