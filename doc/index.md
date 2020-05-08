@@ -23,10 +23,17 @@ Versa makes it easy to pull together all these author link components into a sin
 
 In Versa this is called a link, and a link has four basic components, an
 origin, a relationship, a target and a set of attributes. Link relationships
-(also known as link types) are critical because they place links in context,
-and Versa expects relationships to be IRIs so the context (meaning, if you like)
-is properly expressed and fully scoped. Since rel=author is defined in HTML5,
-you can complete the above as follows (using a made-up IRI for sake of example):
+(also known as link types) are critical because they place links in full
+context, and Versa expects relationships to be IRIs so the context (meaning,
+if you like) is properly expressed and fully scoped. If someone says "title"
+do they mean the primary way of referencing a created work, or do they mean
+the formal way a person is addressed? Even if you narrow down between those,
+different organizations and conventions will understand and treat titles
+differently. Using a full IRI is a way to clarify what semantics are intended
+for such concepts.
+
+Since `rel="author"` is defined in HTML5, you can complete the above as
+follows (using a made-up IRI for sake of example):
 
     http://uche.ogbuji.net/ndewo/   http://www.w3.org/TR/html5/link-type/author  http://uche.ogbuji.net  (caption="Uche Ogbuji")
 
@@ -97,83 +104,7 @@ to this Versa built-in concept. You can write out this link in full as follows:
 
     ["http://uche.ogbuji.net/ndewo/", "http://www.w3.org/TR/html5/created", "2013-09-01", {"<http://purl.org/versa/type>", "<http://purl.org/versa/datetime>"}]
 
+Please continue to sections on:
 
-# Versa Literate
-
-The JSON representation of Versa is good for data exchange and other
-programming uses, but data on the Web and in KGs is often managed by
-people who need a friendlier means of expression. Versa Literate is a
-language based on [Markdown](http://daringfireball.net/projects/markdown/) for Web data in Versa form.
-A basic representation equivalent to the link set in the introductory section follows.
-
-    # @docheader
-    
-    * @base: http://uche.ogbuji.net
-    * @prop-base: http://www.w3.org/TR/html5/
-    
-    # /ndewo/
-    
-    * title: "Ndewo, Colorado"
-    * link-type/author: </>
-        * link/description: "Uche Ogbuji"
-    * link-type/see-also: <http://www.goodreads.com/book/show/18714145-ndewo-colorado>
-        * link/label: "Goodreads"
-    
-    # /
-    
-    * link-type/see-also: </ndewo/>
-
-Links are given from two different origins, marked using the
-Markdown convention for a header `"# "`. Relationships from
-each origin are given as an unordered list in the form `relationship: target`.
-Link attributes, if any, are given in a sublist.
-
-The above uses several abbreviation mechanisms, particularly to reduce
-the visual load of IRIs. Unabreviated, it would look as follows.
-
-    # http://uche.ogbuji.net/ndewo/
-    
-    * <http://www.w3.org/TR/html5/title>: "Ndewo, Colorado"
-    * <http://www.w3.org/TR/html5/link-type/author>: <http://uche.ogbuji.net/>
-        * <http://www.w3.org/TR/html5/link/description>: "Uche Ogbuji"
-    * <http://www.w3.org/TR/html5/link-type/see-also>: <http://www.goodreads.com/book/show/18714145-ndewo-colorado>
-        * <http://www.w3.org/TR/html5/link/label>: "Goodreads"
-    
-    # http://uche.ogbuji.net/
-    
-    * <http://www.w3.org/TR/html5/link-type/see-also>: <http://uche.ogbuji.net/ndewo/>
-
-
-As is the above is not a lot friendlier than the JSON version, but there are many abbreviations which make Versa
-Literate much more readable. 
-
-
-Use of variables
-
-    # @docheader
-    
-    * @uri:
-	    * @base: http://uche.ogbuji.net
-	    * @property: http://www.w3.org/TR/html5/
-		* @resource: http://uche.ogbuji.net
-	    * sch: http://schema.org
-	    * rdf: http://www.w3.org/1999/02/22-rdf-syntax-ns
-	    * rdfs: http://www.w3.org/2000/01/rdf-schema
-	    * eg1: http://example.org/hello#
-    * @prop-base: http://www.w3.org/TR/html5/
-    
-    # /ndewo/
-    
-    * title: "Ndewo, Colorado"
-    * @rdf#label: "Ndewo, Colorado"
-    * @sch/author: </>
-        * link/description: "Uche Ogbuji"
-    * @eg1@twitter-feed: <http://twitter.com/uogbuji>
-    * see-also: uche@eg2
-    * link-type/see-also: <http://www.goodreads.com/book/show/18714145-ndewo-colorado>
-        * link/label: "Goodreads"
-    
-    # /
-    
-    * link-type/see-also: </ndewo/>
+* [Versa Literate](literate_format.md), a human-friendly format for expressing Versa
 
