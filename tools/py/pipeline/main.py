@@ -173,41 +173,69 @@ def create_resource_mt(output_model, rtypes, unique, links, existing_ids=None, i
     return create_resource(output_model, rtype, unique, links, existing_ids=None, id_helper=None)
 
 
-#iritype = object()
-#force_iritype = object()
+# iritype = object()
+# force_iritype = object()
 
-#Generic entry point for pipeline tools
-def transform(phases, input_model=None, raw_source=None,
-                output_model=None, **kwargs):
-    #Google-style doctrings. Anything but ReST!
+# phases: sequence of processing phase functions to be applied to the
+# input record to generate the output, e.g. fingerprint then core mapping
+
+# When to use the source record for direct input rather than a fully constructed Versa model?
+# Convenience & optimization, for example if the source record
+# were an object from JSON you could use this to rapidly access the
+# field needed for fingerprinting rather than going thru Versa query
+
+
+class definition:
     '''
-    Process an input record in some raw format through a defined sequence of transforms,
-    generating a versa model of output resources
-    
-    Args:
-        record: unit of input to be processed independently into resource output,
-            according to conventions established in the process phases
-        phases: sequence of processing phase functions to be applied to the
-            input record to generate the output, e.g. fingerprint then core mapping
-        interphase: shared dictionary for cooperative data sharing across phases
-
-    Returns:
-        list: Resource objects constructed from the post-transform Versa model
+    Definition of a pipeline for transforming one Versa model to another
+    through the action of functions executing the various stages of the transform,
+    often by applying a system of mappings and rules. Also manages the entity mapping,
+    how key entities in the input are mapped to the output.
     '''
-    input_model = input_model or memory.connection()#baseiri=BFZ)
-    output_model = output_model or memory.connection()
+    def __init__(self):
+        self._stages = []
+        self.fingerprints = {}
 
-    # Interphase is basically a heap used as shared state by the phases
-    interphase = kwargs.copy()
-    interphase['raw_source'] = raw_source
-    interphase['fingerprints'] = []
+    def transform(self, input_model=None, raw_source=None, output_model=None, **kwargs):
+        '''
+        Process an input, either an input Versa model or in some raw record format
+        through a sequence of transform stages, to generate a versa model of output resources
 
-    resources = []
+        Caller must provide either an input_model or a raw_source, but can provide
+        any combination of these, depending on the expectations of the defined stages
+        
+        Args:
+            input_model: Versa model which serves as the starting point
+            raw_source: raw input data, a possible optimization if it's impractical to directly
+                represent as a Versa model, but can be interpreted by the stages as if it were
+            output_model: optional output model, which might be provided to add transform results
+                to existing data, or to use a specialized Versa model implementation
+            kwargs: any additional parameters which are passed as they are to all the stages
 
-    for phase in phases:
-        retval = phase(input_model, output_model, **interphase)
-        if retval is False:
-            #Signal to abort
-            return output_model, interphase
-    return output_model, interphase
+        Returns:
+            output_model: Same reference as the input output_model, if provided, otherwise a new
+                model containing the results of the transform
+        '''
+        self.input_model = input_model or memory.connection()
+        self.output_model = output_model or memory.connection()
 
+        self._raw_source = raw_source
+        # interphase['fingerprints'] = []
+
+        for stage in self._stages:
+            retval = stage(self, **kwargs)
+            if retval is False:
+                #Signal to abort
+                break
+        return self.output_model
+
+    # FIXME: Add position/priority sort key arg, to not be dependent on definition order
+    def stage(self, func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            print('wrapped')
+            # Remember that retval will be expected to be boolean
+            retval = func(*args, **kwargs)
+            return retval
+        self._stages.append(wrapper)
+        return wrapper

@@ -77,6 +77,31 @@ def link(origin=None, rel=None, target=None, value=None, attributes=None, source
     return _link
 
 
+def becomes(typ, unique=None):
+    def _becomes(ctx):
+        _typ = typ(ctx) if is_pipeline_action(typ) else typ
+        _unique = unique(ctx) if is_pipeline_action(unique) else unique
+        computed_unique = [] if _unique else None
+        for k, v in _unique:
+            # if typ is None:
+            #     if k != VTYPE_REL:
+            #         raise ValueError('Key of the first unique list pair must be the Versa type relationship')
+            #     typ = v
+            if None in (k, v): continue
+            v = v if isinstance(v, list) else [v]
+            for subitem in v:
+                subval = subitem(ctx) if is_pipeline_action(subitem) else subitem
+                if subval:
+                    subval = subval if isinstance(subval, list) else [subval]
+                    computed_unique.extend([(k, s) for s in subval])
+        new_entity = materialize_entity(ctx, _typ, unique=computed_unique)
+        if _typ: # XXX When would this not be?
+            ctx.output_model.add(new_entity, VTYPE_REL, I(iri.absolutize(_typ, ctx.base)), {})
+        return new_entity
+    _becomes.is_pipeline_action = True
+    return _becomes
+
+
 def var(name):
     '''
     Action function generator to retrieve a variable from context
@@ -488,6 +513,22 @@ def materialize(typ, rel=None, origin=None, unique=None, links=None, split=None,
 
     _materialize.is_pipeline_action = True
     return _materialize
+
+
+def follow(rel):
+    '''
+    Action function generator to retrieve a variable from context
+    '''
+    def _follow(ctx):
+        _rel = rel(ctx) if is_pipeline_action(rel) else rel
+        result = []
+        if ctx.input_model:
+            (o, r, t, a) = ctx.current_link
+            for o_, r_, t_, a_ in ctx.input_model.match(o, _rel):
+                result.append(t_)
+        return result
+    _follow.is_pipeline_action = True
+    return _follow
 
 
 def toiri(arg, base=None, ignore_refs=True):
