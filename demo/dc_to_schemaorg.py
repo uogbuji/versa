@@ -9,6 +9,7 @@ python dc_to_schemaorg.py
 '''
 
 import sys
+import warnings
 # from pathlib import Path
 
 # import plac # Cmdline processing tool
@@ -109,6 +110,13 @@ DC_TO_SCH_RULES = {
     ),
 }
 
+
+LABELIZE_RULES = {
+    # Labels come from input model's DC name rels
+    SCH_NS('Book'): follow(SCH_NS('name'))
+}
+
+
 # Initialize the pipeline
 ppl = definition()
 # idgen is a function that generates IDs from sets of hashable fields
@@ -132,24 +140,16 @@ def fingerprint(ppl):
 
     Result of the fingerprinting phase is that the output model shows
     the presence of each resource of primary interest expected to result
-    from the transformation, with minimal data such as the resource type
+    from the transformation, with minimal detail such as the resource type
     '''
-    # Extract book entities from the input model
-    # books = list(util.all_origins(ppl.input_model, only_types=[DC_NS('Book')]))
+    # Apply a common fingerprinting strategy using rules defined above
+    new_rids = ppl.fingerprint_helper(FINGERPRINT_RULES)
 
-    resources = list(util.all_origins(ppl.input_model))
-    for rid in resources:
-        for typ in util.resourcetypes(ppl.input_model, rid):
-            if typ in FINGERPRINT_RULES:
-                rule = FINGERPRINT_RULES[typ]
-                link = (rid, VTYPE_REL, typ, {})
-                ctx = context(link, ppl.input_model, ppl.output_model)
-                out_rid = rule(ctx)
-                ppl.fingerprints[rid] = out_rid
-
-    # if not ppl.fingerprints:
-        # ret val False so, pipeline run will abort & move on to the next input
-        # return False
+    # In real code following lines could be simplified to: return bool(new_rids)
+    if not new_rids:
+        # Nothing found to process, so ret val set to False
+        # This will abort pipeline processing of this input & move on to the next, if any
+        return False
 
     # ret val True so pipeline run will continue for this input
     return True
@@ -160,19 +160,32 @@ def transform(ppl):
     '''
     Executes the main transform rules to go from input to output model
     '''
-    for rid in ppl.fingerprints:
-        out_rid = ppl.fingerprints[rid]
-        # Go over all the links for the resource
-        for o, r, t, attribs in ppl.input_model.match(rid):
-            rule = DC_TO_SCH_RULES.get(r)
-            if rule:
-                # At the heart of the Versa pipeline context is a rel from
-                # that based on the input rel, but now using the output
-                # fingerprint as the origin
-                link = (out_rid, r, t, attribs)
-                ctx = context(link, ppl.input_model, ppl.output_model)
-                rule(ctx)
+    # Apply a common transform strategy using rules defined above
+    # 
+    def missed_rel(link):
+        '''
+        Callback to handle cases where a transform wasn't found to match a link (by relationship) in the input model
+        '''
+        warnings.warn(f'Unknown, so unhandled link. Origin :{link[ORIGIN]}. Rel: {link[RELATIONSHIP]}')
 
+    new_rids = ppl.transform_by_rel_helper(DC_TO_SCH_RULES, handle_misses=missed_rel)
+    return True
+
+
+@ppl.stage
+def labelize(ppl):
+    '''
+    Executes a utility rule to create labels in output model for new (fingerprinted) resources
+    '''
+    # XXX Check if there's already a label?
+    # Apply a common transform strategy using rules defined above
+    def missed_label(origin, type):
+        '''
+        Callback to handle cases where a transform wasn't found to match a link (by relationship) in the input model
+        '''
+        warnings.warn(f'No label generated for: {origin}')
+    labels = ppl.labelize_helper(LABELIZE_RULES, handle_misses=missed_label)
+    print(labels)
     return True
 
 
@@ -186,32 +199,6 @@ if __name__ == '__main__':
         md.write([output_model], out=sys.stdout)
         print('Low level JSON dump of output data model: ')
         util.jsondump(output_model, sys.stdout)
-
-
-    # rowid = interphase['record_fingerprint']
-    # isnew, item_id = create_resource_mt(
-    #     output_model,
-    #     rowtype,
-    #     unique(obj),
-    #     links(obj),
-    #     existing_ids=existing_ids)
-
-    # if isnew:
-    #     label = label_maker(obj)
-    #     if label:
-    #         output_model.add(item_id, RDFS_LABEL, label)
-
-    # if k in rules:
-    #     rule = rules[k]
-    #     if rule:
-    #         link = (item_id, k, v, attribs)
-    #         ctx = context(link, input_model, output_model, base=BFZ,
-    #                         idgen=idg, existing_ids=existing_ids,
-    #                         extras=ctxextras)
-    #         rule(ctx)
-    # else:
-    #     warnings.warn('Unrecognized field name: {}'.format(k))
-
 
 
 # @plac.annotations(

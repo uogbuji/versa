@@ -14,7 +14,7 @@ from types import GeneratorType
 
 from amara3 import iri
 
-from versa import I, VERSA_BASEIRI, ORIGIN, RELATIONSHIP, TARGET, ATTRIBUTES, VTYPE_REL
+from versa import I, VERSA_BASEIRI, ORIGIN, RELATIONSHIP, TARGET, ATTRIBUTES, VTYPE_REL, VLABEL_REL
 from versa import util
 from versa.util import simple_lookup, OrderedJsonEncoder
 from versa.driver import memory
@@ -233,9 +233,88 @@ class definition:
     def stage(self, func):
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
-            print('wrapped')
             # Remember that retval will be expected to be boolean
             retval = func(*args, **kwargs)
             return retval
         self._stages.append(wrapper)
         return wrapper
+
+    def fingerprint_helper(self, rules):
+        '''
+        Implements a common fingerprinting strategy where the input model
+        is scanned for resources and each one is matched by type to the passed-in rules
+        If any type is matched that corresponding action is run to determine
+        the new resource ID & type
+        '''
+        new_rids = []
+        resources = list(util.all_origins(self.input_model))
+        for rid in resources:
+            for typ in util.resourcetypes(self.input_model, rid):
+                if typ in rules:
+                    rule = rules[typ]
+                    link = (rid, VTYPE_REL, typ, {})
+                    ctx = context(link, self.input_model, self.output_model)
+                    out_rid = rule(ctx)
+                    self.fingerprints[rid] = out_rid
+                    new_rids.append(new_rids)
+        return new_rids
+
+    def transform_by_rel_helper(self, rules, origins=None, handle_misses=None):
+        '''
+        Implements a common transform strategy where each fingerprinted
+        input model resource is examined for outbound links, and each one matched
+        by relationship to the passed-in rules. If matched the corresponding action
+        is run to update the output model
+        '''
+        origins = origins or self.fingerprints
+        # Really just for lightweight sanity checks
+        applied_rules_count = 0
+        for rid in origins:
+            out_rid = origins[rid]
+            # Go over all the links for the resource
+            for o, r, t, attribs in self.input_model.match(rid):
+                rule = rules.get(r)
+                if not rule:
+                    if handle_misses:
+                        handle_misses((rid, r, t, attribs))
+                    continue
+                # At the heart of the Versa pipeline context is a prototype link,
+                # which looks like the link that triggered the current tule, but with the
+                # origin changed to the output resource
+                link = (out_rid, r, t, attribs)
+                # Build the rest of the context
+                ctx = context(link, self.input_model, self.output_model)
+                # Run the rule, expecting the side effect of data added to the output model
+                rule(ctx)
+                applied_rules_count += 1
+        return applied_rules_count
+
+    def labelize_helper(self, rules, label_rel=VLABEL_REL, origins=None, handle_misses=None):
+        '''
+        Implements a common label making strategy where the fingerprinted
+        resources are put through pattern/action according to type in order
+        to determine the output label
+        '''
+        origins = origins or self.fingerprints
+        new_labels = {}
+        for rid in origins:
+            out_rid = origins[rid]
+            for typ in util.resourcetypes(self.output_model, out_rid):
+                if typ in rules:
+                    rule = rules[typ]
+                    link = (out_rid, VTYPE_REL, typ, {})
+                    # Notice that it reads from the output model and also updates same
+                    ctx = context(link, self.output_model, self.output_model)
+                    out_labels = rule(ctx)
+                    if not out_labels: continue
+                    for label in out_labels:
+                        if not label or not str(label).strip():
+                            if handle_misses:
+                                handle_misses(out_rid, typ)
+                        # Stripped because labels are for human reading so conventional not to differentiate by whitespace
+                        # FIXME: fully normalize
+                        label = str(label).strip()
+                        new_labels[out_rid] = label
+                        self.output_model.add(out_rid, label_rel, label)
+        return new_labels
+
