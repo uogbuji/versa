@@ -255,7 +255,8 @@ class definition:
                     link = (rid, VTYPE_REL, typ, {})
                     ctx = context(link, self.input_model, self.output_model)
                     out_rid = rule(ctx)
-                    self.fingerprints[rid] = out_rid
+                    out_rid = out_rid if isinstance(out_rid, list) else [out_rid]
+                    self.fingerprints.setdefault(rid, []).extend(out_rid)
                     new_rids.append(new_rids)
         return new_rids
 
@@ -270,23 +271,23 @@ class definition:
         # Really just for lightweight sanity checks
         applied_rules_count = 0
         for rid in origins:
-            out_rid = origins[rid]
-            # Go over all the links for the resource
-            for o, r, t, attribs in self.input_model.match(rid):
-                rule = rules.get(r)
-                if not rule:
-                    if handle_misses:
-                        handle_misses((rid, r, t, attribs))
-                    continue
-                # At the heart of the Versa pipeline context is a prototype link,
-                # which looks like the link that triggered the current tule, but with the
-                # origin changed to the output resource
-                link = (out_rid, r, t, attribs)
-                # Build the rest of the context
-                ctx = context(link, self.input_model, self.output_model)
-                # Run the rule, expecting the side effect of data added to the output model
-                rule(ctx)
-                applied_rules_count += 1
+            for out_rid in origins[rid]:
+                # Go over all the links for the resource
+                for o, r, t, attribs in self.input_model.match(rid):
+                    rule = rules.get(r)
+                    if not rule:
+                        if handle_misses:
+                            handle_misses((rid, r, t, attribs))
+                        continue
+                    # At the heart of the Versa pipeline context is a prototype link,
+                    # which looks like the link that triggered the current tule, but with the
+                    # origin changed to the output resource
+                    link = (out_rid, r, t, attribs)
+                    # Build the rest of the context
+                    ctx = context(link, self.input_model, self.output_model)
+                    # Run the rule, expecting the side effect of data added to the output model
+                    rule(ctx)
+                    applied_rules_count += 1
         return applied_rules_count
 
     def labelize_helper(self, rules, label_rel=VLABEL_REL, origins=None, handle_misses=None):

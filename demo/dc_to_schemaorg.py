@@ -5,7 +5,9 @@
 '''
 Demo of Versa Pipeline. Converts a Dublin Core model into Schema.org
 
-python dc_to_schemaorg.py 
+python dc_to_schemaorg.py
+
+https://schema.org/Book
 '''
 
 import sys
@@ -74,13 +76,13 @@ from versa.pipeline import *
 
 FINGERPRINT_RULES = {
     # Fingerprint DC book by ISBN & output resource will be a SCH Book
-    DC_NS('Book'): becomes(SCH_NS('Book'),
+    DC_NS('Book'): materialize(SCH_NS('Book'),
                         unique=[
-                            (VTYPE_REL, SCH_NS('Book')),
                             # XXX Check that foreach will work if there are values for the key
                             # follow() for links with the specified relationship from the context origin
                             (SCH_NS('isbn'), follow(DC_NS('identifier'))),
-                        ]
+                        ],
+                        attach=False
     )
 }
 
@@ -97,7 +99,6 @@ DC_TO_SCH_RULES = {
     DC_NS('title'): link(rel=SCH_NS('name')),
     DC_NS('creator'): materialize(SCH_NS('Person'),
                           unique=[
-                              (VTYPE_REL, SCH_NS('Person')),
                               #(SCH_NS('name'), attr(DC_NS('name'))),
                               (SCH_NS('name'), attr('name')),
                               (SCH_NS('birthDate'), attr(DC_NS('date'))),
