@@ -252,7 +252,11 @@ class definition:
             for typ in util.resourcetypes(self.input_model, rid):
                 if typ in rules:
                     rule = rules[typ]
-                    link = (rid, VTYPE_REL, typ, {})
+                    # The None relationship here acts as a signal to actions
+                    # such as materialize to not try to attach the newly created
+                    # resource anywhere in the output, since this is just the
+                    # fingerprinting stage
+                    link = (rid, None, typ, {})
                     ctx = context(link, self.input_model, self.output_model)
                     out_rid = rule(ctx)
                     out_rid = out_rid if isinstance(out_rid, list) else [out_rid]

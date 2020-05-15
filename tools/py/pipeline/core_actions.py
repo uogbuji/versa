@@ -384,16 +384,19 @@ def materialize(typ, rel=None, origin=None, unique=None, links=None, split=None,
         This function is intricate in its use and shifting of Versa context, but the
         intricacies are all designed to make the marcpatterns mini language more natural.
         '''
-        #FIXME: Part of the datachef sorting out
+        # FIXME: Part of the datachef sorting out
         if not ctx.idgen: ctx.idgen = idgen
         _typ = typ(ctx) if is_pipeline_action(typ) else typ
         _unique = unique(ctx) if is_pipeline_action(unique) else unique
         (o, r, t, a) = ctx.current_link
-        #FIXME: On redesign implement split using function composition instead
+        # FIXME: On redesign implement split using function composition instead
         targets = [ sub_t.strip() for sub_t in t.split(split) if sub_t.strip() ] if split else [t]
-        #Make sure we end up with a list
+
+        # Especially useful signal in a pipeline's fingerprinting stage
+        attach_ = False if rel is None and r is None else attach
+
+        # Make sure we end up with a list or None
         rels = rel if isinstance(rel, list) else ([rel] if rel else [r])
-        
         objids = []
 
         # Botanical analogy: stem context is from the caller (e.g. connection point of newly materialized resource)
@@ -420,7 +423,7 @@ def materialize(typ, rel=None, origin=None, unique=None, links=None, split=None,
 
             objid = materialize_entity(ctx_stem, _typ, unique=computed_unique)
             objids.append(objid)
-            #rels = [ ('_' + curr_rel if curr_rel.isdigit() else curr_rel) for curr_rel in rels if curr_rel ]
+            # rels = [ ('_' + curr_rel if curr_rel.isdigit() else curr_rel) for curr_rel in rels if curr_rel ]
             computed_rels = []
             for curr_relobj in rels:
                 #e.g. scenario if passed in rel=ifexists(...)
@@ -430,7 +433,7 @@ def materialize(typ, rel=None, origin=None, unique=None, links=None, split=None,
                     if not curr_rel: continue
                     # FIXME: Fix properly, by slugifying & making sure slugify handles  all numeric case (prepend '_')
                     curr_rel = '_' + curr_rel if curr_rel.isdigit() else curr_rel
-                    if attach:
+                    if attach_:
                         ctx_stem.output_model.add(I(o), I(iri.absolutize(curr_rel, ctx_stem.base)), I(objid), {})
                     computed_rels.append(curr_rel)
             # print((objid, ctx_.existing_ids))

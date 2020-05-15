@@ -1,20 +1,24 @@
 #!/usr/bin/env python
 #-*- mode: python -*-
-# dc_to_schemaorg.py
+# csv_to_schemaorg.py
 
 '''
-Demo of Versa Pipeline. Converts a Dublin Core model into Schema.org
+Demo of Versa Pipeline. Converts a CSV with book info into Schema.org
 
-python dc_to_schemaorg.py
+You might first want to be familar with dc_to_schemaorg.py, which has
+more comments on basics and doesn't bother with details such as
+ command line
+
+python csv_to_schemaorg.py
 
 https://schema.org/Book
 '''
 
 import sys
 import warnings
-# from pathlib import Path
+from pathlib import Path
 
-# import plac # Cmdline processing tool
+import plac # Cmdline processing tool
 
 from amara3 import iri
 
@@ -22,65 +26,23 @@ from versa import ORIGIN, RELATIONSHIP, TARGET
 from versa import I, VERSA_BASEIRI, VTYPE_REL, VLABEL_REL
 from versa import util
 from versa.driver import memory
-from versa.reader.md import parse
+from versa.reader.csv_polyglot import parse
 from versa.writer import md as md
 from versa.pipeline import *
 from versa.contrib.datachefids import idgen as default_idgen
 
 BOOK_NS = I('https://example.org/')
-DC_NS = I('http://purl.org/dc/terms/')
+IMPLICIT_NS = I('http://example.org/vocab/')
 SCH_NS = I('https://schema.org/')
-
-# Input data (e.g. as if parced from DC XML)
-# see e.g. the MODS https://library.britishcouncil.co.zw/cgi-bin/koha/opac-export.pl?op=export&bib=59705&format=mods
-# Oh yes, this is a great example of how poor JSON's expressiveness is vs XML, but done this way as a concession to developer trends
-
-# Abstractly, Versa pipelines operate by maping a set of input entities
-# to an output entity, but in practice the input entities are often bundled
-# into some sort of record format. We'll use such terminology interchangeably.
-
-INPUT_RECORDS = []
-INPUT_RECORDS.append('''\
-# @docheader
-
-* @iri:
-    * @base: https://example.org/
-    * @property: http://purl.org/dc/terms/
-
-# HalfofaYellowSun [http://purl.org/dc/terms/Book]
-
-* title: Half of a Yellow Sun
-* creator:
-    * name: Chimamanda Ngozi Adichie
-    * date: 1977
-* publisher:
-    * name: Fourth estate
-    * date: 2006
-    * issuance: monographic
-    * place: London
-* pages: 448
-* description: Set in Nigeria during the 1960s, this novel contains three main characters who get swept up in the violence during these turbulent years. It is about Africa, about the end of colonialism, about class and race, and the ways in which love can complicate these things.
-* subject:
-    * scheme: lcsh
-    * geographic: Nigeria
-    * temporal: 1967-1970
-    * topic: Civil War, 1967-1970
-    * topic: Social aspects
-    * topic: Fiction
-* identifier: 9780008205249
-    * type: isbn
-''')
 
 
 from versa.pipeline import *
 
 FINGERPRINT_RULES = {
     # Fingerprint DC book by ISBN & output resource will be a SCH Book
-    DC_NS('Book'): materialize(SCH_NS('Book'),
+    IMPLICIT_NS('Book'): materialize(SCH_NS('Book'),
                         unique=[
-                            # XXX Check that foreach will work if there are values for the key
-                            # follow() for links with the specified relationship from the context origin
-                            (SCH_NS('isbn'), follow(DC_NS('identifier'))),
+                            (SCH_NS('isbn'), follow(IMPLICIT_NS('identifier'))),
                         ]
     )
 }
@@ -95,17 +57,17 @@ FINGERPRINT_RULES = {
 # relationship in the input model)
 
 DC_TO_SCH_RULES = {
-    DC_NS('title'): link(rel=SCH_NS('name')),
-    DC_NS('creator'): materialize(SCH_NS('Person'),
+    IMPLICIT_NS('title'): link(rel=SCH_NS('name')),
+    IMPLICIT_NS('creator'): materialize(SCH_NS('Person'),
                           unique=[
-                              #(SCH_NS('name'), attr(DC_NS('name'))),
+                              #(SCH_NS('name'), attr(IMPLICIT_NS('name'))),
                               (SCH_NS('name'), attr('name')),
-                              (SCH_NS('birthDate'), attr(DC_NS('date'))),
+                              (SCH_NS('birthDate'), attr(IMPLICIT_NS('date'))),
                           ],
                           links=[
-                              #(SCH_NS('name'), attr(DC_NS('name'))),
+                              #(SCH_NS('name'), attr(IMPLICIT_NS('name'))),
                               (SCH_NS('name'), attr('name')),
-                              (SCH_NS('birthDate'), attr(DC_NS('date'))),
+                              (SCH_NS('birthDate'), attr(IMPLICIT_NS('date'))),
                           ]
     ),
 }
@@ -116,6 +78,28 @@ LABELIZE_RULES = {
     SCH_NS('Book'): follow(SCH_NS('name'))
 }
 
+
+# Just use Python's built-in string.format()
+# Could also use e.g. Jinja
+VLITERATE_TEMPLATE = '''\
+# @docheader
+
+* @iri:
+    * @base: https://example.org/
+    * @property: http://example.org/vocab/
+
+# /{ISBN} [http://example.org/vocab/Book]
+
+* title: {Title}
+* creator:
+    * name: {Author}
+    * date: {Author_date}
+* publisher:
+    * name: {Publisher}
+    * date: {Pub_date}
+* identifier: {ISBN}
+    * type: isbn
+'''
 
 # Initialize the pipeline
 ppl = definition()
@@ -142,6 +126,7 @@ def fingerprint(ppl):
     the presence of each resource of primary interest expected to result
     from the transformation, with minimal detail such as the resource type
     '''
+    print('BOOM!')
     # Apply a common fingerprinting strategy using rules defined above
     new_rids = ppl.fingerprint_helper(FINGERPRINT_RULES)
 
@@ -188,23 +173,23 @@ def labelize(ppl):
     return True
 
 
-if __name__ == '__main__':
-    for rec in INPUT_RECORDS:
-        input_model = memory.connection()
-        parse(rec, input_model)
-        output_model = ppl.transform(input_model=input_model)
-        print('Resulting record Fingerprints:', ppl.fingerprints)
-        print('Low level JSON dump of output data model: ')
-        util.jsondump(output_model, sys.stdout)
-        print('Versa literate form of output: ')
-        md.write([output_model], out=sys.stdout)
-
-
-# @plac.annotations(
-#     source=("Path to source file", "positional", None, Path),
-#     outversa=("Path to Versa output", "positional", None, Path),
-# )
-# def main(source, outversa):
-
 # outrdfttl=None, outrdfxml=None, outliblink=None, outliblinkmf=None,
 #         limit=-1, logger=None):
+@plac.annotations(
+    source=("Path to CSV source file", "positional", None, Path),
+)
+def main(source):
+    input_model = memory.connection()
+    with open(source) as csvfp:
+        parse(csvfp, VLITERATE_TEMPLATE, input_model)
+    md.write([input_model], out=sys.stdout)
+    output_model = ppl.transform(input_model=input_model)
+    print('Resulting record Fingerprints:', ppl.fingerprints)
+    print('Low level JSON dump of output data model: ')
+    util.jsondump(output_model, sys.stdout)
+    print('Versa literate form of output: ')
+    md.write([output_model], out=sys.stdout)
+
+
+if __name__ == '__main__':
+    plac.call(main)
