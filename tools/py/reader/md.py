@@ -16,7 +16,8 @@ import itertools
 import markdown
 
 from amara3 import iri #for absolutize & matches_uri_syntax
-from amara3.uxml.parser import parse, event
+from amara3.uxml import html5
+#from amara3.uxml.parser import parse, event
 from amara3.uxml.tree import treebuilder, element, text
 from amara3.uxml.treeutil import *
 #from amara import namespaces
@@ -155,7 +156,8 @@ def parse(md, model, encoding='utf-8', config=None):
     #doc = html.markup_fragment(inputsource.text(h.encode('utf-8')))
     tb = treebuilder()
     h = '<html>' + h + '</html>'
-    root = tb.parse(h)
+    root = html5.parse(h)
+    #root = tb.parse(h)
     #Each section contains one resource description, but the special one named @docheader contains info to help interpret the rest
     first_h1 = next(select_name(descendants(root), 'h1'))
     #top_section_fields = itertools.takewhile(lambda x: x.xml_name != 'h1', select_name(following_siblings(first_h1), 'h2'))

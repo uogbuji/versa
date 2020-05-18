@@ -61,12 +61,10 @@ DC_TO_SCH_RULES = {
     IMPLICIT_NS('creator'): materialize(SCH_NS('Person'),
                           unique=[
                               (SCH_NS('name'), attr(IMPLICIT_NS('name'))),
-                              #(SCH_NS('name'), attr('name')),
                               (SCH_NS('birthDate'), attr(IMPLICIT_NS('date'))),
                           ],
                           links=[
                               (SCH_NS('name'), attr(IMPLICIT_NS('name'))),
-                              #(SCH_NS('name'), attr('name')),
                               (SCH_NS('birthDate'), attr(IMPLICIT_NS('date'))),
                           ]
     ),

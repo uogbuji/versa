@@ -5,6 +5,7 @@ Structured Data Validators Structured Data Linter http://linter.structured-data.
 import logging
 import functools
 
+# Requires pytest-mock
 import pytest
 
 from versa import I, VERSA_BASEIRI, ORIGIN, RELATIONSHIP, TARGET
@@ -13,19 +14,6 @@ from versa.pipeline import *
 from versa.contrib.datachefids import idgen, FROM_EMPTY_64BIT_HASH
 from versa.util import jsondump, jsonload
 
-
-# FIXME: Move to a test utils module
-import os, inspect
-def module_path(local_function):
-    '''
-    returns the module path without the use of __file__.  Requires a function defined 
-    locally in the module.
-    from http://stackoverflow.com/questions/729583/getting-file-path-of-imported-module
-    '''
-    return os.path.abspath(inspect.getsourcefile(local_function))
-
-# Hack to locate test resource (data) files regardless of from where nose was run
-RESOURCEPATH = os.path.normpath(os.path.join(module_path(lambda _: None), '../../resource/'))
 
 SIMPLE_BOOK = {
     'id': 'http://example.org/book/catcher-in-the-rye',

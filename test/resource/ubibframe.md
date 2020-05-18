@@ -1,4 +1,4 @@
-<!--
+<!---
 BIBFRAME Micro is an even smaller extraction from BIBFRAME Lite. BIBFRAME Lite is a starting point for customized
 BIBFRAME vocabularies and profiles. It is the same framework and link-compatible with the US Library of Congress's
 BIBFRAME vocabulary, http://bibframe.org/
@@ -17,18 +17,18 @@ value of the property, perhaps as a relationship to another resource, or as a da
 
 You'll notice that BIBFRAME terms use a humpCase/HumpCase convention, which derives from BIBFRAME legacy.
 
--->
+--->
 
 # @docheader
 
-<!--
+<!---
 @base is the default base IRI, used e.g. for resource headers. It would also be used for properties except that it is
 overridden by @property-base
 
 The meta-properties in this file are actually defined by the Versa data model to support interpretation by Versa modeling tools
 
 @resource-base is another possible override, for resource headers, but not used here
--->
+--->
 
 * @iri:
     * @base: http://bibfra.me/vocab/
