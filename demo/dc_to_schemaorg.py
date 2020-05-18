@@ -45,9 +45,9 @@ INPUT_RECORDS.append('''\
 
 * @iri:
     * @base: https://example.org/
-    * @property: http://purl.org/dc/terms/
+    * @schema: http://purl.org/dc/terms/
 
-# HalfofaYellowSun [http://purl.org/dc/terms/Book]
+# HalfofaYellowSun [Book]
 
 * title: Half of a Yellow Sun
 * creator:
@@ -98,13 +98,13 @@ DC_TO_SCH_RULES = {
     DC_NS('title'): link(rel=SCH_NS('name')),
     DC_NS('creator'): materialize(SCH_NS('Person'),
                           unique=[
-                              #(SCH_NS('name'), attr(DC_NS('name'))),
-                              (SCH_NS('name'), attr('name')),
+                              (SCH_NS('name'), attr(DC_NS('name'))),
+                              #(SCH_NS('name'), attr('name')),
                               (SCH_NS('birthDate'), attr(DC_NS('date'))),
                           ],
                           links=[
-                              #(SCH_NS('name'), attr(DC_NS('name'))),
-                              (SCH_NS('name'), attr('name')),
+                              (SCH_NS('name'), attr(DC_NS('name'))),
+                              #(SCH_NS('name'), attr('name')),
                               (SCH_NS('birthDate'), attr(DC_NS('date'))),
                           ]
     ),
@@ -199,12 +199,3 @@ if __name__ == '__main__':
         print('Versa literate form of output: ')
         md.write([output_model], out=sys.stdout)
 
-
-# @plac.annotations(
-#     source=("Path to source file", "positional", None, Path),
-#     outversa=("Path to Versa output", "positional", None, Path),
-# )
-# def main(source, outversa):
-
-# outrdfttl=None, outrdfxml=None, outliblink=None, outliblinkmf=None,
-#         limit=-1, logger=None):

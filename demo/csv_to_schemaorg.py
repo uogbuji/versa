@@ -60,13 +60,13 @@ DC_TO_SCH_RULES = {
     IMPLICIT_NS('title'): link(rel=SCH_NS('name')),
     IMPLICIT_NS('creator'): materialize(SCH_NS('Person'),
                           unique=[
-                              #(SCH_NS('name'), attr(IMPLICIT_NS('name'))),
-                              (SCH_NS('name'), attr('name')),
+                              (SCH_NS('name'), attr(IMPLICIT_NS('name'))),
+                              #(SCH_NS('name'), attr('name')),
                               (SCH_NS('birthDate'), attr(IMPLICIT_NS('date'))),
                           ],
                           links=[
-                              #(SCH_NS('name'), attr(IMPLICIT_NS('name'))),
-                              (SCH_NS('name'), attr('name')),
+                              (SCH_NS('name'), attr(IMPLICIT_NS('name'))),
+                              #(SCH_NS('name'), attr('name')),
                               (SCH_NS('birthDate'), attr(IMPLICIT_NS('date'))),
                           ]
     ),
@@ -86,7 +86,7 @@ VLITERATE_TEMPLATE = '''\
 
 * @iri:
     * @base: https://example.org/
-    * @property: http://example.org/vocab/
+    * @schema: http://example.org/vocab/
 
 # /{ISBN} [http://example.org/vocab/Book]
 

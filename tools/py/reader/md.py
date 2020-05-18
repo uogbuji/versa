@@ -29,14 +29,14 @@ TEXT_VAL, RES_VAL, UNKNOWN_VAL = 1, 2, 3
 
 TYPE_REL = I(iri.absolutize('type', VERSA_BASEIRI))
 
-#Does not support the empty URL <> as a property name
-#REL_PAT = re.compile('((<(.+)>)|([@\\-_\\w#/]+)):\s*((<(.+)>)|("(.*?)")|(\'(.*?)\')|(.*))', re.DOTALL)
+# Does not support the empty URL <> as a property name
+# REL_PAT = re.compile('((<(.+)>)|([@\\-_\\w#/]+)):\s*((<(.+)>)|("(.*?)")|(\'(.*?)\')|(.*))', re.DOTALL)
 REL_PAT = re.compile('((<(.+)>)|([@\\-_\\w#/]+)):\s*((<(.+)>)|("(.*)")|(\'(.*)\')|(.*))', re.DOTALL)
 
 #
 URI_ABBR_PAT = re.compile('@([\\-_\\w]+)([#/@])(.+)', re.DOTALL)
 
-#Does not support the empty URL <> as a property name
+# Does not support the empty URL <> as a property name
 RESOURCE_STR = '([^\s\\[\\]]+)?\s?(\\[([^\s\\[\\]]*?)\\])?'
 RESOURCE_PAT = re.compile(RESOURCE_STR)
 AB_RESOURCE_PAT = re.compile('<\s*' + RESOURCE_STR + '\s*>')
@@ -238,15 +238,16 @@ def parse(md, model, encoding='utf-8', config=None):
     iris = {}
 
     #Gather the document-level metadata from the @docheader section
-    base = propbase = rtbase = document_iri = default_lang = None
+    base = schemabase = rtbase = document_iri = default_lang = None
     for prop, val, typeindic, subfield_list in fields(docheader):
         #The @iri section is where key IRI prefixes can be set
         if prop == '@iri':
             for (k, uri, typeindic) in subfield_list:
                 if k == '@base':
-                    base = propbase = rtbase = uri
-                elif k == '@property':
-                    propbase = uri
+                    base = schemabase = rtbase = uri
+                # @property is legacy
+                elif k == '@schema' or k == '@property':
+                    schemabase = uri
                 elif k == '@resource-type':
                     rtbase = uri
                 else:
@@ -256,7 +257,7 @@ def parse(md, model, encoding='utf-8', config=None):
             #Iterate over items from the @docheader/@interpretations section to set up for further parsing
             interp = {}
             for k, v, x in subfield_list:
-                interp[I(iri.absolutize(k, propbase))] = v
+                interp[I(iri.absolutize(k, schemabase))] = v
             setup_interpretations(interp)
         #Setting an IRI for this very document being parsed
         elif prop == '@document':
@@ -266,7 +267,7 @@ def parse(md, model, encoding='utf-8', config=None):
         #If we have a resource to which to attach them, just attach all other properties
         elif document_iri or base:
             rid = document_iri or base
-            fullprop = I(iri.absolutize(prop, propbase or base))
+            fullprop = I(iri.absolutize(prop, schemabase or base))
             if fullprop in interpretations:
                 val = interpretations[fullprop](val, rid=rid, fullprop=fullprop, base=base, model=model)
                 if val is not None: model.add(rid, fullprop, val)
@@ -275,7 +276,7 @@ def parse(md, model, encoding='utf-8', config=None):
 
 
     #Default IRI prefixes if @iri/@base is set
-    if not propbase: propbase = base
+    if not schemabase: schemabase = base
     if not rtbase: rtbase = base
     if not document_iri: document_iri = base
 
@@ -290,7 +291,7 @@ def parse(md, model, encoding='utf-8', config=None):
         rid = matched.group(1)
         rtype = matched.group(3)
         if rtype:
-            rtype = I(iri.absolutize(rtype, base))
+            rtype = I(iri.absolutize(rtype, schemabase))
 
         if rid:
             rid = I(iri.absolutize(rid, base))
@@ -302,32 +303,39 @@ def parse(md, model, encoding='utf-8', config=None):
             rtype = syntaxtypemap.get(sect.xml_name)
         if rtype:
             model.add(rid, TYPE_REL, rtype)
-        #Add the property
-        for prop, val, typeindic, subfield_list in fields(sect):
-            attrs = {}
-            for (aprop, aval, atype) in subfield_list or ():
-                if atype == RES_VAL:
-                    valmatch = URI_ABBR_PAT.match(aval)
-                    if valmatch:
-                        uri = iris[valmatch.group(1)]
-                        attrs[aprop] = URI_ABBR_PAT.sub(uri + '\\2\\3', aval)
-                    else:
-                        attrs[aprop] = I(iri.absolutize(aval, rtbase))
-                elif atype == TEXT_VAL:
-                    attrs[aprop] = aval
-                elif atype == UNKNOWN_VAL:
-                    attrs[aprop] = aval
-                    if aprop in interpretations:
-                        aval = interpretations[aprop](aval, rid=rid, fullprop=aprop, base=base, model=model)
-                        if aval is not None: attrs[aprop] = aval
-                    else:
-                        attrs[aprop] = aval
+
+        def expand_prop(prop):
             propmatch = URI_ABBR_PAT.match(prop)
             if propmatch:
                 uri = iris[propmatch.group(1)]
                 fullprop = URI_ABBR_PAT.sub(uri + '\\2\\3', prop)
             else:
-                fullprop = I(iri.absolutize(prop, propbase))
+                fullprop = I(iri.absolutize(prop, schemabase))
+            return fullprop
+
+        #Add the property
+        for prop, val, typeindic, subfield_list in fields(sect):
+            attrs = {}
+            for (aprop, aval, atype) in subfield_list or ():
+                fullaprop = expand_prop(aprop)
+                if atype == RES_VAL:
+                    valmatch = URI_ABBR_PAT.match(aval)
+                    if valmatch:
+                        uri = iris[valmatch.group(1)]
+                        attrs[fullaprop] = URI_ABBR_PAT.sub(uri + '\\2\\3', aval)
+                    else:
+                        attrs[fullaprop] = I(iri.absolutize(aval, rtbase))
+                elif atype == TEXT_VAL:
+                    attrs[fullaprop] = aval
+                elif atype == UNKNOWN_VAL:
+                    attrs[fullaprop] = aval
+                    if fullaprop in interpretations:
+                        aval = interpretations[fullaprop](aval, rid=rid, fullprop=fullaprop, base=base, model=model)
+                        if aval is not None: attrs[fullaprop] = aval
+                    else:
+                        attrs[fullaprop] = aval
+
+            fullprop = expand_prop(prop)
             if typeindic == RES_VAL:
                 valmatch = URI_ABBR_PAT.match(aval)
                 if valmatch:
@@ -345,6 +353,7 @@ def parse(md, model, encoding='utf-8', config=None):
                     if val is not None: model.add(rid, fullprop, val)
                 else:
                     model.add(rid, fullprop, val, attrs)
+
             #resinfo = AB_RESOURCE_PAT.match(val)
             #if resinfo:
             #    val = resinfo.group(1)
