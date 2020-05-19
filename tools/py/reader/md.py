@@ -36,6 +36,7 @@ REL_PAT = re.compile('((<(.+)>)|([@\\-_\\w#/]+)):\s*((<(.+)>)|("(.*)")|(\'(.*)\'
 
 #
 URI_ABBR_PAT = re.compile('@([\\-_\\w]+)([#/@])(.+)', re.DOTALL)
+URI_EXPLICIT_PAT = re.compile('<(.+)>', re.DOTALL)
 
 # Does not support the empty URL <> as a property name
 RESOURCE_STR = '([^\s\\[\\]]+)?\s?(\\[([^\s\\[\\]]*?)\\])?'
@@ -162,9 +163,11 @@ def parse(md, model, encoding='utf-8', config=None):
     first_h1 = next(select_name(descendants(root), 'h1'))
     #top_section_fields = itertools.takewhile(lambda x: x.xml_name != 'h1', select_name(following_siblings(first_h1), 'h2'))
 
-    #Extract header elements. Notice I use an empty element with an empty parent as the default result
-    docheader = next(select_value(select_name(descendants(root), 'h1'), '@docheader'), element('empty', parent=root)) # //h1[.="@docheader"]
-    sections = filter(lambda x: x.xml_value != '@docheader', select_name_pattern(descendants(root), HEADER_PAT)) # //h1[not(.="@docheader")]|h2[not(.="@docheader")]|h3[not(.="@docheader")]
+    # Extract header elements. Notice I use an empty element with an empty parent as the default result
+    docheader = next(select_value(select_name(descendants(root), 'h1'), '@docheader'),
+                    element('empty', parent=root)) # //h1[.="@docheader"]
+    sections = filter(lambda x: x.xml_value != '@docheader',
+                    select_name_pattern(descendants(root), HEADER_PAT)) # //h1[not(.="@docheader")]|h2[not(.="@docheader")]|h3[not(.="@docheader")]
 
     def fields(sect):
         '''
@@ -188,7 +191,6 @@ def parse(md, model, encoding='utf-8', config=None):
                 matched = REL_PAT.match(pair)
                 if not matched:
                     raise ValueError(_('Syntax error in relationship expression: {0}'.format(pair)))
-                #print matched.groups()
                 if matched.group(3): prop = matched.group(3).strip()
                 if matched.group(4): prop = matched.group(4).strip()
                 if matched.group(7):
@@ -211,6 +213,21 @@ def parse(md, model, encoding='utf-8', config=None):
                 return prop, val, typeindic
             return None, None, None
 
+        def prep_li(li):
+            '''
+            a/href embedded in the li means it was specified as <link_text>.
+            Restore the angle brackets as expected by the li parser
+            Also exclude child uls
+            '''
+            return ''.join([
+                ( ch if isinstance(ch, text) else (
+                    '<' + ch.xml_value + '>' if ch.xml_name == 'a' else '')
+                )
+                for ch in itertools.takewhile(
+                    lambda x: not (isinstance(x, element) and x.xml_name == 'ul'), li.xml_children
+                )
+            ])
+
         #Go through each list item
         for li in field_list:
             #Is there a nested list, which expresses attributes on a property
@@ -220,12 +237,9 @@ def parse(md, model, encoding='utf-8', config=None):
                 #            lambda x: x.xml_name != 'ul', select_elements(li)
                 #            )
                 #    ])
-                main = ''.join(itertools.takewhile(
-                            lambda x: isinstance(x, text), li.xml_children
-                            ))
-                #main = li.xml_select('string(ul/preceding-sibling::node())')
+                main = prep_li(li)
                 prop, val, typeindic = parse_li(main)
-                subfield_list = [ parse_li(sli.xml_value) for e in select_name(li, 'ul') for sli in (
+                subfield_list = [ parse_li(prep_li(sli)) for e in select_name(li, 'ul') for sli in (
                                 select_name(e, 'li')
                                 ) ]
                 subfield_list = [ (p, v, t) for (p, v, t) in subfield_list if p is not None ]
@@ -234,12 +248,12 @@ def parse(md, model, encoding='utf-8', config=None):
                 yield prop, val, typeindic, subfield_list
             #Just a regular, unadorned property
             else:
-                prop, val, typeindic = parse_li(li.xml_value)
+                prop, val, typeindic = parse_li(prep_li(li))
                 if prop: yield prop, val, typeindic, None
 
     iris = {}
 
-    #Gather the document-level metadata from the @docheader section
+    # Gather the document-level metadata from the @docheader section
     base = schemabase = rtbase = document_iri = default_lang = None
     for prop, val, typeindic, subfield_list in fields(docheader):
         #The @iri section is where key IRI prefixes can be set
@@ -306,21 +320,25 @@ def parse(md, model, encoding='utf-8', config=None):
         if rtype:
             model.add(rid, TYPE_REL, rtype)
 
-        def expand_prop(prop):
-            propmatch = URI_ABBR_PAT.match(prop)
-            if propmatch:
-                uri = iris[propmatch.group(1)]
-                fullprop = URI_ABBR_PAT.sub(uri + '\\2\\3', prop)
+        def expand_iri(iri_in, base):
+            iri_match = URI_EXPLICIT_PAT.match(iri_in)
+            if iri_match:
+                return I(iri.absolutize(iri_match.group(1), base))
+            iri_match = URI_ABBR_PAT.match(iri_in)
+            if iri_match:
+                uri = iris[iri_match.group(1)]
+                fulliri = URI_ABBR_PAT.sub(uri + '\\2\\3', iri_in)
             else:
-                fullprop = I(iri.absolutize(prop, schemabase))
-            return fullprop
+                fulliri = I(iri.absolutize(iri_in, base))
+            return fulliri
 
         #Add the property
         for prop, val, typeindic, subfield_list in fields(sect):
             attrs = {}
             for (aprop, aval, atype) in subfield_list or ():
-                fullaprop = expand_prop(aprop)
+                fullaprop = expand_iri(aprop, schemabase)
                 if atype == RES_VAL:
+                    val = expand_iri(aval, rtbase)
                     valmatch = URI_ABBR_PAT.match(aval)
                     if valmatch:
                         uri = iris[valmatch.group(1)]
@@ -330,30 +348,28 @@ def parse(md, model, encoding='utf-8', config=None):
                 elif atype == TEXT_VAL:
                     attrs[fullaprop] = aval
                 elif atype == UNKNOWN_VAL:
-                    attrs[fullaprop] = aval
-                    if fullaprop in interpretations:
+                    val_iri_match = URI_EXPLICIT_PAT.match(aval)
+                    if val_iri_match:
+                        aval = expand_iri(aval, rtbase)
+                    elif fullaprop in interpretations:
                         aval = interpretations[fullaprop](aval, rid=rid, fullprop=fullaprop, base=base, model=model)
-                        if aval is not None: attrs[fullaprop] = aval
-                    else:
+                    if aval is not None:
                         attrs[fullaprop] = aval
 
-            fullprop = expand_prop(prop)
+            fullprop = expand_iri(prop, schemabase)
             if typeindic == RES_VAL:
-                valmatch = URI_ABBR_PAT.match(aval)
-                if valmatch:
-                    uri = iris[valmatch.group(1)]
-                    val = URI_ABBR_PAT.sub(uri + '\\2\\3', val)
-                else:
-                    val = I(iri.absolutize(val, rtbase))
+                val = expand_iri(val, rtbase)
                 model.add(rid, fullprop, val, attrs)
             elif typeindic == TEXT_VAL:
                 if '@lang' not in attrs: attrs['@lang'] = default_lang
                 model.add(rid, fullprop, val, attrs)
             elif typeindic == UNKNOWN_VAL:
-                if fullprop in interpretations:
+                val_iri_match = URI_EXPLICIT_PAT.match(val)
+                if val_iri_match:
+                    val = expand_iri(val, rtbase)
+                elif fullprop in interpretations:
                     val = interpretations[fullprop](val, rid=rid, fullprop=fullprop, base=base, model=model)
-                    if val is not None: model.add(rid, fullprop, val)
-                else:
+                if val is not None:
                     model.add(rid, fullprop, val, attrs)
 
             #resinfo = AB_RESOURCE_PAT.match(val)
