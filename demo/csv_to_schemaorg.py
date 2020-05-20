@@ -9,7 +9,7 @@ You might first want to be familar with dc_to_schemaorg.py, which has
 more comments on basics and doesn't bother with details such as
  command line
 
-python csv_to_schemaorg.py
+python demo/csv_to_schemaorg.py demo/books.csv
 
 https://schema.org/Book
 '''
@@ -86,7 +86,7 @@ VLITERATE_TEMPLATE = '''\
     * @base: https://example.org/
     * @schema: http://example.org/vocab/
 
-# /{ISBN} [http://example.org/vocab/Book]
+# /{ISBN} [Book]
 
 * title: {Title}
 * creator:
@@ -99,76 +99,62 @@ VLITERATE_TEMPLATE = '''\
     * type: isbn
 '''
 
-# Initialize the pipeline
-ppl = definition()
-# idgen is a function that generates IDs from sets of hashable fields
-# If you wanted to customize the pipeline more than adding a few data members,
-# you'd subclass
-ppl.idgen = default_idgen
 
-# Versa pipelines are often organized into stages, a basic example being
-# fingerprinting and transform. Fingerprinting takes each record and gives it a
-# (presumably) unique output ID. Transform takes a fuller view of input data
-# And generates the entire output
+class csv_schema_pipeline(definition):
 
-# The bodies of phases themselves are not declarative; they're imperative and
-# generally rely on side-effects (in the state of the pipeline definition instance)
-# TODO: Explore a more semantically declarative basis for defining phases as well (arm's length from the Python)
-
-@ppl.stage
-def fingerprint(ppl):
-    '''
-    Generates fingerprints from the source model
-
-    Result of the fingerprinting phase is that the output model shows
-    the presence of each resource of primary interest expected to result
-    from the transformation, with minimal detail such as the resource type
-    '''
-    print('BOOM!')
-    # Apply a common fingerprinting strategy using rules defined above
-    new_rids = ppl.fingerprint_helper(FINGERPRINT_RULES)
-
-    # In real code following lines could be simplified to: return bool(new_rids)
-    if not new_rids:
-        # Nothing found to process, so ret val set to False
-        # This will abort pipeline processing of this input & move on to the next, if any
-        return False
-
-    # ret val True so pipeline run will continue for this input
-    return True
-
-
-@ppl.stage
-def transform(ppl):
-    '''
-    Executes the main transform rules to go from input to output model
-    '''
-    # Apply a common transform strategy using rules defined above
-    # 
-    def missed_rel(link):
+    @stage()
+    def fingerprint(self):
         '''
-        Callback to handle cases where a transform wasn't found to match a link (by relationship) in the input model
-        '''
-        warnings.warn(f'Unknown, so unhandled link. Origin :{link[ORIGIN]}. Rel: {link[RELATIONSHIP]}')
+        Generates fingerprints from the source model
 
-    new_rids = ppl.transform_by_rel_helper(DC_TO_SCH_RULES, handle_misses=missed_rel)
-    return True
+        Result of the fingerprinting phase is that the output model shows
+        the presence of each resource of primary interest expected to result
+        from the transformation, with minimal detail such as the resource type
+        '''
+        # Apply a common fingerprinting strategy using rules defined above
+        new_rids = self.fingerprint_helper(FINGERPRINT_RULES)
+
+        # In real code following lines could be simplified to: return bool(new_rids)
+        if not new_rids:
+            # Nothing found to process, so ret val set to False
+            # This will abort pipeline processing of this input & move on to the next, if any
+            return False
+
+        # ret val True so pipeline run will continue for this input
+        return True
 
 
-@ppl.stage
-def labelize(ppl):
-    '''
-    Executes a utility rule to create labels in output model for new (fingerprinted) resources
-    '''
-    # XXX Check if there's already a label?
-    # Apply a common transform strategy using rules defined above
-    def missed_label(origin, type):
+    @stage()
+    def main_transform(self):
         '''
-        Callback to handle cases where a transform wasn't found to match a link (by relationship) in the input model
+        Executes the main transform rules to go from input to output model
         '''
-        warnings.warn(f'No label generated for: {origin}')
-    labels = ppl.labelize_helper(LABELIZE_RULES, handle_misses=missed_label)
-    return True
+        # Apply a common transform strategy using rules defined above
+        # 
+        def missed_rel(link):
+            '''
+            Callback to handle cases where a transform wasn't found to match a link (by relationship) in the input model
+            '''
+            warnings.warn(f'Unknown, so unhandled link. Origin :{link[ORIGIN]}. Rel: {link[RELATIONSHIP]}')
+
+        new_rids = self.transform_by_rel_helper(DC_TO_SCH_RULES, handle_misses=missed_rel)
+        return True
+
+
+    @stage()
+    def labelize(self):
+        '''
+        Executes a utility rule to create labels in output model for new (fingerprinted) resources
+        '''
+        # XXX Check if there's already a label?
+        # Apply a common transform strategy using rules defined above
+        def missed_label(origin, type):
+            '''
+            Callback to handle cases where a transform wasn't found to match a link (by relationship) in the input model
+            '''
+            warnings.warn(f'No label generated for: {origin}')
+        labels = self.labelize_helper(LABELIZE_RULES, handle_misses=missed_label)
+        return True
 
 
 # outrdfttl=None, outrdfxml=None, outliblink=None, outliblinkmf=None,
@@ -177,11 +163,14 @@ def labelize(ppl):
     source=("Path to CSV source file", "positional", None, Path),
 )
 def main(source):
+    ppl = csv_schema_pipeline()
     input_model = memory.connection()
     with open(source) as csvfp:
         parse(csvfp, VLITERATE_TEMPLATE, input_model)
-    md.write([input_model], out=sys.stdout)
-    output_model = ppl.transform(input_model=input_model)
+
+    # Debug print of input model
+    # md.write([input_model], out=sys.stdout)
+    output_model = ppl.run(input_model=input_model)
     print('Resulting record Fingerprints:', ppl.fingerprints)
     print('Low level JSON dump of output data model: ')
     util.jsondump(output_model, sys.stdout)

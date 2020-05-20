@@ -7,6 +7,7 @@
 import json
 import itertools
 import functools
+from operator import itemgetter
 import logging
 # from enum import Enum #https://docs.python.org/3.4/library/enum.html
 from collections import defaultdict, OrderedDict
@@ -185,6 +186,19 @@ def create_resource_mt(output_model, rtypes, unique, links, existing_ids=None, i
 # field needed for fingerprinting rather than going thru Versa query
 
 
+# FIXME: Should get this from sys, really
+MAX32LESS1 = 4294967295 #2**32-1
+
+# FIXME: Add position/priority sort key arg, to not be dependent on definition order
+def stage(sortkey=MAX32LESS1):
+    if callable(sortkey):
+        raise RuntimeError('Did you forget to use the decorator as @stage() rather than @stage?')
+    def _stage(func):
+        func.pipeline_sort_key = sortkey
+        return func
+    return _stage
+
+
 class definition:
     '''
     Definition of a pipeline for transforming one Versa model to another
@@ -194,9 +208,22 @@ class definition:
     '''
     def __init__(self):
         self._stages = []
+        self._stages_hash = None
+
         self.fingerprints = {}
 
-    def transform(self, input_model=None, raw_source=None, output_model=None, **kwargs):
+    def check_update_stages(self):
+        stage_func_names = [ k for k in dir(self) if hasattr(getattr(self, k), 'pipeline_sort_key') ]
+        if hash(tuple(stage_func_names)) != self._stages_hash:
+            self._stages = [ getattr(self, k) for k in dir(self) if hasattr(getattr(self, k), 'pipeline_sort_key') ]
+            self._stages = [ (int(getattr(s, 'pipeline_sort_key')), s) for s in self._stages ]
+            # Python sorts are guaranteed to be stable, so all with default sortkey will come
+            # last, but in original declaration order
+            self._stages.sort(key=itemgetter(0))
+            self._stages_hash = hash(tuple(stage_func_names))
+        return
+
+    def run(self, input_model=None, raw_source=None, output_model=None, **kwargs):
         '''
         Process an input, either an input Versa model or in some raw record format
         through a sequence of transform stages, to generate a versa model of output resources
@@ -216,28 +243,20 @@ class definition:
             output_model: Same reference as the input output_model, if provided, otherwise a new
                 model containing the results of the transform
         '''
+        self.check_update_stages()
+
         self.input_model = input_model or memory.connection()
         self.output_model = output_model or memory.connection()
 
         self._raw_source = raw_source
-        # interphase['fingerprints'] = []
 
-        for stage in self._stages:
-            retval = stage(self, **kwargs)
+        # Sortkey is the first, discarded tuple item
+        for _, stage in self._stages:
+            retval = stage(**kwargs)
             if retval is False:
                 #Signal to abort
                 break
         return self.output_model
-
-    # FIXME: Add position/priority sort key arg, to not be dependent on definition order
-    def stage(self, func):
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs):
-            # Remember that retval will be expected to be boolean
-            retval = func(*args, **kwargs)
-            return retval
-        self._stages.append(wrapper)
-        return wrapper
 
     def fingerprint_helper(self, rules):
         '''
