@@ -18,7 +18,7 @@ import sys
 import warnings
 from pathlib import Path
 
-import plac # Cmdline processing tool
+import click # Cmdline processing tool. pip install click
 
 from amara3 import iri
 
@@ -157,12 +157,10 @@ class csv_schema_pipeline(definition):
         return True
 
 
-# outrdfttl=None, outrdfxml=None, outliblink=None, outliblinkmf=None,
-#         limit=-1, logger=None):
-@plac.annotations(
-    source=("Path to CSV source file", "positional", None, Path),
-)
+@click.command()
+@click.argument('source')
 def main(source):
+    'Transform CSV SOURCE file to Schema.org in Versa'
     ppl = csv_schema_pipeline()
     input_model = memory.connection()
     with open(source) as csvfp:
@@ -179,4 +177,4 @@ def main(source):
 
 
 if __name__ == '__main__':
-    plac.call(main)
+    main()

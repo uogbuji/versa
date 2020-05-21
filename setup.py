@@ -37,7 +37,9 @@ SCRIPTS = [
 
 CORE_REQUIREMENTS = [
     'amara3.xml',
-    'Markdown', # pytest-mock
+    'Markdown',
+    # 'pytest-mock' # For testing
+    # 'click' # For demos
 ]
 
 # From http://pypi.python.org/pypi?%3Aaction=list_classifiers
