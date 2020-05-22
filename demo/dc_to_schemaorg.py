@@ -126,7 +126,7 @@ LABELIZE_RULES = {
 class dc_schema_pipeline(definition):
 
     # You can explicitly set pipeline priority, otherwise it goes in order declared
-    @stage(sortkey=1)
+    @stage(1)
     def fingerprint(self):
         '''
         Generates fingerprints from the source model
@@ -147,7 +147,7 @@ class dc_schema_pipeline(definition):
         # ret val True so pipeline run will continue for this input
         return True
 
-    @stage()
+    @stage(2)
     def main_transform(self):
         '''
         Executes the main transform rules to go from input to output model
@@ -163,7 +163,7 @@ class dc_schema_pipeline(definition):
         new_rids = self.transform_by_rel_helper(DC_TO_SCH_RULES, handle_misses=missed_rel)
         return True
 
-    @stage()
+    @stage(3)
     def labelize(self):
         '''
         Executes a utility rule to create labels in output model for new (fingerprinted) resources

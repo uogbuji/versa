@@ -102,7 +102,7 @@ VLITERATE_TEMPLATE = '''\
 
 class csv_schema_pipeline(definition):
 
-    @stage()
+    @stage(1)
     def fingerprint(self):
         '''
         Generates fingerprints from the source model
@@ -124,7 +124,7 @@ class csv_schema_pipeline(definition):
         return True
 
 
-    @stage()
+    @stage(2)
     def main_transform(self):
         '''
         Executes the main transform rules to go from input to output model
@@ -141,7 +141,7 @@ class csv_schema_pipeline(definition):
         return True
 
 
-    @stage()
+    @stage(3)
     def labelize(self):
         '''
         Executes a utility rule to create labels in output model for new (fingerprinted) resources

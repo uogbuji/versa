@@ -24,6 +24,14 @@ from versa.contrib.datachefids import idgen as default_idgen, FROM_EMPTY_64BIT_H
 
 # VERSA_PIPELINE_WILDCARD = 'https://github.com/uogbuji/versa/pipeline/wildcard'
 
+__all__ = [
+    'context', 'resource_id', 'materialize_entity', 'is_pipeline_action',
+    'create_resource', 'create_resource_mt', 'stage', 'definition',
+    # Upstream objects included to reduce imports needed by users
+    'I', 'VERSA_BASEIRI', 'ORIGIN', 'RELATIONSHIP', 'TARGET', 'ATTRIBUTES',
+    'VTYPE_REL', 'VLABEL_REL'
+]
+
 
 class context(object):
     #Default way to create a model for the transform output, if one is not provided
@@ -187,10 +195,9 @@ def create_resource_mt(output_model, rtypes, unique, links, existing_ids=None, i
 
 
 # FIXME: Should get this from sys, really
-MAX32LESS1 = 4294967295 #2**32-1
+# MAX32LESS1 = 4294967295 #2**32-1
 
-# FIXME: Add position/priority sort key arg, to not be dependent on definition order
-def stage(sortkey=MAX32LESS1):
+def stage(sortkey):
     if callable(sortkey):
         raise RuntimeError('Did you forget to use the decorator as @stage() rather than @stage?')
     def _stage(func):
@@ -315,14 +322,14 @@ class definition:
 
     def labelize_helper(self, rules, label_rel=VLABEL_REL, origins=None, handle_misses=None):
         '''
-        Implements a common label making strategy where the fingerprinted
+        Implements a common label making strategy where output
         resources are put through pattern/action according to type in order
         to determine the output label
         '''
-        origins = origins or self.fingerprints
         new_labels = {}
-        for rid in origins:
-            out_rid = origins[rid]
+        #Anything with a Versa type is a n output resource
+        for link in self.output_model.match(None, VTYPE_REL, None):
+            out_rid = link[ORIGIN]
             for typ in util.resourcetypes(self.output_model, out_rid):
                 if typ in rules:
                     rule = rules[typ]
