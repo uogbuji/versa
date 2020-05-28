@@ -23,7 +23,7 @@ from versa import I, VERSA_BASEIRI, VTYPE_REL, VLABEL_REL
 from versa import util
 from versa.driver import memory
 from versa.reader.md import parse
-from versa.writer import md as md
+from versa.writer import md
 from versa.pipeline import *
 from versa.contrib.datachefids import idgen as default_idgen
 
@@ -109,8 +109,9 @@ DC_TO_SCH_RULES = {
 
 
 LABELIZE_RULES = {
-    # Labels come from input model's DC name rels
-    SCH_NS('Book'): follow(SCH_NS('name'))
+    # Labels come from output model's Schema.org name rels
+    SCH_NS('Book'): follow(SCH_NS('name')),
+    SCH_NS('Person'): follow(SCH_NS('name')),
 }
 
 
@@ -166,7 +167,7 @@ class dc_schema_pipeline(definition):
     @stage(3)
     def labelize(self):
         '''
-        Executes a utility rule to create labels in output model for new (fingerprinted) resources
+        Executes a utility rule to create labels in output model for new resources
         '''
         # XXX Check if there's already a label?
         # Apply a common transform strategy using rules defined above
@@ -189,5 +190,8 @@ if __name__ == '__main__':
         print('Low level JSON dump of output data model: ')
         util.jsondump(output_model, sys.stdout)
         print('Versa literate form of output: ')
-        md.write([output_model], out=sys.stdout)
+        md.write(output_model, out=sys.stdout)
+        # from versa.writer import md, mermaid
+        # print('Mermaid diagram form of output: ')
+        # mermaid.write(output_model, out=sys.stdout)
 

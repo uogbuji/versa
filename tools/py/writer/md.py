@@ -1,6 +1,9 @@
 #versa.writer.md
 """
-Render a Versa vocab model as Versa Literate (Markdown)
+Render a Versa model as Versa Literate (Markdown)
+
+see: doc/literate_format.md
+
 """
 
 import re
@@ -39,13 +42,11 @@ def value_format(val):
         return repr(val)
 
 
-def write(models, out=None, base=None, propertybase=None, shorteners=None, logger=logging):
+def write(model, out=None, base=None, propertybase=None, shorteners=None, logger=logging):
     '''
-    models - input Versa models from which output is generated. Must be a sequence
-                object, not an iterator
+    models - input Versa model from which output is generated
     '''
     assert out is not None #Output stream required
-    if not isinstance(models, list): models = [models]
     shorteners = shorteners or {}
 
     all_propertybase = [propertybase] if propertybase else []
@@ -60,14 +61,11 @@ def write(models, out=None, base=None, propertybase=None, shorteners=None, logge
 
     out.write('\n\n')
 
-    origin_space = set()
-    #base_out = models[0].base
-    for m in models:
-        origin_space.update(all_origins(m))
+    origin_space = set(all_origins(model))
 
     for o in origin_space:
         out.write('# {0}\n\n'.format(o))
-        for o_, r, t, a in m.match(o):
+        for o_, r, t, a in model.match(o):
             abbr_r = abbreviate(r, all_propertybase)
             value_format(t)
             out.write('* {0}: {1}\n'.format(abbr_r, value_format(t)))

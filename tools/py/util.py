@@ -14,7 +14,7 @@ from collections import OrderedDict
 from versa import I, ORIGIN, RELATIONSHIP, TARGET, ATTRIBUTES
 from versa import init_localization
 init_localization()
-from versa import VERSA_BASEIRI, VTYPE_REL
+from versa import VERSA_BASEIRI, VTYPE_REL, VLABEL_REL
 
 def versa_list_to_pylist(m, vlistid):
     return [ s[TARGET] for s in m.match(vlistid, VERSA_BASEIRI + 'item') ]
@@ -76,12 +76,18 @@ def column(m, linkpart):
 
 def resourcetypes(m, rid):
     '''
-    Return a list of Versa types for a resource
+    Yield a list of Versa types for a resource
     '''
-    types = []
     for o, r, t, a in m.match(rid, VTYPE_REL):
-        types.append(t)
-    return types
+        yield t
+
+
+def labels(m, rid):
+    '''
+    Yield a list of Versa labels for a resource
+    '''
+    for o, r, t, a in m.match(rid, VLABEL_REL):
+        yield t
 
 
 def static_index(m, rel, setvals=False, include_attrs=True, intern=False):
