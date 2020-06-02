@@ -277,17 +277,23 @@ class definition:
         for rid in resources:
             for typ in util.resourcetypes(self.input_model, rid):
                 if typ in rules:
-                    rule = rules[typ]
-                    # The None relationship here acts as a signal to actions
-                    # such as materialize to not try to attach the newly created
-                    # resource anywhere in the output, since this is just the
-                    # fingerprinting stage
-                    link = (rid, None, typ, {})
-                    ctx = context(link, self.input_model, self.output_model)
-                    out_rid = rule(ctx)
-                    out_rid = out_rid if isinstance(out_rid, list) else [out_rid]
-                    self.fingerprints.setdefault(rid, []).extend(out_rid)
-                    new_rids.append(new_rids)
+                    rule_tup = rules[typ]
+                    rule_tup = (rule_tup
+                        if isinstance(rule_tup, list)
+                            or isinstance(rule_tup, tuple)
+                        else
+                            (rule_tup,))
+                    for rule in rule_tup:
+                        # The None relationship here acts as a signal to actions
+                        # such as materialize to not try to attach the newly created
+                        # resource anywhere in the output, since this is just the
+                        # fingerprinting stage
+                        link = (rid, None, typ, {})
+                        ctx = context(link, self.input_model, self.output_model)
+                        out_rid = rule(ctx)
+                        out_rid = out_rid if isinstance(out_rid, list) else [out_rid]
+                        self.fingerprints.setdefault(rid, []).extend(out_rid)
+                        new_rids.append(new_rids)
         return new_rids
 
     def transform_by_rel_helper(self, rules, origins=None, handle_misses=None):
@@ -302,22 +308,42 @@ class definition:
         applied_rules_count = 0
         for rid in origins:
             for out_rid in origins[rid]:
+                out_rid_types = list(util.resourcetypes(self.input_model, out_rid))
                 # Go over all the links for the resource
                 for o, r, t, attribs in self.input_model.match(rid):
-                    rule = rules.get(r)
-                    if not rule:
+                    # Match against the rules mapping keys. Can match on just
+                    # rel, or on a (rel, T) tuple, where T is one of the output
+                    # resource's types
+
+                    matched_rule_spec = None
+                    for typ in out_rid_types:
+                        matched_rule_spec = rules.get((r, typr))
+                        if matched_rule_spec: break
+                    else:
+                        matched_rule_spec = rules.get(r)
+
+                    # If nothing matched, trigger caller's miss handler, if any
+                    if not matched_rule_spec:
                         if handle_misses:
                             handle_misses((rid, r, t, attribs))
                         continue
-                    # At the heart of the Versa pipeline context is a prototype link,
-                    # which looks like the link that triggered the current tule, but with the
-                    # origin changed to the output resource
-                    link = (out_rid, r, t, attribs)
-                    # Build the rest of the context
-                    ctx = context(link, self.input_model, self.output_model)
-                    # Run the rule, expecting the side effect of data added to the output model
-                    rule(ctx)
-                    applied_rules_count += 1
+
+                    rule_tup = (matched_rule_spec
+                        if isinstance(matched_rule_spec, list)
+                            or isinstance(matched_rule_spec, tuple)
+                        else
+                            (matched_rule_spec,))
+
+                    for rule in rule_tup:
+                        # At the heart of the Versa pipeline context is a prototype link,
+                        # which looks like the link that triggered the current tule, but with the
+                        # origin changed to the output resource
+                        link = (out_rid, r, t, attribs)
+                        # Build the rest of the context
+                        ctx = context(link, self.input_model, self.output_model)
+                        # Run the rule, expecting the side effect of data added to the output model
+                        rule(ctx)
+                        applied_rules_count += 1
         return applied_rules_count
 
     def labelize_helper(self, rules, label_rel=VLABEL_REL, origins=None, handle_misses=None):

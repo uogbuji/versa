@@ -1,17 +1,16 @@
 #!/usr/bin/env python
 #-*- mode: python -*-
-# csv_to_schemaorg.py
+# csv_to_bibframe.py
 
 '''
-Demo of Versa Pipeline. Converts a CSV with book info into Schema.org
+Demo of Versa Pipeline. Converts a CSV with book info into BIBFRAME Lite
 
-You might first want to be familar with dc_to_schemaorg.py, which has
-more comments on basics and doesn't bother with details such as
- command line
+You might first want to be familar with dc_to_schemaorg.py
+and csv_to_schemaorg.py
 
-python demo/csv_to_schemaorg.py demo/books.csv
+python demo/csv_to_bibframe.py demo/books.csv
 
-https://schema.org/Book
+http://bibfra.me/
 '''
 
 import sys
@@ -33,17 +32,36 @@ from versa.contrib.datachefids import idgen as default_idgen
 
 BOOK_NS = I('https://example.org/')
 IMPLICIT_NS = I('http://example.org/vocab/')
-SCH_NS = I('https://schema.org/')
+BF_NS = I('http://bibfra.me/')
 
 
 from versa.pipeline import *
 
 FINGERPRINT_RULES = {
     # Fingerprint DC book by ISBN & output resource will be a SCH Book
-    IMPLICIT_NS('Book'): materialize(SCH_NS('Book'),
+
+    # Outermost parens here are not really needed, used for formatting.
+    # You can use an actual tuple here, though, to trigger multiple
+    # rules per matched type
+    IMPLICIT_NS('Book'): ( 
+        materialize(BF_NS('Instance'),
+            unique=[
+                (BF_NS('isbn'), follow(IMPLICIT_NS('identifier'))),
+            ],
+            links=[
+                (BF_NS('isbn'), follow(IMPLICIT_NS('identifier'))),
+                (BF_NS('instantiates'),
+                    materialize(BF_NS('Work'),
                         unique=[
-                            (SCH_NS('isbn'), follow(IMPLICIT_NS('identifier'))),
+                            (BF_NS('title'), follow(IMPLICIT_NS('title'))),
+                        ],
+                        links=[
+                            (BF_NS('title'), follow(IMPLICIT_NS('title'))),
                         ]
+                    ),
+                )
+            ]
+        )
     )
 }
 
@@ -56,16 +74,25 @@ FINGERPRINT_RULES = {
 # by acting on the provided context (in this case just the triggered
 # relationship in the input model)
 
+# Work & instance types
+WT = BF_NS('Work')
+IT = BF_NS('Instance')
+
+
 DC_TO_SCH_RULES = {
-    IMPLICIT_NS('title'): link(rel=SCH_NS('name')),
-    IMPLICIT_NS('creator'): materialize(SCH_NS('Person'),
+    # Rules differentiated by matched output resource type
+    (IMPLICIT_NS('title'), WT): link(rel=BF_NS('name')),
+    (IMPLICIT_NS('title'), IT): link(rel=BF_NS('name')),
+
+    # Rules that are the same regardless of matched output resource type
+    IMPLICIT_NS('creator'): materialize(BF_NS('Person'),
                           unique=[
-                              (SCH_NS('name'), attr(IMPLICIT_NS('name'))),
-                              (SCH_NS('birthDate'), attr(IMPLICIT_NS('date'))),
+                              (BF_NS('name'), attr(IMPLICIT_NS('name'))),
+                              (BF_NS('birthDate'), attr(IMPLICIT_NS('date'))),
                           ],
                           links=[
-                              (SCH_NS('name'), attr(IMPLICIT_NS('name'))),
-                              (SCH_NS('birthDate'), attr(IMPLICIT_NS('date'))),
+                              (BF_NS('name'), attr(IMPLICIT_NS('name'))),
+                              (BF_NS('birthDate'), attr(IMPLICIT_NS('date'))),
                           ]
     ),
 }
@@ -73,7 +100,7 @@ DC_TO_SCH_RULES = {
 
 LABELIZE_RULES = {
     # Labels come from input model's DC name rels
-    SCH_NS('Book'): follow(SCH_NS('name'))
+    BF_NS('Book'): follow(BF_NS('name'))
 }
 
 
@@ -100,7 +127,7 @@ VLITERATE_TEMPLATE = '''\
 '''
 
 
-class csv_schema_pipeline(definition):
+class csv_bibframe_pipeline(definition):
 
     @stage(1)
     def fingerprint(self):
@@ -160,8 +187,8 @@ class csv_schema_pipeline(definition):
 @click.command()
 @click.argument('source')
 def main(source):
-    'Transform CSV SOURCE file to Schema.org in Versa'
-    ppl = csv_schema_pipeline()
+    'Transform CSV SOURCE file to BF Lite in Versa'
+    ppl = csv_bibframe_pipeline()
     input_model = memory.connection()
     with open(source) as csvfp:
         parse(csvfp, VLITERATE_TEMPLATE, input_model)
@@ -172,6 +199,7 @@ def main(source):
     print('Resulting record Fingerprints:', ppl.fingerprints)
     print('Low level JSON dump of output data model: ')
     util.jsondump(output_model, sys.stdout)
+    print('\n') # 2 CRs
     print('Versa literate form of output: ')
     md.write(output_model, out=sys.stdout)
 
