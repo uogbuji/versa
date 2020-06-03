@@ -16,32 +16,44 @@ from amara3.uxml.treeutil import *
 from versa.reader.md import parse as markdown_parse
 from versa import I, VERSA_BASEIRI
 from versa.contrib.datachefids import idgen, FROM_EMPTY_64BIT_HASH
+from versa.driver.memory import newmodel
 
 SLUGCHARS = r'a-zA-Z0-9\-\_'
 OMIT_FROM_SLUG_PAT = re.compile('[^%s]'%SLUGCHARS)
 
 
-#New, consistent API
-def parse(csvfp, vliterate_template, model, csv_cls=None, encoding='utf-8', header_loc=None):
-    if csv_cls is None:
+#New, consistent API: parse & parse_iter are the main entry points
+def parse_iter(csvfp, template_obj, model_fact=newmodel,
+                csv_fact=None, header_loc=None):
+    '''
+    Parse CSV file into Versa model based on template for interpreting the data
+    Yield a new model representing each row
+    '''
+    if csv_fact is None:
         rows = csv.DictReader(csvfp, delimiter=',',
                                 quotechar='"', quoting=csv.QUOTE_MINIMAL)
     else:
-        rows = csv_cls(csvfp)
+        rows = csv_fact(csvfp)
 
-    row = next(rows, None)
-    if row:
-        adapted_keys = {}
-        for k in row.keys():
-            # FIXME: Needs uniqueness post-check
-            adapted = OMIT_FROM_SLUG_PAT.sub('_', k)
-            adapted_keys[k] = adapted
+    first_proper_row = True
+    for (row_ix, row) in enumerate(rows):
+        if first_proper_row:
+            adapted_keys = {}
+            for k in row.keys():
+                # FIXME: Needs uniqueness post-check
+                adapted = OMIT_FROM_SLUG_PAT.sub('_', k)
+                adapted_keys[k] = adapted
+            first_proper_row = False
 
-        for row in chain(iter([row]), rows):
-            for k, ad_k in adapted_keys.items():
-                row[ad_k] = row[k]
-            vliterate_text = vliterate_template.format(**row)
-            markdown_parse(vliterate_text, model)
+        for k, ad_k in adapted_keys.items():
+            row[ad_k] = row[k]
+        if isinstance(template_obj, str):
+            vliterate_text = template_obj.format(**row)
+        else:
+            vliterate_text = template_obj(row)
+        model = model_fact()
+        markdown_parse(vliterate_text, model)
+        yield model
 
 
 # Optimized version courtesy https://stackoverflow.com/a/34935239

@@ -24,8 +24,8 @@ from amara3 import iri
 from versa import ORIGIN, RELATIONSHIP, TARGET
 from versa import I, VERSA_BASEIRI, VTYPE_REL, VLABEL_REL
 from versa import util
-from versa.driver import memory
-from versa.reader.csv_polyglot import parse
+from versa.driver.memory import newmodel
+from versa.reader.csv_polyglot import parse_iter
 from versa.writer import md as md
 from versa.pipeline import *
 from versa.contrib.datachefids import idgen as default_idgen
@@ -49,15 +49,12 @@ FINGERPRINT_RULES = {
                 (BF_NS('isbn'), follow(IMPLICIT_NS('identifier'))),
             ],
             links=[
-                (BF_NS('isbn'), follow(IMPLICIT_NS('identifier'))),
+                # (BF_NS('isbn'), follow(IMPLICIT_NS('identifier'))),
                 (BF_NS('instantiates'),
                     materialize(BF_NS('Work'),
                         unique=[
-                            (BF_NS('title'), follow(IMPLICIT_NS('title'))),
+                            (BF_NS('name'), follow(IMPLICIT_NS('title'))),
                         ],
-                        links=[
-                            (BF_NS('title'), follow(IMPLICIT_NS('title'))),
-                        ]
                     ),
                 )
             ]
@@ -80,20 +77,20 @@ IT = BF_NS('Instance')
 
 
 DC_TO_SCH_RULES = {
-    # Rules differentiated by matched output resource type
-    (IMPLICIT_NS('title'), WT): link(rel=BF_NS('name')),
-    (IMPLICIT_NS('title'), IT): link(rel=BF_NS('name')),
-
     # Rules that are the same regardless of matched output resource type
-    IMPLICIT_NS('creator'): materialize(BF_NS('Person'),
-                          unique=[
-                              (BF_NS('name'), attr(IMPLICIT_NS('name'))),
-                              (BF_NS('birthDate'), attr(IMPLICIT_NS('date'))),
-                          ],
-                          links=[
-                              (BF_NS('name'), attr(IMPLICIT_NS('name'))),
-                              (BF_NS('birthDate'), attr(IMPLICIT_NS('date'))),
-                          ]
+    IMPLICIT_NS('title'): link(rel=BF_NS('name')),
+
+    # Rules differentiated by matched output resource type
+    (IMPLICIT_NS('author'), WT): materialize(BF_NS('Person'),
+                                BF_NS('creator'),
+                                unique=[
+                                    (BF_NS('name'), attr(IMPLICIT_NS('name'))),
+                                    (BF_NS('birthDate'), attr(IMPLICIT_NS('date'))),
+                                ],
+                                links=[
+                                    (BF_NS('name'), attr(IMPLICIT_NS('name'))),
+                                    (BF_NS('birthDate'), attr(IMPLICIT_NS('date'))),
+                                ]
     ),
 }
 
@@ -116,7 +113,7 @@ VLITERATE_TEMPLATE = '''\
 # /{ISBN} [Book]
 
 * title: {Title}
-* creator:
+* author:
     * name: {Author}
     * date: {Author_date}
 * publisher:
@@ -128,6 +125,17 @@ VLITERATE_TEMPLATE = '''\
 
 
 class csv_bibframe_pipeline(definition):
+    def __init__(self, all_field_attrs=True):
+        '''
+        csv_bibframe_pipeline initializer
+
+        all_field_attrs - if True set all CSV row header/values as attributes
+            while processing the input link derived from each header.
+            Provides an easy way for a transform rule to access other data
+            in the row
+        '''
+        self._all_field_attrs = all_field_attrs
+        super().__init__()
 
     @stage(1)
     def fingerprint(self):
@@ -138,6 +146,8 @@ class csv_bibframe_pipeline(definition):
         the presence of each resource of primary interest expected to result
         from the transformation, with minimal detail such as the resource type
         '''
+        # Prepare a root context 
+        self._all_field_attrs
         # Apply a common fingerprinting strategy using rules defined above
         new_rids = self.fingerprint_helper(FINGERPRINT_RULES)
 
@@ -189,9 +199,10 @@ class csv_bibframe_pipeline(definition):
 def main(source):
     'Transform CSV SOURCE file to BF Lite in Versa'
     ppl = csv_bibframe_pipeline()
-    input_model = memory.connection()
+    input_model = newmodel()
     with open(source) as csvfp:
-        parse(csvfp, VLITERATE_TEMPLATE, input_model)
+        for row_model in parse_iter(csvfp, VLITERATE_TEMPLATE):
+            if row_model: input_model.update(row_model)
 
     # Debug print of input model
     # md.write([input_model], out=sys.stdout)

@@ -21,6 +21,14 @@ from amara3 import iri #for absolutize & matches_uri_syntax
 from versa.driver import connection_base
 from versa import I, ORIGIN, RELATIONSHIP, TARGET, ATTRIBUTES
 
+__all__ = ['connection', 'newmodel']
+
+def newmodel(name=None, baseiri=None, attr_cls=dict):
+    '''
+    Return new, empty in-memory Versa model
+    '''
+    return connection(baseiri=baseiri, attr_cls=attr_cls)
+
 
 class connection(connection_base):
     def __init__(self, baseiri=None, attr_cls=dict):
@@ -197,6 +205,16 @@ class connection(connection_base):
                 raise ValueError
             assert rel
             self.add(origin, rel, target, attrs)
+        return
+
+    def update(self, other):
+        '''
+        Add the links in another model to self
+
+        other - other Versa model to have all links added to self
+        '''
+        for rid, link in other:
+            self.add(*link)
         return
 
     def remove(self, index):

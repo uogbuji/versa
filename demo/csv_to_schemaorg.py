@@ -25,7 +25,7 @@ from amara3 import iri
 from versa import ORIGIN, RELATIONSHIP, TARGET
 from versa import I, VERSA_BASEIRI, VTYPE_REL, VLABEL_REL
 from versa import util
-from versa.driver import memory
+from versa.driver.memory import newmodel
 from versa.reader.csv_polyglot import parse
 from versa.writer import md as md
 from versa.pipeline import *
@@ -162,7 +162,7 @@ class csv_schema_pipeline(definition):
 def main(source):
     'Transform CSV SOURCE file to Schema.org in Versa'
     ppl = csv_schema_pipeline()
-    input_model = memory.connection()
+    input_model = newmodel()
     with open(source) as csvfp:
         parse(csvfp, VLITERATE_TEMPLATE, input_model)
 

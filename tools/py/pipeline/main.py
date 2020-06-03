@@ -18,7 +18,7 @@ from amara3 import iri
 from versa import I, VERSA_BASEIRI, ORIGIN, RELATIONSHIP, TARGET, ATTRIBUTES, VTYPE_REL, VLABEL_REL
 from versa import util
 from versa.util import simple_lookup, OrderedJsonEncoder
-from versa.driver import memory
+from versa.driver.memory import newmodel
 
 from versa.contrib.datachefids import idgen as default_idgen, FROM_EMPTY_64BIT_HASH
 
@@ -35,7 +35,7 @@ __all__ = [
 
 class context(object):
     #Default way to create a model for the transform output, if one is not provided
-    transform_factory = memory.connection
+    transform_factory = newmodel
 
     #Note: origin was eliminated; not really needed since the origin of current_link can be used
     def __init__(self, current_link, input_model, output_model=None, base=None, variables=None, extras=None, idgen=None, existing_ids=None):
@@ -252,8 +252,8 @@ class definition:
         '''
         self.check_update_stages()
 
-        self.input_model = input_model or memory.connection()
-        self.output_model = output_model or memory.connection()
+        self.input_model = input_model or newmodel()
+        self.output_model = output_model or newmodel()
 
         self._raw_source = raw_source
 
@@ -273,6 +273,7 @@ class definition:
         the new resource ID & type
         '''
         new_rids = []
+
         resources = list(util.all_origins(self.input_model))
         for rid in resources:
             for typ in util.resourcetypes(self.input_model, rid):
@@ -284,16 +285,27 @@ class definition:
                         else
                             (rule_tup,))
                     for rule in rule_tup:
-                        # The None relationship here acts as a signal to actions
+                        out_rids = []
+                        def new_entity(eid):
+                            '''
+                            Called on Versa pipeline materialization of new entity
+                            Ensures we capture additional entities created by
+                            pipeline actions during this fingerprint phase
+                            '''
+                            out_rids.append(eid)
+
+                        # None relationship here acts as a signal to actions
                         # such as materialize to not try to attach the newly created
                         # resource anywhere in the output, since this is just the
                         # fingerprinting stage
                         link = (rid, None, typ, {})
-                        ctx = context(link, self.input_model, self.output_model)
-                        out_rid = rule(ctx)
-                        out_rid = out_rid if isinstance(out_rid, list) else [out_rid]
-                        self.fingerprints.setdefault(rid, []).extend(out_rid)
-                        new_rids.append(new_rids)
+                        ctx = context(link, self.input_model, self.output_model,
+                                        extras = {'@new-entity-hook': new_entity})
+                        rule(ctx)
+                        # top_level_rids = rule(ctx)
+                        # tl_rids = out_rids if isinstance(out_rids, list) else [out_rids]
+                        self.fingerprints.setdefault(rid, []).extend(out_rids)
+                        new_rids.extend(out_rids)
         return new_rids
 
     def transform_by_rel_helper(self, rules, origins=None, handle_misses=None):
@@ -308,16 +320,18 @@ class definition:
         applied_rules_count = 0
         for rid in origins:
             for out_rid in origins[rid]:
-                out_rid_types = list(util.resourcetypes(self.input_model, out_rid))
+                out_rid_types = list(util.resourcetypes(self.output_model, out_rid))
                 # Go over all the links for the resource
                 for o, r, t, attribs in self.input_model.match(rid):
-                    # Match against the rules mapping keys. Can match on just
-                    # rel, or on a (rel, T) tuple, where T is one of the output
-                    # resource's types
+                    # Match input resource against the rules mapping keys.
+                    # Can match on just rel, or on a (rel, T) tuple,
+                    # where T is one of the output resource's types
 
                     matched_rule_spec = None
+                    #if rid == I('https://example.org/9781841593272'):
+                    #    print(out_rid_types)
                     for typ in out_rid_types:
-                        matched_rule_spec = rules.get((r, typr))
+                        matched_rule_spec = rules.get((r, typ))
                         if matched_rule_spec: break
                     else:
                         matched_rule_spec = rules.get(r)
