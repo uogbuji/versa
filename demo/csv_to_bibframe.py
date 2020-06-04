@@ -49,7 +49,7 @@ FINGERPRINT_RULES = {
                 (BF_NS('isbn'), follow(IMPLICIT_NS('identifier'))),
             ],
             links=[
-                # (BF_NS('isbn'), follow(IMPLICIT_NS('identifier'))),
+                (BF_NS('provenance'), var('provenance')),
                 (BF_NS('instantiates'),
                     materialize(BF_NS('Work'),
                         unique=[
@@ -128,13 +128,8 @@ class csv_bibframe_pipeline(definition):
     def __init__(self, all_field_attrs=True):
         '''
         csv_bibframe_pipeline initializer
-
-        all_field_attrs - if True set all CSV row header/values as attributes
-            while processing the input link derived from each header.
-            Provides an easy way for a transform rule to access other data
-            in the row
         '''
-        self._all_field_attrs = all_field_attrs
+        self._provenance = I('http://example.com/SOME_CSV_FILE')
         super().__init__()
 
     @stage(1)
@@ -146,10 +141,12 @@ class csv_bibframe_pipeline(definition):
         the presence of each resource of primary interest expected to result
         from the transformation, with minimal detail such as the resource type
         '''
-        # Prepare a root context 
-        self._all_field_attrs
+        # Prepare a root context
+        ctx_vars = {'provenance': self._provenance}
+        ctx = DUMMY_CONTEXT.copy(variables=ctx_vars)
+
         # Apply a common fingerprinting strategy using rules defined above
-        new_rids = self.fingerprint_helper(FINGERPRINT_RULES)
+        new_rids = self.fingerprint_helper(FINGERPRINT_RULES, root_context=ctx)
 
         # In real code following lines could be simplified to: return bool(new_rids)
         if not new_rids:

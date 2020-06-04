@@ -25,8 +25,9 @@ from versa.contrib.datachefids import idgen as default_idgen, FROM_EMPTY_64BIT_H
 # VERSA_PIPELINE_WILDCARD = 'https://github.com/uogbuji/versa/pipeline/wildcard'
 
 __all__ = [
-    'context', 'resource_id', 'materialize_entity', 'is_pipeline_action',
-    'create_resource', 'create_resource_mt', 'stage', 'definition',
+    'context', 'DUMMY_CONTEXT', 'resource_id', 'materialize_entity',
+    'is_pipeline_action', 'create_resource', 'create_resource_mt', 'stage',
+    'definition',
     # Upstream objects included to reduce imports needed by users
     'I', 'VERSA_BASEIRI', 'ORIGIN', 'RELATIONSHIP', 'TARGET', 'ATTRIBUTES',
     'VTYPE_REL', 'VLABEL_REL'
@@ -65,6 +66,13 @@ class context(object):
         idgen = idgen if idgen else self.idgen
         existing_ids = existing_ids if existing_ids else self.existing_ids
         return context(current_link=current_link, input_model=input_model, output_model=output_model, base=base, variables=variables, extras=extras, idgen=idgen, existing_ids=existing_ids)
+
+
+# Create a dummy context for anyone wanting to start off a chain of derived contexts
+# If this leaks into actual use, there will be errors, e.g. from input_model == None
+# FIXME: Establish clear error behavior for such cases
+_link = (None, I('https://example.org/'), None, {})
+DUMMY_CONTEXT = context(_link, None)
 
 
 def resource_id(etype, unique=None, idgen=default_idgen(None), vocabbase=None):
@@ -265,7 +273,7 @@ class definition:
                 break
         return self.output_model
 
-    def fingerprint_helper(self, rules):
+    def fingerprint_helper(self, rules, root_context=DUMMY_CONTEXT):
         '''
         Implements a common fingerprinting strategy where the input model
         is scanned for resources and each one is matched by type to the passed-in rules
@@ -299,7 +307,8 @@ class definition:
                         # resource anywhere in the output, since this is just the
                         # fingerprinting stage
                         link = (rid, None, typ, {})
-                        ctx = context(link, self.input_model, self.output_model,
+                        ctx = root_context.copy(current_link=link, input_model=self.input_model,
+                                        output_model=self.output_model,
                                         extras = {'@new-entity-hook': new_entity})
                         rule(ctx)
                         # top_level_rids = rule(ctx)
@@ -308,7 +317,8 @@ class definition:
                         new_rids.extend(out_rids)
         return new_rids
 
-    def transform_by_rel_helper(self, rules, origins=None, handle_misses=None):
+    def transform_by_rel_helper(self, rules, origins=None, handle_misses=None,
+                                    root_context=DUMMY_CONTEXT):
         '''
         Implements a common transform strategy where each fingerprinted
         input model resource is examined for outbound links, and each one matched
@@ -354,13 +364,15 @@ class definition:
                         # origin changed to the output resource
                         link = (out_rid, r, t, attribs)
                         # Build the rest of the context
-                        ctx = context(link, self.input_model, self.output_model)
+                        ctx = root_context.copy(current_link=link, input_model=self.input_model,
+                                                    output_model=self.output_model)
                         # Run the rule, expecting the side effect of data added to the output model
                         rule(ctx)
                         applied_rules_count += 1
         return applied_rules_count
 
-    def labelize_helper(self, rules, label_rel=VLABEL_REL, origins=None, handle_misses=None):
+    def labelize_helper(self, rules, label_rel=VLABEL_REL, origins=None,
+                            handle_misses=None, root_context=DUMMY_CONTEXT):
         '''
         Implements a common label making strategy where output
         resources are put through pattern/action according to type in order
@@ -375,7 +387,8 @@ class definition:
                     rule = rules[typ]
                     link = (out_rid, VTYPE_REL, typ, {})
                     # Notice that it reads from the output model and also updates same
-                    ctx = context(link, self.output_model, self.output_model)
+                    ctx = root_context.copy(current_link=link, input_model=self.input_model,
+                                            output_model=self.output_model)
                     out_labels = rule(ctx)
                     if not out_labels: continue
                     for label in out_labels:
