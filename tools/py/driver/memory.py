@@ -43,6 +43,7 @@ class connection(connection_base):
         self.create_space()
         self._baseiri = baseiri
         self._id_counter = 1
+        self.factory = newmodel
         return
 
     def copy(self, contents=True):

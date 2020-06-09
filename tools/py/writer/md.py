@@ -6,20 +6,11 @@ see: doc/literate_format.md
 
 """
 
-import re
 import sys
-import os
-import glob
-import time
-from itertools import islice
-import logging
 
 from amara3 import iri
 
 from versa import I, VERSA_BASEIRI, ORIGIN, RELATIONSHIP, TARGET
-from versa.driver import memory
-from versa import VERSA_BASEIRI
-from versa.reader.md import from_markdown
 from versa.util import all_origins
 
 TYPE_REL = I(iri.absolutize('type', VERSA_BASEIRI))
@@ -42,11 +33,10 @@ def value_format(val):
         return repr(val)
 
 
-def write(model, out=None, base=None, propertybase=None, shorteners=None, logger=logging):
+def write(model, out=sys.stdout, base=None, propertybase=None, shorteners=None):
     '''
     models - input Versa model from which output is generated
     '''
-    assert out is not None #Output stream required
     shorteners = shorteners or {}
 
     all_propertybase = [propertybase] if propertybase else []

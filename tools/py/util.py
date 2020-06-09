@@ -192,6 +192,33 @@ def uniquify(model):
     return
 
 
+def zoom_in(model, focus, depth=1, model_fact=None, max_rels=0):
+    '''
+    Given a model and a resource within it to focus on, create a new model
+    with only relationships originating with the focus resource, or N
+    rels removed therefrom, up to the specified depth
+
+    max_rels - if non-zero set a maximum number of relationships to be copied
+        into the output model
+    '''
+    model_fact = model_fact or model.factory
+    zoomed = model_fact()
+
+    def zoom_in_(m, f, d, relcount):
+        for o, r, t, a in m.match(f):
+            relcount += 1
+            if max_rels and relcount > max_rels:
+                return False, relcount
+            zoomed.add(o, r, t, a)
+            if d and isinstance(t, I):
+                c, rc = zoom_in_(m, t, d-1, relcount)
+                relcount += rc
+        return True, relcount
+
+    completed, _ = zoom_in_(model, focus, depth, 0)
+    return zoomed, completed
+
+
 def jsonload(model, fp):
     '''
     Load Versa model dumped into JSON form, either raw or canonical

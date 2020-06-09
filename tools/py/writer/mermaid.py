@@ -8,23 +8,14 @@ Note: you'll probably want something like mermaid-cli
 
 # Need npm to install mermaid-cli, so see: https://nodejs.org/en/
 
-import re
 import sys
-import os
-import glob
-import time
-from itertools import islice
-import logging
 
 from slugify import slugify # pip install python-slugify
 
 from amara3 import iri
 
 from versa import I, VERSA_BASEIRI, ORIGIN, RELATIONSHIP, TARGET, VLABEL_REL, VTYPE_REL
-from versa.driver import memory
-from versa import VERSA_BASEIRI
-from versa.reader.md import from_markdown
-from versa.util import all_origins, lookup, labels
+from versa.util import all_origins, labels
 
 
 def abbreviate(rel, bases):
@@ -90,13 +81,10 @@ def lookup_tag(obj, tag_map, label, is_node=True):
 
 
 # TODO: Use stereotype to indicate @type
-def write(model, out=None, base=None, propertybase=None, shorteners=None, logger=logging):
+def write(model, out=sys.stdout):
     '''
     models - input Versa model from which output is generated.
     '''
-    assert out is not None #Output stream required
-    shorteners = shorteners or {}
-
     resource_tags = {}
     property_tags = {}
     value_tags = {}

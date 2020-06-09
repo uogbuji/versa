@@ -13,7 +13,7 @@ from . import context, materialize_entity, create_resource, is_pipeline_action
 __all__ = [ 'var', 'extra', 'attr', 'origin', 'rel', 'target', 'values',
             'ifexists', 'if_', 'foreach', 'follow', 'toiri', 'lookup',
             'regex_match_modify', 'compose', 'ignore', 'replace_from',
-            'action_template'
+            'action_template', 'SKIP'
             ]
 
 
