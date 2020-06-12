@@ -1,12 +1,9 @@
 '''
-Base tools for parsing the Markdown syntax of Versa
+Parse the Versa Literate (Markdown) serialization of Versa
 
-https://daringfireball.net/projects/markdown/basics
+Proper entry point of use is versa.serial.literate
 
-For example:
-
-
-
+see: doc/literate_format.md
 
 '''
 
@@ -15,20 +12,18 @@ import itertools
 
 import markdown
 
-from amara3 import iri #for absolutize & matches_uri_syntax
+from amara3 import iri # for absolutize & matches_uri_syntax
 from amara3.uxml import html5
-#from amara3.uxml.parser import parse, event
 from amara3.uxml.tree import treebuilder, element, text
 from amara3.uxml.treeutil import *
-#from amara import namespaces
 
 from versa.contrib import mkdcomments
 from versa import I, VERSA_BASEIRI
-from versa.contrib.datachefids import idgen, FROM_EMPTY_64BIT_HASH
+from versa.contrib.datachefids import idgen
 
 TEXT_VAL, RES_VAL, UNKNOWN_VAL = 1, 2, 3
 
-TYPE_REL = I(iri.absolutize('type', VERSA_BASEIRI))
+TYPE_REL = VERSA_BASEIRI('type')
 
 # Does not support the empty URL <> as a property name
 # REL_PAT = re.compile('((<(.+)>)|([@\\-_\\w#/]+)):\s*((<(.+)>)|("(.*?)")|(\'(.*?)\')|(.*))', re.DOTALL)
@@ -66,8 +61,8 @@ def handle_resourcelist(ltext, **kwargs):
     '''
     A helper that converts lists of resources from a textual format such as Markdown, including absolutizing relative IRIs
     '''
-    base=kwargs.get('base', VERSA_BASEIRI)
-    model=kwargs.get('model')
+    base = kwargs.get('base', VERSA_BASEIRI)
+    model = kwargs.get('model')
     iris = ltext.strip().split()
     newlist = model.generate_resource()
     for i in iris:
@@ -95,8 +90,6 @@ PREP_METHODS = {
     VERSA_BASEIRI + 'resourceset': handle_resourceset,
 }
 
-def from_markdown(md, model, encoding='utf-8', config=None):
-    return parse(md, model, encoding, config)
 
 #New, consistent API
 def parse(md, model, encoding='utf-8', config=None):
@@ -109,10 +102,10 @@ def parse(md, model, encoding='utf-8', config=None):
 
     Returns: The overall base URI (`@base`) specified in the Markdown file, or None
 
-    >>> from versa.driver import memory
-    >>> from versa.reader.md import from_markdown
-    >>> m = memory.connection()
-    >>> from_markdown(open('test/resource/poetry.md').read(), m)
+    >>> from versa.driver.memory import newmodel
+    >>> from versa.serial.literate import parse
+    >>> m = newmodel()
+    >>> parse(open('test/resource/poetry.md').read(), m)
     'http://uche.ogbuji.net/poems/'
     >>> m.size()
     40
@@ -321,6 +314,8 @@ def parse(md, model, encoding='utf-8', config=None):
             model.add(rid, TYPE_REL, rtype)
 
         def expand_iri(iri_in, base):
+            if iri_in.startswith('@'):
+                return I(iri.absolutize(iri_in[1:], VERSA_BASEIRI))
             iri_match = URI_EXPLICIT_PAT.match(iri_in)
             if iri_match:
                 return I(iri.absolutize(iri_match.group(1), base))
@@ -380,3 +375,9 @@ def parse(md, model, encoding='utf-8', config=None):
             #    if valtype: attrs[TYPE_REL] = valtype
 
     return document_iri
+
+
+# XXX Add support for long Versa literate docs fed incrementally
+def parse_iter():
+    raise NotImplementedError
+

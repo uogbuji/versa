@@ -26,8 +26,7 @@ from versa import ORIGIN, RELATIONSHIP, TARGET
 from versa import I, VERSA_BASEIRI, VTYPE_REL, VLABEL_REL
 from versa import util
 from versa.driver.memory import newmodel
-from versa.reader.csv_polyglot import parse
-from versa.writer import md as md
+from versa.serial import csv, literate, mermaid
 from versa.pipeline import *
 from versa.contrib.datachefids import idgen as default_idgen
 
@@ -164,16 +163,16 @@ def main(source):
     ppl = csv_schema_pipeline()
     input_model = newmodel()
     with open(source) as csvfp:
-        parse(csvfp, VLITERATE_TEMPLATE, input_model)
+        csv.parse(csvfp, VLITERATE_TEMPLATE, input_model)
 
     # Debug print of input model
-    # md.write([input_model], out=sys.stdout)
+    # literate.write([input_model], out=sys.stdout)
     output_model = ppl.run(input_model=input_model)
     print('Resulting record Fingerprints:', ppl.fingerprints)
     print('Low level JSON dump of output data model: ')
     util.jsondump(output_model, sys.stdout)
     print('Versa literate form of output: ')
-    md.write(output_model, out=sys.stdout)
+    literate.write(output_model, out=sys.stdout)
 
 
 if __name__ == '__main__':

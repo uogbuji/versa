@@ -114,7 +114,7 @@ def resource_id(etype, unique=None, idgen=default_idgen(None), vocabbase=None):
     else:
         #We only have a type; no other distinguishing data. Generate a random hash
         eid = next(idgen)
-    return eid
+    return I(eid)
 
 
 def is_pipeline_action(f):

@@ -1,6 +1,7 @@
-#versa.writer.md
+# versa.serial.mermaid
+
 """
-Render a Versa model as [Mermaid]()
+Render a Versa model as [Mermaid](https://mermaid-js.github.io/)
 
 Note: you'll probably want something like mermaid-cli
 
@@ -17,22 +18,9 @@ from amara3 import iri
 from versa import I, VERSA_BASEIRI, ORIGIN, RELATIONSHIP, TARGET, VLABEL_REL, VTYPE_REL
 from versa.util import all_origins, labels
 
-
-def abbreviate(rel, bases):
-    for base in bases:
-        abbr = iri.relativize(rel, base, subPathOnly=True)
-        if abbr:
-            if base is VERSA_BASEIRI:
-                abbr = '@' + abbr
-            return abbr
-    return rel
-
-
-def value_format(val):
-    if isinstance(val, I):
-        return str(val)
-    else:
-        return repr(val)
+__all__ = ['parse', 'parse_iter', 'write',
+    # Non-standard
+]
 
 
 TAG_MAX_STEM_LENGTH = 12
@@ -103,9 +91,15 @@ def write(model, out=sys.stdout):
                 t_tag = lookup_tag(t, value_tags, None)
 
             out.write(f'    {o_tag} -->|{r_tag}| {t_tag}\n')
-            #for k, v in a.items():
-            #    abbr_k = abbreviate(k, all_propertybase)
-            #    out.write('    * {0}: {1}\n'.format(k, value_format(v)))
 
         out.write('\n')
     return
+
+
+# Intentionally not supporting parse
+def parse():
+    raise NotImplementedError
+
+
+def parse_iter():
+    raise NotImplementedError

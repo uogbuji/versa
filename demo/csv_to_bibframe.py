@@ -27,8 +27,7 @@ from versa import ORIGIN, RELATIONSHIP, TARGET
 from versa import I, VERSA_BASEIRI, VTYPE_REL, VLABEL_REL
 from versa import util
 from versa.driver.memory import newmodel
-from versa.reader.csv_polyglot import parse_iter
-from versa.writer import md, mermaid
+from versa.serial import csv, literate, mermaid
 from versa.pipeline import *
 from versa.contrib.datachefids import idgen as default_idgen
 
@@ -200,17 +199,17 @@ def main(source):
     ppl = csv_bibframe_pipeline()
     input_model = newmodel()
     with open(source) as csvfp:
-        for row_model in parse_iter(csvfp, VLITERATE_TEMPLATE):
+        for row_model in csv.parse_iter(csvfp, VLITERATE_TEMPLATE):
             if row_model: input_model.update(row_model)
 
     # Debug print of input model
-    # md.write([input_model], out=sys.stdout)
+    # literate.write([input_model], out=sys.stdout)
     output_model = ppl.run(input_model=input_model)
     print('Low level JSON dump of output data model: ')
     util.jsondump(output_model, sys.stdout)
     print('\n') # 2 CRs
     print('Versa literate form of output: ')
-    md.write(output_model, out=sys.stdout)
+    literate.write(output_model, out=sys.stdout)
 
     print('Diagram from extracted a sample: ')
     out_resources = []
@@ -220,7 +219,7 @@ def main(source):
     instances = [ r for r in out_resources if ITYPE in util.resourcetypes(output_model, r) ]
     zoomed, _ = util.zoom_in(output_model, random.choice(instances), depth=2)
     mermaid.write(zoomed)
-    md.write(zoomed)
+    # literate.write(zoomed)
 
 
 if __name__ == '__main__':

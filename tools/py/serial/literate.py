@@ -1,6 +1,7 @@
-#versa.writer.md
+#versa.serial.literate
+
 """
-Render a Versa model as Versa Literate (Markdown)
+Serialize and deserialize between a Versa model and Versa Literate (Markdown)
 
 see: doc/literate_format.md
 
@@ -13,7 +14,13 @@ from amara3 import iri
 from versa import I, VERSA_BASEIRI, ORIGIN, RELATIONSHIP, TARGET
 from versa.util import all_origins
 
+from .markdown_parse import parse
+
 TYPE_REL = I(iri.absolutize('type', VERSA_BASEIRI))
+
+__all__ = ['parse', 'parse_iter', 'write',
+    # Non-standard
+]
 
 
 def abbreviate(rel, bases):
@@ -23,14 +30,14 @@ def abbreviate(rel, bases):
             if base is VERSA_BASEIRI:
                 abbr = '@' + abbr
             return abbr
-    return rel
+    return I(rel)
 
 
 def value_format(val):
     if isinstance(val, I):
-        return str(val)
+        return f'<{val}>'
     else:
-        return repr(val)
+        return f'"{val}"'
 
 
 def write(model, out=sys.stdout, base=None, propertybase=None, shorteners=None):
@@ -56,12 +63,16 @@ def write(model, out=sys.stdout, base=None, propertybase=None, shorteners=None):
     for o in origin_space:
         out.write('# {0}\n\n'.format(o))
         for o_, r, t, a in model.match(o):
-            abbr_r = abbreviate(r, all_propertybase)
+            rendered_r = abbreviate(r, all_propertybase)
+            if isinstance(rendered_r, I):
+                rendered_r = f'<{rendered_r}>'
             value_format(t)
-            out.write('* {0}: {1}\n'.format(abbr_r, value_format(t)))
+            out.write(f'* {rendered_r}: {value_format(t)}\n')
             for k, v in a.items():
-                abbr_k = abbreviate(k, all_propertybase)
-                out.write('    * {0}: {1}\n'.format(k, value_format(v)))
+                rendered_k = abbreviate(k, all_propertybase)
+                if isinstance(rendered_k, I):
+                    rendered_r = f'<{rendered_k}>'
+                out.write(f'    * {rendered_k}: {value_format(t)}\n')
 
         out.write('\n')
     return
