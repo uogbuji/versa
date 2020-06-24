@@ -91,7 +91,6 @@ PREP_METHODS = {
 }
 
 
-#New, consistent API
 def parse(md, model, encoding='utf-8', config=None):
     """
     Translate the Versa Markdown syntax into Versa model relationships

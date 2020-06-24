@@ -40,7 +40,6 @@ def fromlist(l):
     return '|'.join(l)
 
 
-#New, consistent API: parse & parse_iter are the main entry points
 def parse_iter(csvfp, template_obj, model_fact=newmodel,
                 csv_fact=None, header_loc=None):
     '''

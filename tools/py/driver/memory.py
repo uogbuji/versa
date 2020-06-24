@@ -68,6 +68,11 @@ class connection(connection_base):
         '''Execute a Versa query'''
         raise NotImplementedError
 
+    def __len__(self):
+        '''Return number of links in the model'''
+        return len(self._relationships)
+
+    # XXX Obsolete?
     def size(self):
         '''Return the number of links in the model'''
         return len(self._relationships)

@@ -1,23 +1,55 @@
-#versa.writer.ntriples
+# versa.serial.ntriples
 """
-Render a Versa vocab model as NTriples
+Serialize and deserialize between a Versa model and NTriples
 
 https://www.w3.org/TR/rdf-testcases/#ntriples
 """
+
+import re
 
 from amara3 import iri
 
 from versa import I, VERSA_BASEIRI, ORIGIN, RELATIONSHIP, TARGET
 from versa.terms import VERSA_BASEIRI, RDF_NS, RDFS_NS, VERSA_TYPE_REL, RDF_TYPE_REL
-from versa.driver import memory
-from versa import VERSA_BASEIRI
+from versa.driver.memory import newmodel
 
 RESOURCE_MAPPING = {
-    I(VERSA_BASEIRI + 'Resource'): I(RDFS_NAMESPACE + 'Class'),
-    I(VERSA_BASEIRI + 'Property'): I(RDF_NAMESPACE + 'Property'),
-    I(VERSA_BASEIRI + 'description'): I(RDFS_NAMESPACE + 'comment'),
-    I(VERSA_BASEIRI + 'label'): I(RDFS_NAMESPACE + 'label'),
+    VERSA_BASEIRI('Resource'): RDFS_NS('Class'),
+    VERSA_BASEIRI('Property'): RDF_NS('Property'),
+    VERSA_BASEIRI('description'): RDFS_NS('comment'),
+    VERSA_BASEIRI('label'): RDFS_NS('label'),
 }
+
+
+__all__ = ['parse', 'parse_iter', 'write',
+    # Non-standard
+]
+
+
+NT_LINE_PAT = re.compile(r'^((<([^>]+)>)|(_:\w+))\s+<([^>]+)>\s+((<([^>]+)>)|"([^"]*)"|(_:\w+))\s+\.\s*')
+
+def parse(nt, model, encoding='utf-8'):
+    '''
+    >>> 
+    '''
+    nt_gen = nt
+    if isinstance(nt, str):
+        nt_gen = nt.splitlines()
+    for line in nt_gen:
+        m = NT_LINE_PAT.match(line.strip())
+        if m:
+            #print(list(enumerate(m.groups())))
+            _, s, s_iri, s_blank, p_iri, o, _, o_iri, o_str, o_blank = tuple(m.groups())
+            #print((s, s_iri, s_blank, p_iri, o, o_iri, o_str, o_blank))
+
+            if o_blank or s_blank:
+                raise NotImplementedError('Blank nodes not yet implemented')
+
+            model.add(I(s_iri), I(p_iri), I(o_iri) if o_iri else o_str, {})
+
+
+def parse_iter(nt_fp, model_fact=newmodel):
+    raise NotImplementedError
 
 
 def strconv(item):
@@ -30,7 +62,7 @@ def strconv(item):
         return('"' + str(item) + '"')
 
 
-def write(models, out=None, base=None, logger=logging):
+def write(models, out=None, base=None):
     '''
     models - one or more input Versa models from which output is generated.
     '''
