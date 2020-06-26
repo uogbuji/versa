@@ -5,6 +5,7 @@ import itertools
 from amara3 import iri
 
 from versa import I, VERSA_BASEIRI, ORIGIN, RELATIONSHIP, TARGET, ATTRIBUTES, VTYPE_REL
+from versa.terms import VFPRINT_REL
 from versa import util
 from versa.util import simple_lookup
 

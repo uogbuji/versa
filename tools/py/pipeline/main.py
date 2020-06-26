@@ -120,7 +120,8 @@ def resource_id(etype, fprint=None, idgen=default_idgen(None), vocabbase=None):
         fprint_processed.append((k, v))
 
     if fprint_processed:
-        fprint_processed.insert(0, [VTYPE_REL, etype])
+        fprint_processed.append((VTYPE_REL, etype))
+        fprint_processed.sort()
         plaintext = json.dumps(fprint_processed, separators=(',', ':'), cls=OrderedJsonEncoder)
         eid = idgen.send(plaintext)
     else:
