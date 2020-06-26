@@ -7,6 +7,7 @@ import functools
 
 import pytest
 
+from amara3 import iri
 from versa import I, VERSA_BASEIRI, ORIGIN, RELATIONSHIP, TARGET
 from versa.driver import memory
 from versa.pipeline import *
