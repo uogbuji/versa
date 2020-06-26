@@ -91,8 +91,7 @@ def resource_id(etype, unique=None, idgen=default_idgen(None), vocabbase=None):
         unique_computed.append((k, v))
 
     if unique_computed:
-        unique_computed.append([VTYPE_REL, etype])
-        unique_computed.sort()
+        unique_computed.insert(0, [VTYPE_REL, etype])
         plaintext = json.dumps(unique_computed, separators=(',', ':'), cls=OrderedJsonEncoder)
         eid = idgen.send(plaintext)
     else:
