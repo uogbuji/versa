@@ -7,6 +7,7 @@ import re
 from amara3 import iri
 
 from versa import I, VERSA_BASEIRI, ORIGIN, RELATIONSHIP, TARGET, ATTRIBUTES, VTYPE_REL
+from versa.terms import VFPRINT_REL
 from versa import util
 from versa.util import simple_lookup
 
@@ -321,7 +322,7 @@ def foreach(origin=None, rel=None, target=None, attributes=None, action=None):
     return _foreach
 
 
-def materialize(typ, rel=None, origin=None, unique=None, links=None, split=None, attributes=None, attach=True):
+def materialize(typ, rel=None, origin=None, unique=None, fprint=None, links=None, split=None, attributes=None, attach=True, preserve_fprint=False):
     '''
     Create a new resource related to the origin
 
@@ -342,7 +343,7 @@ def materialize(typ, rel=None, origin=None, unique=None, links=None, split=None,
         origin: Literal IRI or Versa action function for origin of the
             main generated link. If none, use the action context.
 
-        unique: Used to derive a unique hash key input for the materialized
+        fprint (unique is the deprecated name): Used to derive a unique hash key input for the materialized
             resource. May be a list of key, value pairs, from which the ID
             is derived through the Versa hash convention, or may be an action
             function that returns the ID
@@ -356,6 +357,8 @@ def materialize(typ, rel=None, origin=None, unique=None, links=None, split=None,
 
         attach: if True (the default) attach the newly materialized resource
             to the context origin
+
+        preserve_fprint - if True record the fingerprint (from the fprint param) in a new relationship
 
     Return:
         Versa action function to do the actual work
@@ -427,6 +430,10 @@ def materialize(typ, rel=None, origin=None, unique=None, links=None, split=None,
             # XXX: Means links are only processed on new objects! This needs some thought
             if objid not in ctx_stem.existing_ids:
                 if _typ: ctx_stem.output_model.add(I(objid), VTYPE_REL, I(iri.absolutize(_typ, ctx_stem.base)), {})
+                computed_unique.sort()
+                if preserve_fprint:
+                    attrs = { k:v for (k,v) in computed_unique }
+                    ctx_stem.output_model.add(I(objid), VFPRINT_REL, _typ, attrs)
                 # XXX: Use Nones to mark blanks, or should Versa define some sort of null resource?
                 for l in links:
                     if len(l) == 2:
