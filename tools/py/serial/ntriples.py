@@ -10,7 +10,7 @@ import re
 from amara3 import iri
 
 from versa import I, VERSA_BASEIRI, ORIGIN, RELATIONSHIP, TARGET
-from versa.terms import VERSA_BASEIRI, RDF_NS, RDFS_NS, VERSA_TYPE_REL, RDF_TYPE_REL
+from versa.terms import VERSA_BASEIRI, RDF_NS, RDFS_NS, VTYPE_REL, RDF_TYPE_REL
 from versa.driver.memory import newmodel
 
 RESOURCE_MAPPING = {
@@ -41,6 +41,8 @@ def parse(nt, model, encoding='utf-8'):
             #print(list(enumerate(m.groups())))
             _, s, s_iri, s_blank, p_iri, o, _, o_iri, o_str, o_blank = tuple(m.groups())
             #print((s, s_iri, s_blank, p_iri, o, o_iri, o_str, o_blank))
+            if p_iri == RDF_TYPE_REL:
+                p_iri = VTYPE_REL
 
             if o_blank or s_blank:
                 raise NotImplementedError('Blank nodes not yet implemented')

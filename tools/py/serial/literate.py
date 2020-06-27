@@ -1,4 +1,4 @@
-#versa.serial.literate
+# versa.serial.literate
 
 """
 Serialize and deserialize between a Versa model and Versa Literate (Markdown)
