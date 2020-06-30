@@ -1,5 +1,19 @@
 # versa.pipeline
 '''
+Creating and processing descriptions of Versa resources
+
+# Creation
+
+Use `create_resource` for general-purpose resource creation (i.e. establishing
+a resource ID based on fingerprint characteristics).
+
+Use 
+
+# Modification
+
+Versa pipelines provide a system for modifying Versa resources and their descriptions
+using patterns and declared rules.
+
 '''
 
 # FIXME: Use __all__
@@ -26,7 +40,7 @@ from versa.contrib.datachefids import idgen as default_idgen, FROM_EMPTY_64BIT_H
 
 __all__ = [
     'context', 'DUMMY_CONTEXT', 'resource_id', 'materialize_entity',
-    'is_pipeline_action', 'create_resource', 'create_resource_mt', 'stage',
+    'is_pipeline_action', 'create_resource', 'stage',
     'definition',
     # Upstream objects included to reduce imports needed by users
     'I', 'VERSA_BASEIRI', 'ORIGIN', 'RELATIONSHIP', 'TARGET', 'ATTRIBUTES',
@@ -75,19 +89,19 @@ _link = (None, I('https://example.org/'), None, {})
 DUMMY_CONTEXT = context(_link, None)
 
 
-def resource_id(etype, unique=None, idgen=default_idgen(None), vocabbase=None):
+def resource_id(etype, fprint=None, idgen=default_idgen(None), vocabbase=None):
     '''
     Lowest level routine for generating a, ID value using the Versa comvention
     
     The Versa convention originated as the hash algorithm outlined by
-    the Libhub initiative for for BIBFRAME Lite (Libhub Resource Hash Convention).
-    https://github.com/zepheira/pybibframe/wiki/From-Records-to-Resources:-the-Library.Link-resource-ID-generation-algorithm
-    
-    Takes the entity (resource) type and an ordered data mapping.
+    the Libhub initiative for for BIBFRAME Lite, and now codified in the document [Computing Versa Resource Hashes
+](https://github.com/uogbuji/versa/wiki/Computing-Versa-Resource-Hashes).
 
-    etype - type IRI for th enew entity
-    unique - list of key/value tuples of data to use in generating its unique ID, or None in which case one is just randomly generated
-    defaultvocabbase - for convenience, provided, use to resolve relative etype & data keys
+    etype - type IRI for the new entity (if the entity has multiple types, this is the primary and additional types
+    can be provided in the fingerprint set)
+    fprint - fingerprint set. List of key/value tuples of data to use in generating its unique ID, or None in which
+    case one is just randomly generated
+    defaultvocabbase - for convenience, provided, use to resolve relative etype & fingerprint keys
 
     >>> from versa.pipeline import resource_id
     >>> resource_id("http://schema.org/Person", [("http://schema.org/name", "Jonathan Bruce Postel"), ("http://schema.org/birthDate", "1943-08-06")])
@@ -96,20 +110,18 @@ def resource_id(etype, unique=None, idgen=default_idgen(None), vocabbase=None):
     'xjgOrUFiw_o'
     '''
     params = {}
-    #XXX: Use proper URI normalization? Have a philosophical discussion with Mark about this :)
     if vocabbase and not iri.is_absolute(etype):
-        etype = vocabbase + etype
+        etype = vocabbase(etype)
 
-    unique_computed = []
-    for k, v in unique:
-        if vocabbase:
-            #XXX OK absolutize used here. Go figure
-            k = k if iri.is_absolute(k) else iri.absolutize(k, vocabbase)
-        unique_computed.append((k, v))
+    fprint_processed = []
+    for k, v in fprint:
+        if vocabbase and not iri.is_absolute(k):
+            k = vocabbase(k)
+        fprint_processed.append((k, v))
 
-    if unique_computed:
-        unique_computed.insert(0, [VTYPE_REL, etype])
-        plaintext = json.dumps(unique_computed, separators=(',', ':'), cls=OrderedJsonEncoder)
+    if fprint_processed:
+        fprint_processed.insert(0, [VTYPE_REL, etype])
+        plaintext = json.dumps(fprint_processed, separators=(',', ':'), cls=OrderedJsonEncoder)
         eid = idgen.send(plaintext)
     else:
         #We only have a type; no other distinguishing data. Generate a random hash
@@ -121,7 +133,7 @@ def is_pipeline_action(f):
     return callable(f) and getattr(f, 'is_pipeline_action', False)
 
 
-def materialize_entity(ctx, etype, unique=None):
+def materialize_entity(ctx, etype, fprint=None):
     '''
     Low-level routine for creating a resource. Takes the entity (resource) type
     and a data mapping according to the resource type. As a convenience, if a
@@ -130,22 +142,22 @@ def materialize_entity(ctx, etype, unique=None):
 
     ctx - context information governing creation of the new entity
     etype - type IRI for the new entity
-    unique - list of key/value tuples of data to use in generating
+    fprint - list of key/value tuples of data to use in generating
                 unique ID, or None in which case one is randomly generated
     '''
-    for ix, (k, v) in enumerate(unique):
+    for ix, (k, v) in enumerate(fprint):
         if is_pipeline_action(v):
-            unique[ix] = v(ctx)
-    return I(resource_id(etype, unique=unique, idgen=ctx.idgen, vocabbase=ctx.base))
+            fprint[ix] = v(ctx)
+    return I(resource_id(etype, fprint=fprint, idgen=ctx.idgen, vocabbase=ctx.base))
 
 
-def create_resource(output_model, rtype, unique, links, existing_ids=None, id_helper=None):
+def _create_resource(output_model, rtype, fprint, links, existing_ids=None, id_helper=None):
     '''
-    General-purpose routine to create a new resource in the output model, based on data provided
+    Internal helper function for general-purpose resource creation
 
     output_model    - Versa connection to model to be updated
     rtype           - Type IRI for the new resource, set with Versa type. If you need multiple types, see create_resource_mt
-    unique          - list of key/value pairs for determining a unique hash for the new resource
+    fprint          - list of key/value pairs for determining a unique hash for the new resource
     links           - list of key/value pairs for setting properties on the new resource
     id_helper       - If a string, a base URL for the generatd ID. If callable, a function used to return the entity. If None, set a default good enough for testing.
     existing_ids    - set of existing IDs to not recreate, or None, in which case a new resource will always be created
@@ -160,7 +172,7 @@ def create_resource(output_model, rtype, unique, links, existing_ids=None, id_he
         #FIXME: G11N
         raise ValueError('id_helper must be string (URL), callable or None')
     ctx = context(None, None, output_model, base=None, idgen=idg, existing_ids=existing_ids, extras=None)
-    rid = I(materialize_entity(ctx, rtype, unique=unique))
+    rid = I(materialize_entity(ctx, rtype, fprint=fprint))
     if existing_ids is not None:
         if rid in existing_ids:
             return (False, rid)
@@ -171,14 +183,13 @@ def create_resource(output_model, rtype, unique, links, existing_ids=None, id_he
     return (True, rid)
 
 
-def create_resource_mt(output_model, rtypes, unique, links, existing_ids=None, id_helper=None):
+def create_resource(output_model, rtypes, fprint, links, existing_ids=None, id_helper=None):
     '''
-    Convenience variation of create_resource which supports multiple entity types.
-    The first is taken as primary
+    General-purpose routine to create a new resource in the output model, based on provided resource types and fingerprinting info
 
     output_model    - Versa connection to model to be updated
-    rtypes          - Type IRIor list of IRIs for the new resource, set with Versa type
-    unique          - list of key/value pairs for determining a unique hash for the new resource
+    rtypes          - Type IRIor list of IRIs for the new resource, used to give the object a Versa type relationship
+    fprint          - list of key/value pairs for determining a unique hash for the new resource
     links           - list of key/value pairs for setting properties on the new resource
     id_helper       - If a string, a base URL for the generatd ID. If callable, a function used to return the entity. If None, set a default good enough for testing.
     existing_ids    - set of existing IDs to not recreate, or None, in which case a new resource will always be created
@@ -187,7 +198,7 @@ def create_resource_mt(output_model, rtypes, unique, links, existing_ids=None, i
     rtype, *moretypes = rtypes
     for t in moretypes:
         links.append([VTYPE_REL, t])
-    return create_resource(output_model, rtype, unique, links, existing_ids=None, id_helper=None)
+    return _create_resource(output_model, rtype, fprint, links, existing_ids=None, id_helper=None)
 
 
 # iritype = object()
