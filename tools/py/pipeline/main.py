@@ -15,6 +15,7 @@ from types import GeneratorType
 from amara3 import iri
 
 from versa import I, VERSA_BASEIRI, ORIGIN, RELATIONSHIP, TARGET, ATTRIBUTES, VTYPE_REL
+from versa.terms import VFPRINT_REL
 from versa import util
 from versa.util import simple_lookup, OrderedJsonEncoder
 from versa.driver import memory
@@ -119,7 +120,7 @@ def materialize_entity(ctx, etype, unique=None):
     return I(resource_id(etype, unique=unique, idgen=ctx.idgen, vocabbase=ctx.base))
 
 
-def create_resource(output_model, rtype, unique, links, existing_ids=None, id_helper=None):
+def create_resource(output_model, rtype, unique, links, existing_ids=None, id_helper=None, preserve_fprint=False):
     '''
     General-purpose routine to create a new resource in the output model, based on data provided
 
@@ -146,12 +147,18 @@ def create_resource(output_model, rtype, unique, links, existing_ids=None, id_he
             return (False, rid)
         existing_ids.add(rid)
     output_model.add(rid, VTYPE_REL, rtype)
+
+    if preserve_fprint:
+        unique_processed = sorted([ t for t in unique ])
+        attrs = { k:v for (k,v) in unique_processed }
+        output_model.add(rid, VFPRINT_REL, rtype, attrs)
+
     for r, t in links:
         output_model.add(rid, r, t)
     return (True, rid)
 
 
-def create_resource_mt(output_model, rtypes, unique, links, existing_ids=None, id_helper=None):
+def create_resource_mt(output_model, rtypes, unique, links, existing_ids=None, id_helper=None, preserve_fprint=False):
     '''
     Convenience variation of create_resource which supports multiple entity types.
     The first is taken as primary
@@ -167,7 +174,7 @@ def create_resource_mt(output_model, rtypes, unique, links, existing_ids=None, i
     rtype, *moretypes = rtypes
     for t in moretypes:
         links.append([VTYPE_REL, t])
-    return create_resource(output_model, rtype, unique, links, existing_ids=None, id_helper=None)
+    return create_resource(output_model, rtype, unique, links, existing_ids=None, id_helper=None, preserve_fprint=preserve_fprint)
 
 #iritype = object()
 #force_iritype = object()
