@@ -432,7 +432,7 @@ def materialize(typ, rel=None, origin=None, unique=None, fprint=None, links=None
                 if _typ: ctx_stem.output_model.add(I(objid), VTYPE_REL, I(iri.absolutize(_typ, ctx_stem.base)), {})
                 computed_unique.sort()
                 if preserve_fprint:
-                    attrs = { k:v for (k,v) in computed_unique }
+                    attrs = { k:v for (k, v) in computed_unique }
                     ctx_stem.output_model.add(I(objid), VFPRINT_REL, _typ, attrs)
                 # XXX: Use Nones to mark blanks, or should Versa define some sort of null resource?
                 for l in links:
@@ -447,10 +447,13 @@ def materialize(typ, rel=None, origin=None, unique=None, fprint=None, links=None
                     lt = lt or ctx_stem.current_link[TARGET]
 
                     lo = lo(ctx_stem) if callable(lo) else lo
-                    # XXX: Do we need to use the new origin context?
-                    # new_current_link = (lo, ctx_stem.current_link[RELATIONSHIP], ctx_stem.current_link[TARGET], ctx_stem.current_link[ATTRIBUTES])
-                    # ctx_vein = ctx_stem.copy(current_link=new_current_link)
-                    lr = lr(ctx_stem) if callable(lr) else lr
+                    # Update contexts as we go along
+                    ctx_vein = ctx_stem.copy(current_link=(lo, ctx_stem.current_link[RELATIONSHIP],
+                                                            ctx_stem.current_link[TARGET],
+                                                            ctx_stem.current_link[ATTRIBUTES]))
+                    lr = lr(ctx_vein) if callable(lr) else lr
+                    ctx_vein = ctx_vein.copy(current_link=(lo, lr, ctx_stem.current_link[TARGET],
+                                                            ctx_stem.current_link[ATTRIBUTES]))
                     # If k is a list of contexts use it to dynamically execute functions
                     if isinstance(lr, list):
                         if lr and isinstance(lr[0], context):
@@ -459,13 +462,13 @@ def materialize(typ, rel=None, origin=None, unique=None, fprint=None, links=None
                                 lt(newctx)
                             continue
 
-                    #import traceback; traceback.print_stack() #For looking up the call stack e.g. to debug nested materialize
-                    #Check that the links key is not None, which is a signal not to
-                    #generate the item. For example if the key is an ifexists and the
-                    #test expression result is False, it will come back as None,
-                    #and we don't want to run the v function
+                    # import traceback; traceback.print_stack() #For looking up the call stack e.g. to debug nested materialize
+                    # Check that the links key is not None, which is a signal not to
+                    # generate the item. For example if the key is an ifexists and the
+                    # test expression result is False, it will come back as None,
+                    # and we don't want to run the v function
                     if lr:
-                        lt = lt(ctx_stem) if callable(lt) else lt
+                        lt = lt(ctx_vein) if callable(lt) else lt
 
                         # If k or v come from pipeline functions as None it signals to skip generating anything else for this link item
                         if lt is not None:
@@ -474,9 +477,9 @@ def materialize(typ, rel=None, origin=None, unique=None, fprint=None, links=None
                             if isinstance(lt, list):
                                 for valitems in lt:
                                     if valitems:
-                                        ctx_stem.output_model.add(lo, I(iri.absolutize(lr, ctx_stem.base)), valitems, {})
+                                        ctx_vein.output_model.add(lo, I(iri.absolutize(lr, ctx_vein.base)), valitems, {})
                             else:
-                                ctx_stem.output_model.add(lo, I(iri.absolutize(lr, ctx_stem.base)), lt, {})
+                                ctx_vein.output_model.add(lo, I(iri.absolutize(lr, ctx_vein.base)), lt, {})
                 ctx_stem.existing_ids.add(objid)
                 if '@new-entity-hook' in ctx.extras:
                     ctx.extras['@new-entity-hook'](objid)

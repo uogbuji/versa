@@ -149,8 +149,7 @@ def create_resource(output_model, rtype, unique, links, existing_ids=None, id_he
     output_model.add(rid, VTYPE_REL, rtype)
 
     if preserve_fprint:
-        unique_processed = sorted([ t for t in unique ])
-        attrs = { k:v for (k,v) in unique_processed }
+        attrs = { k:v for (k, v) in unique }
         output_model.add(rid, VFPRINT_REL, rtype, attrs)
 
     for r, t in links:
