@@ -5,7 +5,7 @@
 * @iri:
     * @base: http://example.org/movies/        <!--- Because of this avatar-movie is resolved to http://example.org/movies/avatar-movie etc. -->
     * @resource-type: http://schema.org/  <!--- Because of this Movie is resolved to http://schema.org/Movie etc. -->
-    * @property: http://schema.org/       <!--- Because of this name is resolved to http://schema.org/name etc. -->
+    * @schema: http://schema.org/       <!--- Because of this name is resolved to http://schema.org/name etc. -->
 * @title: Avatar, the movie
 * @interpretations:
     * label: @text

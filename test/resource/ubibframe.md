@@ -32,7 +32,7 @@ The meta-properties in this file are actually defined by the Versa data model to
 
 * @iri:
     * @base: http://bibfra.me/vocab/
-    * @property: http://bibfra.me/purl/versa/
+    * @schema: http://bibfra.me/purl/versa/
 
 # Resource
 

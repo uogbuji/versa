@@ -46,14 +46,14 @@ FINGERPRINT_RULES = {
     # rules per matched type
     IMPLICIT_NS('Book'): ( 
         materialize(BF_NS('Instance'),
-            unique=[
+            fprint=[
                 (BF_NS('isbn'), follow(IMPLICIT_NS('identifier'))),
             ],
             links=[
                 (BF_NS('provenance'), var('provenance')),
                 (BF_NS('instantiates'),
                     materialize(BF_NS('Work'),
-                        unique=[
+                        fprint=[
                             (BF_NS('name'), follow(IMPLICIT_NS('title'))),
                         ],
                     ),
@@ -84,7 +84,7 @@ DC_TO_SCH_RULES = {
     # Rules differentiated by matched output resource type
     (IMPLICIT_NS('author'), WT): materialize(BF_NS('Person'),
                                 BF_NS('creator'),
-                                unique=[
+                                fprint=[
                                     (BF_NS('name'), attr(IMPLICIT_NS('name'))),
                                     (BF_NS('birthDate'), attr(IMPLICIT_NS('date'))),
                                 ],

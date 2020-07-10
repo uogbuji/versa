@@ -67,12 +67,12 @@ def attr(aid):
     return _attr
 
 
-def origin(unique=None):
+def origin(fprint=None):
     '''
     Action function generator to return the origin of the context's current link
 
     Arguments:
-        unique - Used to derive a unique hash key input for the materialized resource,
+        fprint - Used to derive a unique hash key input for the materialized resource,
         May be a list of key, value pairs, from which the ID is derived through
         the Versa hash convention, or may be an action function that returns the ID
         If a list of key, value pairs, the key of the first value must be the Versa type relationship
@@ -89,13 +89,13 @@ def origin(unique=None):
         :return: origin of the context's current link
         '''
         o = ctx.current_link[ORIGIN]
-        if is_pipeline_action(unique):
-            o = unique(ctx)
-        elif unique:
+        if is_pipeline_action(fprint):
+            o = fprint(ctx)
+        elif fprint:
             # strip None values from computed unique list, including pairs where v is None
             typ = None
-            computed_unique = []
-            for k, v in unique:
+            computed_fprint = []
+            for k, v in fprint:
                 if typ is None:
                     if k != VTYPE_REL:
                         raise ValueError('Key of the first unique list pair must be the Versa type relationship')
@@ -106,9 +106,9 @@ def origin(unique=None):
                     subval = subitem(ctx) if is_pipeline_action(subitem) else subitem
                     if subval:
                         subval = subval if isinstance(subval, list) else [subval]
-                        computed_unique.extend([(k, s) for s in subval])
+                        computed_fprint.extend([(k, s) for s in subval])
 
-            o = materialize_entity(ctx, typ, unique=computed_unique)
+            o = materialize_entity(ctx, typ, fprint=computed_fprint)
             # print(o, ctx.extras)
         return o
     _origin.is_pipeline_action = True
@@ -287,16 +287,17 @@ def foreach(origin=None, rel=None, target=None, attributes=None, action=None):
     return _foreach
 
 
-def follow(rel):
+def follow(rel, origin=None):
     '''
     Action function generator to retrieve a variable from context
     '''
     def _follow(ctx):
+        _origin = origin(ctx) if is_pipeline_action(origin) else origin
         _rel = rel(ctx) if is_pipeline_action(rel) else rel
         result = []
         if ctx.input_model:
             (o, r, t, a) = ctx.current_link
-            for o_, r_, t_, a_ in ctx.input_model.match(o, _rel):
+            for o_, r_, t_, a_ in ctx.input_model.match(o if _origin is None else _origin, _rel):
                 result.append(t_)
         return result
     _follow.is_pipeline_action = True

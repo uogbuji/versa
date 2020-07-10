@@ -40,7 +40,7 @@ from versa.pipeline import *
 FINGERPRINT_RULES = {
     # Fingerprint DC book by ISBN & output resource will be a SCH Book
     IMPLICIT_NS('Book'): materialize(SCH_NS('Book'),
-                        unique=[
+                        fprint=[
                             (SCH_NS('isbn'), follow(IMPLICIT_NS('identifier'))),
                         ]
     )
@@ -58,7 +58,7 @@ FINGERPRINT_RULES = {
 DC_TO_SCH_RULES = {
     IMPLICIT_NS('title'): link(rel=SCH_NS('name')),
     IMPLICIT_NS('creator'): materialize(SCH_NS('Person'),
-                          unique=[
+                          fprint=[
                               (SCH_NS('name'), attr(IMPLICIT_NS('name'))),
                               (SCH_NS('birthDate'), attr(IMPLICIT_NS('date'))),
                           ],

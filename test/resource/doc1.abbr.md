@@ -6,7 +6,7 @@
 
 * @iri:
     * @base: http://uche.ogbuji.net/
-    * @property: http://www.w3.org/TR/html5/
+    * @schema: http://www.w3.org/TR/html5/
 
 # /ndewo/
 

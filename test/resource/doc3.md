@@ -2,7 +2,7 @@
 
 * @iri:
     * @base: http://uche.ogbuji.net
-    * @property: http://www.w3.org/TR/html5/
+    * @schema: http://www.w3.org/TR/html5/
 	* @resource-type: http://uche.ogbuji.net
     * sch: http://schema.org
     * rdf: http://www.w3.org/1999/02/22-rdf-syntax-ns
