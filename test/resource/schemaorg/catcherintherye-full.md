@@ -12,9 +12,7 @@
 * name: The Catcher in the Rye
 * image: <catcher-in-the-rye-book-cover.jpg>
 * bookFormat: <https://schema.org/Paperback>
-* author: J. D. Salinger
-* authorBirthDate: 1919-01-01
-<!-- * author: <http://example.org/author/jd_salinger.html> -->
+* author: <jd_salinger>
 * aggregateRating: 4
     * reviewCount: 3077
 * offers: $6.99
@@ -39,3 +37,7 @@
     * datePublished: 2006-06-15
     * reviewBody: Catcher in the Rye is a fun book. It's a good book to read.
 
+# jd_salinger [Person]
+
+* name: J. D. Salinger
+* birthDate: "1919-01-01"

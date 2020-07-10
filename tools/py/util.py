@@ -51,6 +51,8 @@ def all_origins(m, only_types=None):
     Generate all unique statement origins in the given model
     '''
     seen = set()
+    # Undocumented, defensive coding against common error
+    if isinstance(only_types, I): only_types = set({only_types})
     only_types = set(only_types) if only_types else None
     for link in m.match():
         origin = link[ORIGIN]

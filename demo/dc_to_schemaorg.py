@@ -73,7 +73,7 @@ INPUT_RECORDS.append('''\
 FINGERPRINT_RULES = {
     # Fingerprint DC book by ISBN & output resource will be a SCH Book
     DC_NS('Book'): materialize(SCH_NS('Book'),
-                        unique=[
+                        fprint=[
                             # XXX Check that foreach will work if there are values for the key
                             # follow() for links with the specified relationship from the context origin
                             (SCH_NS('isbn'), follow(DC_NS('identifier'))),
@@ -93,7 +93,7 @@ FINGERPRINT_RULES = {
 DC_TO_SCH_RULES = {
     DC_NS('title'): link(rel=SCH_NS('name')),
     DC_NS('creator'): materialize(SCH_NS('Person'),
-                          unique=[
+                          fprint=[
                               (SCH_NS('name'), attr(DC_NS('name'))),
                               (SCH_NS('birthDate'), attr(DC_NS('date'))),
                           ],

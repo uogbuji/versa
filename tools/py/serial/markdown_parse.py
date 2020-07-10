@@ -21,6 +21,10 @@ from versa.contrib import mkdcomments
 from versa import I, VERSA_BASEIRI
 from versa.contrib.datachefids import idgen
 
+# Temp until amara3-xml fix to add comment.xmnl_name
+# from amara3.uxml.tree import comment
+
+
 TEXT_VAL, RES_VAL, UNKNOWN_VAL = 1, 2, 3
 
 TYPE_REL = VERSA_BASEIRI('type')
@@ -213,7 +217,7 @@ def parse(md, model, encoding='utf-8', config=None):
             '''
             return ''.join([
                 ( ch if isinstance(ch, text) else (
-                    '<' + ch.xml_value + '>' if ch.xml_name == 'a' else '')
+                    '<' + ch.xml_value + '>' if isinstance(ch, element) and ch.xml_name == 'a' else '')
                 )
                 for ch in itertools.takewhile(
                     lambda x: not (isinstance(x, element) and x.xml_name == 'ul'), li.xml_children

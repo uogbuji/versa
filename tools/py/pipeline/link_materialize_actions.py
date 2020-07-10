@@ -76,7 +76,25 @@ def link(origin=None, rel=None, target=None, value=None, attributes=None, source
     return _link
 
 
-def materialize(typ, rel=None, origin=None, unique=None, fprint=None, links=None, split=None, attributes=None, attach=True, preserve_fprint=False):
+# XXX: Could generalize this with some sort of session object for the entire pipeline op
+def _smart_add(model, origin, rel, target, attrs, already_added):
+    '''
+    Add link to a model, with a simple safeguard to avoid re-adding the same link
+
+    model - model to which the link should be added
+    origin, rel, target - parts of the link
+    attrs - tuple of key/value pairs for the link
+    already_added - set of previously added links
+    '''
+    if (origin, rel, target, attrs) not in (already_added):
+        attr_dict = { k:v for (k, v) in attrs }
+        model.add(origin, rel, target, attr_dict)
+        already_added.add((origin, rel, target, attrs))
+    return
+
+
+def materialize(typ, rel=None, origin=None, unique=None, fprint=None, links=None,
+                split=None, attributes=None, attach=True, preserve_fprint=False, vars=None):
     '''
     Create a new resource related to the origin
 
@@ -119,6 +137,7 @@ def materialize(typ, rel=None, origin=None, unique=None, fprint=None, links=None
     '''
     links = links or []
     attributes = attributes or {}
+    if unique and not fprint: fprint = unique
     def _materialize(ctx):
         '''
         Inserts at least two main links in the context's output_model, one or more for
@@ -134,13 +153,22 @@ def materialize(typ, rel=None, origin=None, unique=None, fprint=None, links=None
         # FIXME: Part of the datachef sorting out
         if not ctx.idgen: ctx.idgen = idgen
         _typ = typ(ctx) if is_pipeline_action(typ) else typ
-        _unique = unique(ctx) if is_pipeline_action(unique) else unique
+        _fprint = fprint(ctx) if is_pipeline_action(fprint) else fprint
         (o, r, t, a) = ctx.current_link
         # FIXME: On redesign implement split using function composition instead
         targets = [ sub_t.strip() for sub_t in t.split(split) if sub_t.strip() ] if split else [t]
 
+        # If the rel in the incoming context is null and there is no rel passed in, nothing to attach
         # Especially useful signal in a pipeline's fingerprinting stage
         attach_ = False if rel is None and r is None else attach
+
+        # Set up variables to be made available in any derived contexts
+        for k, v in (vars or []):
+            if None in (k, v): continue
+            #v = v if isinstance(v, list) else [v]
+            v = v(ctx) if is_pipeline_action(v) else v
+            ctx.variables[k] = v
+        added_links = set()
 
         # Make sure we end up with a list or None
         rels = rel if isinstance(rel, list) else ([rel] if rel else [r])
@@ -156,19 +184,19 @@ def materialize(typ, rel=None, origin=None, unique=None, fprint=None, links=None
             if not o: #Defensive coding
                 continue
 
-            computed_unique = [] if _unique else None
-            if _unique:
+            computed_fprint = [] if _fprint else None
+            if _fprint:
                 # strip None values from computed unique list, including pairs where v is None
-                for k, v in _unique:
+                for k, v in _fprint:
                     if None in (k, v): continue
                     v = v if isinstance(v, list) else [v]
                     for subitem in v:
                         subval = subitem(ctx_stem) if is_pipeline_action(subitem) else subitem
                         if subval:
                             subval = subval if isinstance(subval, list) else [subval]
-                            computed_unique.extend([(k, s) for s in subval])
+                            computed_fprint.extend([(k, s) for s in subval])
 
-            objid = materialize_entity(ctx_stem, _typ, unique=computed_unique)
+            objid = materialize_entity(ctx_stem, _typ, fprint=computed_fprint)
             objids.append(objid)
             # rels = [ ('_' + curr_rel if curr_rel.isdigit() else curr_rel) for curr_rel in rels if curr_rel ]
             computed_rels = []
@@ -181,16 +209,16 @@ def materialize(typ, rel=None, origin=None, unique=None, fprint=None, links=None
                     # FIXME: Fix properly, by slugifying & making sure slugify handles  all numeric case (prepend '_')
                     curr_rel = '_' + curr_rel if curr_rel.isdigit() else curr_rel
                     if attach_:
-                        ctx_stem.output_model.add(I(o), I(iri.absolutize(curr_rel, ctx_stem.base)), I(objid), {})
+                        _smart_add(ctx_stem.output_model, I(o), I(iri.absolutize(curr_rel, ctx_stem.base)), I(objid), (), added_links)
                     computed_rels.append(curr_rel)
             # print((objid, ctx_.existing_ids))
             # XXX: Means links are only processed on new objects! This needs some thought
             if objid not in ctx_stem.existing_ids:
-                if _typ: ctx_stem.output_model.add(I(objid), VTYPE_REL, I(iri.absolutize(_typ, ctx_stem.base)), {})
-                computed_unique.sort()
+                if _typ:
+                    _smart_add(ctx_stem.output_model, I(objid), VTYPE_REL, I(iri.absolutize(_typ, ctx_stem.base)), (), added_links)
                 if preserve_fprint:
-                    attrs = { k:v for (k, v) in computed_unique }
-                    ctx_stem.output_model.add(I(objid), VFPRINT_REL, _typ, attrs)
+                    _smart_add(ctx_stem.output_model, I(objid), VFPRINT_REL, _typ, computed_fprint, added_links)
+
                 # XXX: Use Nones to mark blanks, or should Versa define some sort of null resource?
                 for l in links:
                     if len(l) == 2:
@@ -208,7 +236,7 @@ def materialize(typ, rel=None, origin=None, unique=None, fprint=None, links=None
                     ctx_vein = ctx_stem.copy(current_link=(lo, ctx_stem.current_link[RELATIONSHIP],
                                                             ctx_stem.current_link[TARGET],
                                                             ctx_stem.current_link[ATTRIBUTES]))
-                    lr = lr(ctx_vein) if callable(lr) else lr
+                    lr = lr(ctx_vein) if is_pipeline_action(lr) else lr
                     ctx_vein = ctx_vein.copy(current_link=(lo, lr, ctx_stem.current_link[TARGET],
                                                             ctx_stem.current_link[ATTRIBUTES]))
                     # If k is a list of contexts use it to dynamically execute functions
@@ -234,9 +262,9 @@ def materialize(typ, rel=None, origin=None, unique=None, fprint=None, links=None
                             if isinstance(lt, list):
                                 for valitems in lt:
                                     if valitems:
-                                        ctx_vein.output_model.add(lo, I(iri.absolutize(lr, ctx_vein.base)), valitems, {})
+                                        _smart_add(ctx_vein.output_model, lo, I(iri.absolutize(lr, ctx_vein.base)), valitems, (), added_links)
                             else:
-                                ctx_vein.output_model.add(lo, I(iri.absolutize(lr, ctx_vein.base)), lt, {})
+                                _smart_add(ctx_vein.output_model, lo, I(iri.absolutize(lr, ctx_vein.base)), lt, (), added_links)
                 ctx_stem.existing_ids.add(objid)
                 if '@new-entity-hook' in ctx.extras:
                     ctx.extras['@new-entity-hook'](objid)

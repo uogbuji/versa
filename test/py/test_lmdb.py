@@ -1,9 +1,9 @@
-# test_diskcache.py (use py.test)
+# test_lmdb.py (use py.test)
 '''
 
 Note: to see stdout, stderr, ets:
 
-py.test -s test/py/test_diskcache.py
+py.test -s test/py/test_lmdb.py
 
 '''
 

@@ -16,8 +16,6 @@ using patterns and declared rules.
 
 '''
 
-# FIXME: Use __all__
-
 import json
 import itertools
 import functools
@@ -41,7 +39,7 @@ from versa.contrib.datachefids import idgen as default_idgen, FROM_EMPTY_64BIT_H
 __all__ = [
     'context', 'DUMMY_CONTEXT', 'resource_id', 'materialize_entity',
     'is_pipeline_action', 'create_resource', 'stage',
-    'definition',
+    'definition', 'generic_pipeline',
     # Upstream objects included to reduce imports needed by users
     'I', 'VERSA_BASEIRI', 'ORIGIN', 'RELATIONSHIP', 'TARGET', 'ATTRIBUTES',
     'VTYPE_REL', 'VLABEL_REL'
@@ -62,7 +60,7 @@ class context(object):
         '''
         self.current_link = current_link
         self.input_model = input_model
-        self.output_model = output_model or context.transform_factory()
+        self.output_model = context.transform_factory() if output_model is None else output_model
         self.base = base
         self.variables = variables or {}
         self.extras = extras or {}
@@ -72,8 +70,8 @@ class context(object):
 
     def copy(self, current_link=None, input_model=None, output_model=None, base=None, variables=None, extras=None, idgen=None, existing_ids=None):
         current_link = current_link if current_link else self.current_link
-        input_model = input_model if input_model else self.input_model
-        output_model = output_model if output_model else self.output_model
+        input_model = self.input_model if input_model is None else input_model
+        output_model = self.output_model if output_model is None else output_model
         base = base if base else self.base
         variables = variables if variables else self.variables
         extras = extras if extras else self.extras
@@ -368,8 +366,10 @@ class definition:
                         # origin changed to the output resource
                         link = (out_rid, r, t, attribs)
                         # Build the rest of the context
+                        variables = {'input-resource': rid}
+                        variables.update(root_context.variables)
                         ctx = root_context.copy(current_link=link, input_model=self.input_model,
-                                                    output_model=self.output_model)
+                                                    output_model=self.output_model, variables=variables)
                         # Run the rule, expecting the side effect of data added to the output model
                         rule(ctx)
                         applied_rules_count += 1
@@ -383,7 +383,8 @@ class definition:
         to determine the output label
         '''
         new_labels = {}
-        #Anything with a Versa type is a n output resource
+        # Anything with a Versa type is an output resource
+        # FIXME weid, redundant logic
         for link in self.output_model.match(None, VTYPE_REL, None):
             out_rid = link[ORIGIN]
             for typ in util.resourcetypes(self.output_model, out_rid):
@@ -391,7 +392,7 @@ class definition:
                     rule = rules[typ]
                     link = (out_rid, VTYPE_REL, typ, {})
                     # Notice that it reads from the output model and also updates same
-                    ctx = root_context.copy(current_link=link, input_model=self.input_model,
+                    ctx = root_context.copy(current_link=link, input_model=self.output_model,
                                             output_model=self.output_model)
                     out_labels = rule(ctx)
                     if not out_labels: continue
@@ -405,4 +406,40 @@ class definition:
                         new_labels[out_rid] = label
                         self.output_model.add(out_rid, label_rel, label)
         return new_labels
+
+
+class generic_pipeline(definition):
+    def __init__(self, fingerprint_rules, transform_rules, labelize_rules, root_ctx=DUMMY_CONTEXT):
+        self.fingerprint_rules = fingerprint_rules
+        self.transform_rules = transform_rules
+        self.labelize_rules = labelize_rules
+        self._root_ctx = root_ctx
+        super().__init__()
+
+    @stage(1)
+    def fingerprint(self):
+        '''
+        Generates fingerprints from the source model
+        '''
+        new_rids = self.fingerprint_helper(self.fingerprint_rules,
+                        root_context=self._root_ctx) # Delegate
+        return bool(new_rids)
+
+    @stage(2)
+    def main_transform(self):
+        '''
+        Executes main transform rules to go from input to output model
+        '''
+        new_rids = self.transform_by_rel_helper(self.transform_rules,
+                        root_context=self._root_ctx) # Delegate
+        return True
+
+    @stage(3)
+    def labelize(self):
+        '''
+        Executes a utility rule to create labels in output model for new (fingerprinted) resources
+        '''
+        labels = self.labelize_helper(self.labelize_rules,
+                        root_context=self._root_ctx) # Delegate
+        return True
 
