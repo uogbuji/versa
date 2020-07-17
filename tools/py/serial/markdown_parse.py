@@ -174,7 +174,10 @@ def parse(md, model, encoding='utf-8', config=None):
         '''
         #import logging; logging.debug(repr(sect))
         #Pull all the list elements until the next header. This accommodates multiple lists in a section
-        sect_body_items = itertools.takewhile(lambda x: HEADER_PAT.match(x.xml_name) is None, select_elements(following_siblings(sect)))
+        try:
+            sect_body_items = itertools.takewhile(lambda x: HEADER_PAT.match(x.xml_name) is None, select_elements(following_siblings(sect)))
+        except StopIteration:
+            return
         #results_until(sect.xml_select('following-sibling::*'), 'self::h1|self::h2|self::h3')
         #field_list = [ U(li) for ul in sect.xml_select('following-sibling::ul') for li in ul.xml_select('./li') ]
         field_list = [ li for elem in select_name(sect_body_items, 'ul') for li in select_name(elem, 'li') ]

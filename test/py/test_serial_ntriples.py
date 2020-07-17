@@ -1,7 +1,7 @@
 
 # test_serial_ntriples.py
 '''
-Test 
+Test NTriples serializer
 '''
 
 import logging

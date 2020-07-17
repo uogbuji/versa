@@ -177,7 +177,7 @@ def values(*rels):
                 computed_rels.append(rel)
 
         return computed_rels
-    _extra.is_pipeline_action = True
+    _values.is_pipeline_action = True
     return _values
 
 
