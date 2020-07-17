@@ -41,10 +41,23 @@ def fromlist(l):
 
 
 def parse_iter(csvfp, template_obj, model_fact=newmodel,
-                csv_fact=None, header_loc=None):
+                csv_fact=None, header_loc=None, nosy=None):
     '''
     Parse CSV file into Versa model based on template for interpreting the data
     Yield a new model representing each row
+
+    csvfp - file-like object with CSV content
+    template_obj - string format template that serves as Versa literal template
+            for each row, or callable that takes the dict of each row's data and
+            returns a versa literate string. e.g. of the latter might be a
+            function that uses Jinja or Mako for more sophisticated templating
+    model_fact - callable that provides a Versa model to receive the model
+            intepreted from the Versa literate of each row
+    csv_fact - callable that convers data from csvfp into Python csv
+            module-compatible objects
+    header_loc - how many rows down in the CSV file header data can be found
+    nosy - optional function which is called with the result of each row's
+            Versa literal output, useful for debugging
     '''
     if csv_fact is None:
         rows = csv.DictReader(csvfp, delimiter=',',
@@ -57,8 +70,11 @@ def parse_iter(csvfp, template_obj, model_fact=newmodel,
         if first_proper_row:
             adapted_keys = {}
             for k in row.keys():
-                # FIXME: Needs uniqueness post-check
-                adapted = OMIT_FROM_SLUG_PAT.sub('_', k)
+                adapted = iri.percent_encode(k)
+                #adapted = OMIT_FROM_SLUG_PAT.sub('_', k)
+                # Ensure there are no clashes after escaping
+                while adapted in adapted_keys:
+                    adapted_keys += '_'
                 adapted_keys[k] = adapted
             first_proper_row = False
 
@@ -68,6 +84,8 @@ def parse_iter(csvfp, template_obj, model_fact=newmodel,
             vliterate_text = template_obj.format(**row)
         else:
             vliterate_text = template_obj(row)
+        if nosy:
+            nosy(vliterate_text)
         model = model_fact()
         markdown_parse(vliterate_text, model)
         yield model
