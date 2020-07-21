@@ -48,10 +48,13 @@ def test_basics_1(testresourcepath, expected_modout1):
                             fprint=[
                                 (BF_NS('name'), follow(SCH_NS('title'))),
                                 (BF_NS('creator'), follow(SCH_NS('author'))),
+                                (BF_NS('language'), var('lang')),
                             ], attach=False # Can remove when we have smart sssions to avoid duplicate instantiates links
                         ),
                     )
-                ]
+                ],
+                # Not really necessary; just testing vars in this scenario
+                vars={'lang': follow(SCH_NS('inLanguage'))}
             )
         )
     }
@@ -65,13 +68,11 @@ def test_basics_1(testresourcepath, expected_modout1):
         # Rule only for output resource type of Work
         (SCH_NS('author'), WT): materialize(BF_NS('Person'),
                                     BF_NS('creator'),
-                                    vars=[
-                                        ('name', target()),
-                                        ('birthDate', follow(SCH_NS('authorBirthDate'),
-                                            origin=var('input-resource')
-                                            )
-                                        ),
-                                    ],
+                                    vars={
+                                        'name': target(),
+                                        'birthDate': follow(SCH_NS('authorBirthDate'),
+                                            origin=var('input-resource'))
+                                    },
                                     fprint=[
                                         (BF_NS('name'), var('name')),
                                         (BF_NS('birthDate'), var('birthDate')),
@@ -98,7 +99,7 @@ def test_basics_1(testresourcepath, expected_modout1):
     assert len(list(util.all_origins(modout, only_types={BF_NS('Instance')}))) == 1
     assert len(list(util.all_origins(modout, only_types={BF_NS('Work')}))) == 1
     assert len(list(util.all_origins(modout, only_types={BF_NS('Person')}))) == 1
-
+    assert len(list(modout.match(None, BF_NS('birthDate'), '1919-01-01'))) == 1
 
 
 if __name__ == '__main__':
