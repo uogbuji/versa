@@ -64,7 +64,8 @@ def parse_iter(csvfp, template_obj, model_fact=newmodel,
         if first_proper_row:
             adapted_keys = {}
             for k in row.keys():
-                adapted = iri.percent_encode(k)
+                # URI escape, but treat spaces as special case, for convenience
+                adapted = iri.percent_encode(k.replace(' ', '_'))
                 #adapted = OMIT_FROM_SLUG_PAT.sub('_', k)
                 # Ensure there are no clashes after escaping
                 while adapted in adapted_keys:

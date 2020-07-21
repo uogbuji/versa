@@ -144,10 +144,11 @@ def materialize_entity(ctx, etype, fprint=None):
     fprint - list of key/value tuples of data to use in generating
                 unique ID, or None in which case one is randomly generated
     '''
+    fprint_processed = []
     for ix, (k, v) in enumerate(fprint):
-        if is_pipeline_action(v):
-            fprint[ix] = v(ctx)
-    return I(resource_id(etype, fprint=fprint, idgen=ctx.idgen, vocabbase=ctx.base))
+        fprint_processed.append((k, v(ctx) if is_pipeline_action(v) else v))
+    return I(resource_id(etype, fprint=fprint_processed, idgen=ctx.idgen,
+                vocabbase=ctx.base))
 
 
 def create_resource(output_model, rtypes, fprint, links, existing_ids=None, id_helper=None, preserve_fprint=False):

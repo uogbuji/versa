@@ -163,7 +163,7 @@ def materialize(typ, rel=None, origin=None, unique=None, fprint=None, links=None
         attach_ = False if rel is None and r is None else attach
 
         # Set up variables to be made available in any derived contexts
-        for k, v in (vars or []):
+        for k, v in (vars or {}).items():
             if None in (k, v): continue
             #v = v if isinstance(v, list) else [v]
             v = v(ctx) if is_pipeline_action(v) else v
