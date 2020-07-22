@@ -386,8 +386,7 @@ class definition:
         new_labels = {}
         # Anything with a Versa type is an output resource
         # FIXME weid, redundant logic
-        for link in self.output_model.match(None, VTYPE_REL, None):
-            out_rid = link[ORIGIN]
+        for out_rid in util.all_origins(self.output_model, of_types='*'):
             for typ in util.resourcetypes(self.output_model, out_rid):
                 if typ in rules:
                     rule = rules[typ]

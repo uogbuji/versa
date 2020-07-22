@@ -20,7 +20,33 @@ TYPE_REL = I(iri.absolutize('type', VERSA_BASEIRI))
 
 __all__ = ['parse', 'parse_iter', 'write',
     # Non-standard
+    'longtext',
 ]
+
+
+def longtext(t):
+    '''
+    Prepare long text to be e.g. included as a Versa literate property value,
+    according to markdown rules
+
+    Only use this function if you're Ok with possible whitespace-specific changes
+
+    >>> from versa.serial.literate import longtext
+    >>> longtext()
+    '''
+# >>> markdown.markdown('* abc\ndef\nghi')
+# '<ul>\n<li>abc\ndef\nghi</li>\n</ul>'
+# >>> markdown.markdown('* abc\n\ndef\n\nghi')
+# '<ul>\n<li>abc</li>\n</ul>\n<p>def</p>\n<p>ghi</p>'
+# >>> markdown.markdown('* abc\n\n    def\n\n    ghi')
+# '<ul>\n<li>\n<p>abc</p>\n<p>def</p>\n<p>ghi</p>\n</li>\n</ul>'
+
+    # Insert blank line after the list item and before the start of your secondary paragraph. Make sure to indent the line with at least one space to ensure that it is indented as part of the list.
+    endswith_cr = t[-1] == '\n'
+    new_t = t.replace('\n', '\n    ')
+    if endswith_cr:
+        new_t = new_t[:-5]
+    return new_t
 
 
 def abbreviate(rel, bases):

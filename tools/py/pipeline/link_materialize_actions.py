@@ -7,6 +7,7 @@ from amara3 import iri
 from versa import I, VERSA_BASEIRI, ORIGIN, RELATIONSHIP, TARGET, ATTRIBUTES, VTYPE_REL
 from versa import util
 from versa.util import simple_lookup
+from versa.terms import VFPRINT_REL
 
 from . import context, materialize_entity, create_resource, is_pipeline_action
 
@@ -86,8 +87,15 @@ def _smart_add(model, origin, rel, target, attrs, already_added):
     attrs - tuple of key/value pairs for the link
     already_added - set of previously added links
     '''
+    attr_dict = {}
     if (origin, rel, target, attrs) not in (already_added):
-        attr_dict = { k:v for (k, v) in attrs }
+        for (k, v) in attrs:
+            if k not in attr_dict:
+                attr_dict[k] = v
+            elif isinstance(attr_dict[k], list):
+                attr_dict[k].append(v)
+            else:
+                attr_dict[k] = [attr_dict[k], v]
         model.add(origin, rel, target, attr_dict)
         already_added.add((origin, rel, target, attrs))
     return
@@ -206,7 +214,7 @@ def materialize(typ, rel=None, origin=None, unique=None, fprint=None, links=None
                 curr_rels = curr_rels if isinstance(curr_rels, list) else [curr_rels]
                 for curr_rel in curr_rels:
                     if not curr_rel: continue
-                    # FIXME: Fix properly, by slugifying & making sure slugify handles  all numeric case (prepend '_')
+                    # FIXME: Fix properly, by slugifying & making sure slugify handles all numeric case (prepend '_')
                     curr_rel = '_' + curr_rel if curr_rel.isdigit() else curr_rel
                     if attach_:
                         _smart_add(ctx_stem.output_model, I(o), I(iri.absolutize(curr_rel, ctx_stem.base)), I(objid), (), added_links)
@@ -217,7 +225,8 @@ def materialize(typ, rel=None, origin=None, unique=None, fprint=None, links=None
                 if _typ:
                     _smart_add(ctx_stem.output_model, I(objid), VTYPE_REL, I(iri.absolutize(_typ, ctx_stem.base)), (), added_links)
                 if preserve_fprint:
-                    _smart_add(ctx_stem.output_model, I(objid), VFPRINT_REL, _typ, computed_fprint, added_links)
+                    attrs = tuple(computed_fprint)
+                    _smart_add(ctx_stem.output_model, I(objid), VFPRINT_REL, _typ, attrs, added_links)
 
                 # XXX: Use Nones to mark blanks, or should Versa define some sort of null resource?
                 for l in links:

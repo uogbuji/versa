@@ -46,21 +46,26 @@ def transitive_closure(m, orig, rel):
         yield from transitive_closure(m, target, rel)
 
 
-def all_origins(m, only_types=None):
+def all_origins(m, of_types=None, only_types=None):
     '''
     Generate all unique statement origins in the given model
     '''
     seen = set()
+    if not of_types: of_types = only_types
     # Undocumented, defensive coding against common error
-    if isinstance(only_types, I): only_types = set({only_types})
-    only_types = set(only_types) if only_types else None
+    if isinstance(of_types, I): of_types = {of_types}
+    of_types = set(of_types) if of_types else set()
+    if '*' in of_types: of_types = '*'
     for link in m.match():
         origin = link[ORIGIN]
         if origin not in seen:
             seen.add(origin)
-            if only_types and not (only_types & set(resourcetypes(m, origin))):
+            if not of_types:
+                yield origin
                 continue
-            yield origin
+            otypes = set(resourcetypes(m, origin))
+            if (of_types == '*' and otypes) or (of_types & otypes):
+                yield origin
 
 
 def column(m, linkpart):
