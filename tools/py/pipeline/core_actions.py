@@ -432,8 +432,15 @@ def materialize(typ, rel=None, origin=None, unique=None, fprint=None, links=None
                 if _typ: ctx_stem.output_model.add(I(objid), VTYPE_REL, I(iri.absolutize(_typ, ctx_stem.base)), {})
                 computed_unique.sort()
                 if preserve_fprint:
-                    attrs = { k:v for (k, v) in computed_unique }
-                    ctx_stem.output_model.add(I(objid), VFPRINT_REL, _typ, attrs)
+                    attr_dict = {}
+                    for (k, v) in computed_unique:
+                        if k not in attr_dict:
+                            attr_dict[k] = v
+                        elif isinstance(attr_dict[k], list):
+                            attr_dict[k].append(v)
+                        else:
+                            attr_dict[k] = [attr_dict[k], v]
+                    ctx_stem.output_model.add(I(objid), VFPRINT_REL, _typ, attr_dict)
                 # XXX: Use Nones to mark blanks, or should Versa define some sort of null resource?
                 for l in links:
                     if len(l) == 2:
