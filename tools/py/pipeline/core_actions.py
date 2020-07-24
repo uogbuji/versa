@@ -322,7 +322,7 @@ def foreach(origin=None, rel=None, target=None, attributes=None, action=None):
     return _foreach
 
 
-def materialize(typ, rel=None, origin=None, unique=None, fprint=None, links=None, split=None, attributes=None, attach=True, preserve_fprint=False):
+def materialize(typ, rel=None, origin=None, unique=None, fprint=None, links=None, split=None, attributes=None, attach=True, preserve_fprint=False, inverse=False):
     '''
     Create a new resource related to the origin
 
@@ -423,7 +423,10 @@ def materialize(typ, rel=None, origin=None, unique=None, fprint=None, links=None
                     if not curr_rel: continue
                     # FIXME: Fix properly, by slugifying & making sure slugify handles  all numeric case (prepend '_')
                     curr_rel = '_' + curr_rel if curr_rel.isdigit() else curr_rel
-                    if attach:
+                    # Shotgun hack to restore inverse until we move to pipeline_uni
+                    if inverse:
+                        ctx_stem.output_model.add(I(objid), I(iri.absolutize(curr_rel, ctx_stem.base)), I(o), {})
+                    elif attach:
                         ctx_stem.output_model.add(I(o), I(iri.absolutize(curr_rel, ctx_stem.base)), I(objid), {})
                     computed_rels.append(curr_rel)
             # print((objid, ctx_.existing_ids))
