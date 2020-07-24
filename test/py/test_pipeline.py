@@ -85,7 +85,6 @@ def test_basics_1(testresourcepath, expected_modout1):
 
     assert len(modout) == 8
     assert len(list(util.all_origins(modout, only_types={BF_NS('Instance')}))) == 1
-    assert len(list(util.all_origins(modout, only_types={BF_NS('Work')}))) == 1
     assert len(list(util.all_origins(modout, only_types={BF_NS('Person')}))) == 1
     assert len(list(modout.match(None, BF_NS('birthDate'), '1919-01-01'))) == 1
 
@@ -109,7 +108,7 @@ def test_basics_2(testresourcepath):
                                 (BF_NS('creator'), follow(SCH_NS('author'))),
                                 (BF_NS('language'), var('lang')),
                             ],
-                            links=[(target(), 'http://instantiated-by', origin())],
+                            links=[('http://instantiated-by', var('@stem'))],
                             attach=False # Can remove when we have smart sessions to avoid duplicate instantiates links
                         ),
                     )
@@ -155,7 +154,7 @@ def test_basics_2(testresourcepath):
     literate.write(modout)
     #import pprint; pprint.pprint(list(iter(modout)))
 
-    assert len(modout) == 13
+    assert len(modout) == 15
     assert len(list(util.all_origins(modout, only_types={BF_NS('Instance')}))) == 1
     assert len(list(util.all_origins(modout, only_types={BF_NS('Work')}))) == 1
     assert len(list(util.all_origins(modout, only_types={BF_NS('Person')}))) == 1
