@@ -235,19 +235,21 @@ def materialize(typ, rel=None, origin=None, unique=None, fprint=None, links=None
                         lr, lt = l
                     elif len(l) == 3:
                         lo, lr, lt = l
-                    # If explicitly None, use context 
-                    lo = lo or ctx_stem.current_link[ORIGIN]
-                    lr = lr or ctx_stem.current_link[RELATIONSHIP]
-                    lt = lt or ctx_stem.current_link[TARGET]
+                    # This context is in effect 
 
-                    lo = lo(ctx_stem) if is_pipeline_action(lo) else lo
-                    # Update contexts as we go along
-                    ctx_vein = ctx_stem.copy(current_link=(lo, ctx_stem.current_link[RELATIONSHIP],
-                                                            ctx_stem.current_link[TARGET],
-                                                            ctx_stem.current_link[ATTRIBUTES]))
+                    # First of all, hold on to the inbound origin so that it can be accessed in embedded actions
+                    vein_vars = ctx_stem.variables.copy()
+                    vein_vars['@stem'] = ctx_stem.current_link[ORIGIN]
+
+                    # Newly materialized resource is basically the origin as well as target sent into embedded actions
+                    ctx_vein = ctx_stem.copy(current_link=(objid, ctx_stem.current_link[RELATIONSHIP], objid, ctx_stem.current_link[ATTRIBUTES]), variables=vein_vars)
+
+                    lo = lo or ctx_vein.current_link[ORIGIN]
+                    lr = lr or ctx_vein.current_link[RELATIONSHIP]
+                    lt = lt or ctx_vein.current_link[TARGET]
+
+                    lo = lo(ctx_vein) if is_pipeline_action(lo) else lo
                     lr = lr(ctx_vein) if is_pipeline_action(lr) else lr
-                    ctx_vein = ctx_vein.copy(current_link=(lo, lr, ctx_stem.current_link[TARGET],
-                                                            ctx_stem.current_link[ATTRIBUTES]))
                     # If k is a list of contexts use it to dynamically execute functions
                     if isinstance(lr, list):
                         if lr and isinstance(lr[0], context):

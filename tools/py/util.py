@@ -55,7 +55,7 @@ def all_origins(m, of_types=None, only_types=None):
     # Undocumented, defensive coding against common error
     if isinstance(of_types, I): of_types = {of_types}
     of_types = set(of_types) if of_types else set()
-    if '*' in of_types: of_types = '*'
+    if '*' in of_types: of_types = {'*'}
     for link in m.match():
         origin = link[ORIGIN]
         if origin not in seen:
@@ -64,7 +64,7 @@ def all_origins(m, of_types=None, only_types=None):
                 yield origin
                 continue
             otypes = set(resourcetypes(m, origin))
-            if (of_types == '*' and otypes) or (of_types & otypes):
+            if ('*' in of_types and otypes) or (of_types & otypes):
                 yield origin
 
 

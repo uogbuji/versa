@@ -34,32 +34,9 @@ def expected_modout1():
 WT = BF_NS('Work')
 IT = BF_NS('Instance')
 
-FINGERPRINT_RULES_1 = {
-    SCH_NS('Book'): ( 
-        materialize(BF_NS('Instance'),
-            fprint=[
-                (BF_NS('isbn'), follow(SCH_NS('isbn'))),
-            ],
-            links=[
-                (BF_NS('instantiates'),
-                    materialize(BF_NS('Work'),
-                        fprint=[
-                            (BF_NS('name'), follow(SCH_NS('title'))),
-                            (BF_NS('creator'), follow(SCH_NS('author'))),
-                            (BF_NS('language'), var('lang')),
-                        ], attach=False # Can remove when we have smart sssions to avoid duplicate instantiates links
-                    ),
-                )
-            ],
-            # Not really necessary; just testing vars in this scenario
-            vars={'lang': follow(SCH_NS('inLanguage'))}
-        )
-    )
-}
-
-
 LABELIZE_RULES = {
     BF_NS('Work'): follow(BF_NS('name')),
+    BF_NS('Instance'): follow(BF_NS('name')),
     BF_NS('Person'): follow(BF_NS('name'))
 }
 
@@ -69,13 +46,20 @@ def test_basics_1(testresourcepath, expected_modout1):
     modin_fpath = 'schemaorg/catcherintherye.md'
     literate.parse(open(os.path.join(testresourcepath, modin_fpath)).read(), modin)
 
+    FINGERPRINT_RULES = {
+        SCH_NS('Book'): ( 
+            materialize(BF_NS('Instance'),
+                fprint=[
+                    (BF_NS('isbn'), follow(SCH_NS('isbn'))),
+                ],
+            )
+        )
+    }
 
     TRANSFORM_RULES = {
-        # Rule for output resource type of Work or Instance
         SCH_NS('name'): link(rel=BF_NS('name')),
 
-        # Rule only for output resource type of Work
-        (SCH_NS('author'), WT): materialize(BF_NS('Person'),
+        SCH_NS('author'): materialize(BF_NS('Person'),
                                     BF_NS('creator'),
                                     vars={
                                         'name': target(),
@@ -93,15 +77,14 @@ def test_basics_1(testresourcepath, expected_modout1):
         ),
     }
 
-    ppl = generic_pipeline(FINGERPRINT_RULES_1, TRANSFORM_RULES, LABELIZE_RULES)
+    ppl = generic_pipeline(FINGERPRINT_RULES, TRANSFORM_RULES, LABELIZE_RULES)
 
     modout = ppl.run(input_model=modin)
     # Use -s to see this
     literate.write(modout)
 
-    assert len(modout) == 11
+    assert len(modout) == 8
     assert len(list(util.all_origins(modout, only_types={BF_NS('Instance')}))) == 1
-    assert len(list(util.all_origins(modout, only_types={BF_NS('Work')}))) == 1
     assert len(list(util.all_origins(modout, only_types={BF_NS('Person')}))) == 1
     assert len(list(modout.match(None, BF_NS('birthDate'), '1919-01-01'))) == 1
 
@@ -111,9 +94,34 @@ def test_basics_2(testresourcepath):
     modin_fpath = 'schemaorg/catcherintherye.md'
     literate.parse(open(os.path.join(testresourcepath, modin_fpath)).read(), modin)
 
+    FINGERPRINT_RULES = {
+        SCH_NS('Book'): ( 
+            materialize(BF_NS('Instance'),
+                fprint=[
+                    (BF_NS('isbn'), follow(SCH_NS('isbn'))),
+                ],
+                links=[
+                    (BF_NS('instantiates'),
+                        materialize(BF_NS('Work'),
+                            fprint=[
+                                (BF_NS('name'), follow(SCH_NS('title'))),
+                                (BF_NS('creator'), follow(SCH_NS('author'))),
+                                (BF_NS('language'), var('lang')),
+                            ],
+                            links=[('http://instantiated-by', var('@stem'))],
+                            attach=False # Can remove when we have smart sessions to avoid duplicate instantiates links
+                        ),
+                    )
+                ],
+                # Not really necessary; just testing vars in this scenario
+                vars={'lang': follow(SCH_NS('inLanguage'))}
+            )
+        )
+    }
+
     TRANSFORM_RULES = {
         # Rule for output resource type of Work or Instance
-        SCH_NS('name'): link(rel=BF_NS('name')),
+        (SCH_NS('name'), WT, IT): link(rel=BF_NS('name')),
 
         # Rule only for output resource type of Work
         (SCH_NS('author'), WT): materialize(BF_NS('Person'),
@@ -139,14 +147,14 @@ def test_basics_2(testresourcepath):
         ),
     }
 
-    ppl = generic_pipeline(FINGERPRINT_RULES_1, TRANSFORM_RULES, LABELIZE_RULES)
+    ppl = generic_pipeline(FINGERPRINT_RULES, TRANSFORM_RULES, LABELIZE_RULES)
 
     modout = ppl.run(input_model=modin)
     # Use -s to see this
     literate.write(modout)
     #import pprint; pprint.pprint(list(iter(modout)))
 
-    assert len(modout) == 13
+    assert len(modout) == 15
     assert len(list(util.all_origins(modout, only_types={BF_NS('Instance')}))) == 1
     assert len(list(util.all_origins(modout, only_types={BF_NS('Work')}))) == 1
     assert len(list(util.all_origins(modout, only_types={BF_NS('Person')}))) == 1
