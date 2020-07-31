@@ -475,6 +475,7 @@ def action_template(proto):
     def _action_template_prep(**terms):
         def _action_wrapper(ctx):
             for term, val in terms.items():
+                val = val(ctx) if is_pipeline_action(val) else val
                 ctx.variables[term] = val
             return proto(ctx)
         _action_wrapper.is_pipeline_action = True

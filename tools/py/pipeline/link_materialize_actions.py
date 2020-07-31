@@ -197,8 +197,7 @@ def materialize(typ, rel=None, origin=None, unique=None, fprint=None, links=None
                 # strip None values from computed unique list, including pairs where v is None
                 for k, v in _fprint:
                     if None in (k, v): continue
-                    v = v if isinstance(v, list) else [v]
-                    for subitem in v:
+                    for subitem in (v if isinstance(v, list) else [v]):
                         subval = subitem(ctx_stem) if is_pipeline_action(subitem) else subitem
                         if subval:
                             subval = subval if isinstance(subval, list) else [subval]

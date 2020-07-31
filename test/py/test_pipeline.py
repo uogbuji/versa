@@ -162,5 +162,88 @@ def test_basics_2(testresourcepath):
 
 #SCH_NS('Novelist')
 
+def test_basics_3(testresourcepath):
+    modin = newmodel()
+    modin_fpath = 'schemaorg/catcherintherye.md'
+    literate.parse(open(os.path.join(testresourcepath, modin_fpath)).read(), modin)
+
+    new_work = action_template(
+        materialize(BF_NS('Work'),
+            fprint=[
+                (BF_NS('name'), var('title')),
+                (BF_NS('creator'), var('author')),
+                (BF_NS('language'), var('lang')),
+            ],
+            links=[('http://instantiated-by', var('stem'))],
+            attach=False # Can remove when we have smart sessions to avoid duplicate instantiates links
+        )
+    )
+
+    FINGERPRINT_RULES = {
+        SCH_NS('Book'): ( 
+            materialize(BF_NS('Instance'),
+                fprint=[
+                    (BF_NS('isbn'), follow(SCH_NS('isbn'))),
+                ],
+                links=[
+                    (BF_NS('instantiates'),
+                    new_work(
+                        title=follow(SCH_NS('title')),
+                        creator=follow(SCH_NS('author')),
+                        lang=var('lang'),
+                        # At this point both origin and target are the resource
+                        # created by the materialize in scope i.e. the new Instance.
+                        stem=origin(),
+                    ))
+                ],
+                # Not really necessary; just testing vars in this scenario
+                vars={'lang': follow(SCH_NS('inLanguage'))}
+            )
+        )
+    }
+
+    TRANSFORM_RULES = {
+        # Rule for output resource type of Work or Instance
+        (SCH_NS('name'), WT, IT): link(rel=BF_NS('name')),
+
+        # Rule only for output resource type of Work
+        (SCH_NS('author'), WT): materialize(BF_NS('Person'),
+                                    BF_NS('creator'),
+                                    vars={
+                                        'name': target(),
+                                        'birthDate': follow(SCH_NS('authorBirthDate'),
+                                            origin=var('input-resource'))
+                                    },
+                                    fprint=[
+                                        # Supplementary type
+                                        (VTYPE_REL, SCH_NS('Novelist')),
+                                        (BF_NS('name'), var('name')),
+                                        (BF_NS('birthDate'), var('birthDate')),
+                                    ],
+                                    links=[
+                                        # Supplementary type
+                                        (VTYPE_REL, SCH_NS('Novelist')),
+                                        (BF_NS('name'), var('name')),
+                                        (BF_NS('birthDate'), var('birthDate')),
+                                    ],
+                                    preserve_fprint=True
+        ),
+    }
+
+    ppl = generic_pipeline(FINGERPRINT_RULES, TRANSFORM_RULES, LABELIZE_RULES)
+
+    modout = ppl.run(input_model=modin)
+    # Use -s to see this
+    literate.write(modout)
+    #import pprint; pprint.pprint(list(iter(modout)))
+
+    assert len(modout) == 15
+    assert len(list(util.all_origins(modout, only_types={BF_NS('Instance')}))) == 1
+    assert len(list(util.all_origins(modout, only_types={BF_NS('Work')}))) == 1
+    assert len(list(util.all_origins(modout, only_types={BF_NS('Person')}))) == 1
+    assert len(list(modout.match(None, BF_NS('birthDate'), '1919-01-01'))) == 1
+
+#SCH_NS('Novelist')
+
 if __name__ == '__main__':
     raise SystemExit("use py.test")
