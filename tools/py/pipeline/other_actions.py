@@ -33,17 +33,6 @@ def var(name):
     return _var
 
 
-def var(name):
-    '''
-    Action function generator to retrieve a variable from context
-    '''
-    def _var(ctx):
-        _name = name(ctx) if is_pipeline_action(name) else name
-        return ctx.variables.get(_name)
-    _var.is_pipeline_action = True
-    return _var
-
-
 def extra(key, default=None):
     '''
     Action function generator to retrieve an extra value from context
@@ -287,19 +276,32 @@ def foreach(origin=None, rel=None, target=None, attributes=None, action=None):
     return _foreach
 
 
-def follow(rel, origin=None):
+def follow(rel, origin=None, action=None):
     '''
     Action function generator to retrieve a variable from context
     '''
     def _follow(ctx):
         _origin = origin(ctx) if is_pipeline_action(origin) else origin
         _rel = rel(ctx) if is_pipeline_action(rel) else rel
-        result = []
+        targ_attrs = []
         if ctx.input_model:
             (o, r, t, a) = ctx.current_link
-            for o_, r_, t_, a_ in ctx.input_model.match(o if _origin is None else _origin, _rel):
-                result.append(t_)
-        return result
+            computed_o = o if _origin is None else _origin
+            for o_, r_, t_, a_ in ctx.input_model.match(computed_o, _rel):
+                targ_attrs.append((t_, a_))
+        if action:
+            results = []
+            if not(is_pipeline_action(action)):
+                raise TypeError('follow() action arg must be callable')
+            for t, a in targ_attrs:
+                subctx = ctx.copy(current_link=(computed_o, _rel, t, a))
+                res = action(subctx)
+                res = [] if res is None else (res if isinstance(res, list) else [res])
+                for r in res:
+                    results.append(r)
+            return results
+        else:
+            return [ta[0] for ta in targ_attrs]
     _follow.is_pipeline_action = True
     return _follow
 

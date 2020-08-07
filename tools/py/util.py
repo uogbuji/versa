@@ -11,6 +11,8 @@ import sys
 import json
 from collections import OrderedDict
 
+from amara3 import iri
+
 from versa import I, ORIGIN, RELATIONSHIP, TARGET, ATTRIBUTES
 from versa import init_localization
 init_localization()
@@ -217,7 +219,10 @@ def zoom_in(model, focus, depth=1, model_fact=None, max_rels=0):
             if max_rels and relcount > max_rels:
                 return False, relcount
             zoomed.add(o, r, t, a)
-            if d and isinstance(t, I):
+            # XXX For now the Versa dump does not differentiate IRI targets
+            # So we have to use an IRI ref syntax check, which is a bit awkward
+            # if d and isinstance(t, I):
+            if d and isinstance(t, str) and iri.matches_uri_ref_syntax(t):
                 c, rc = zoom_in_(m, t, d-1, relcount)
                 relcount += rc
         return True, relcount

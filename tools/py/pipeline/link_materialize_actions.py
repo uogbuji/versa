@@ -175,7 +175,10 @@ def materialize(typ, rel=None, origin=None, unique=None, fprint=None, links=None
             if None in (k, v): continue
             #v = v if isinstance(v, list) else [v]
             v = v(ctx) if is_pipeline_action(v) else v
-            ctx.variables[k] = v
+            if v:
+                v = v[0] if isinstance(v, list) else v
+                ctx.variables[k] = v
+
         added_links = set()
 
         # Make sure we end up with a list or None
@@ -249,6 +252,11 @@ def materialize(typ, rel=None, origin=None, unique=None, fprint=None, links=None
 
                     lo = lo(ctx_vein) if is_pipeline_action(lo) else lo
                     lr = lr(ctx_vein) if is_pipeline_action(lr) else lr
+
+                    # Update lr
+                    # XXX This needs cleaning up
+                    ctx_vein = ctx_stem.copy(current_link=(ctx_vein.current_link[ORIGIN], lr, ctx_vein.current_link[TARGET], ctx_stem.current_link[ATTRIBUTES]), variables=vein_vars)
+
                     # If k is a list of contexts use it to dynamically execute functions
                     if isinstance(lr, list):
                         if lr and isinstance(lr[0], context):
