@@ -263,8 +263,8 @@ class definition:
         '''
         self.check_update_stages()
 
-        self.input_model = input_model or newmodel()
-        self.output_model = output_model or newmodel()
+        self.input_model = newmodel() if input_model is None else input_model
+        self.output_model = newmodel() if output_model is None else output_model
 
         self._raw_source = raw_source
 
