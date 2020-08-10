@@ -243,8 +243,8 @@ def materialize(typ, rel=None, origin=None, unique=None, fprint=None, links=None
                     vein_vars = ctx_stem.variables.copy()
                     vein_vars['@stem'] = ctx_stem.current_link[ORIGIN]
 
-                    # Newly materialized resource is basically the origin as well as target sent into embedded actions
-                    ctx_vein = ctx_stem.copy(current_link=(objid, ctx_stem.current_link[RELATIONSHIP], objid, ctx_stem.current_link[ATTRIBUTES]), variables=vein_vars)
+                    # Newly materialized resource is the origin. The overall context target for embedded actions
+                    ctx_vein = ctx_stem.copy(current_link=(objid, ctx_stem.current_link[RELATIONSHIP], ctx_stem.current_link[TARGET], ctx_stem.current_link[ATTRIBUTES]), variables=vein_vars)
 
                     lo = lo or ctx_vein.current_link[ORIGIN]
                     lr = lr or ctx_vein.current_link[RELATIONSHIP]
