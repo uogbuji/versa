@@ -186,6 +186,7 @@ def create_resource(output_model, rtypes, fprint, links, existing_ids=None, id_h
 
     if preserve_fprint:
         attrs = { k:v for (k,v) in fprint }
+        attrs[VTYPE_REL] = rtypes
         output_model.add(rid, VFPRINT_REL, rtype, attrs)
 
     for r, t in links:

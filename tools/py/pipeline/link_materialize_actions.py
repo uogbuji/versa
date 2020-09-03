@@ -196,6 +196,7 @@ def materialize(typ, rel=None, origin=None, unique=None, fprint=None, links=None
                 continue
 
             computed_fprint = [] if _fprint else None
+            rtypes = set([_typ])
             if _fprint:
                 # strip None values from computed unique list, including pairs where v is None
                 for k, v in _fprint:
@@ -204,6 +205,7 @@ def materialize(typ, rel=None, origin=None, unique=None, fprint=None, links=None
                         subval = subitem(ctx_stem) if is_pipeline_action(subitem) else subitem
                         if subval:
                             subval = subval if isinstance(subval, list) else [subval]
+                            if k == VTYPE_REL: rtypes.update(set(subval))
                             computed_fprint.extend([(k, s) for s in subval])
 
             objid = materialize_entity(ctx_stem, _typ, fprint=computed_fprint)
@@ -227,7 +229,10 @@ def materialize(typ, rel=None, origin=None, unique=None, fprint=None, links=None
                 if _typ:
                     _smart_add(ctx_stem.output_model, I(objid), VTYPE_REL, I(iri.absolutize(_typ, ctx_stem.base)), (), added_links)
                 if preserve_fprint:
-                    attrs = tuple(computed_fprint)
+                    # Consolidate types
+                    computed_fprint = [ (k, v) for (k, v) in computed_fprint if k != VTYPE_REL ]
+                    # computed_fprint += 
+                    attrs = tuple(computed_fprint + [(VTYPE_REL, r) for r in rtypes])
                     _smart_add(ctx_stem.output_model, I(objid), VFPRINT_REL, _typ, attrs, added_links)
 
                 # XXX: Use Nones to mark blanks, or should Versa define some sort of null resource?
@@ -251,6 +256,7 @@ def materialize(typ, rel=None, origin=None, unique=None, fprint=None, links=None
                     lt = lt or ctx_vein.current_link[TARGET]
 
                     lo = lo(ctx_vein) if is_pipeline_action(lo) else lo
+                    lo = lo if isinstance(lo, list) else [lo]
                     lr = lr(ctx_vein) if is_pipeline_action(lr) else lr
 
                     # Update lr
@@ -280,9 +286,11 @@ def materialize(typ, rel=None, origin=None, unique=None, fprint=None, links=None
                             if isinstance(lt, list):
                                 for valitems in lt:
                                     if valitems:
-                                        _smart_add(ctx_vein.output_model, lo, I(iri.absolutize(lr, ctx_vein.base)), valitems, (), added_links)
+                                        for loi in lo:
+                                            _smart_add(ctx_vein.output_model, loi, I(iri.absolutize(lr, ctx_vein.base)), valitems, (), added_links)
                             else:
-                                _smart_add(ctx_vein.output_model, lo, I(iri.absolutize(lr, ctx_vein.base)), lt, (), added_links)
+                                for loi in lo:
+                                    _smart_add(ctx_vein.output_model, loi, I(iri.absolutize(lr, ctx_vein.base)), lt, (), added_links)
                 ctx_stem.existing_ids.add(objid)
                 if '@new-entity-hook' in ctx.extras:
                     ctx.extras['@new-entity-hook'](objid)

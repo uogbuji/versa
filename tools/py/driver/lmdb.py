@@ -150,7 +150,7 @@ class connection(connection_base):
                         # FIXME: only expand target abbrevs if of resource type?
                         try:
                             xtarget = xtarget.format(**abbrevs)
-                        except (KeyError, ValueError):
+                        except (KeyError, ValueError, IndexError):
                             pass
                         if target and target != xtarget:
                             continue
