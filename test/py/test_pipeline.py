@@ -62,16 +62,15 @@ def test_basics_1(testresourcepath, expected_modout1):
         SCH_NS('author'): materialize(BF_NS('Person'),
                                     BF_NS('creator'),
                                     vars={
-                                        'name': target(),
                                         'birthDate': follow(SCH_NS('authorBirthDate'),
                                             origin=var('input-resource'))
                                     },
                                     fprint=[
-                                        (BF_NS('name'), var('name')),
+                                        (BF_NS('name'), target()),
                                         (BF_NS('birthDate'), var('birthDate')),
                                     ],
                                     links=[
-                                        (BF_NS('name'), var('name')),
+                                        (BF_NS('name'), target()),
                                         (BF_NS('birthDate'), var('birthDate')),
                                     ]
         ),
@@ -127,20 +126,19 @@ def test_basics_2(testresourcepath):
         (SCH_NS('author'), WT): materialize(BF_NS('Person'),
                                     BF_NS('creator'),
                                     vars={
-                                        'name': target(),
                                         'birthDate': follow(SCH_NS('authorBirthDate'),
                                             origin=var('input-resource'))
                                     },
                                     fprint=[
                                         # Supplementary type
                                         (VTYPE_REL, SCH_NS('Novelist')),
-                                        (BF_NS('name'), var('name')),
+                                        (BF_NS('name'), target()),
                                         (BF_NS('birthDate'), var('birthDate')),
                                     ],
                                     links=[
                                         # Supplementary type
                                         (VTYPE_REL, SCH_NS('Novelist')),
-                                        (BF_NS('name'), var('name')),
+                                        (BF_NS('name'), target()),
                                         (BF_NS('birthDate'), var('birthDate')),
                                     ],
                                     preserve_fprint=True,
@@ -210,20 +208,19 @@ def test_basics_3(testresourcepath):
         (SCH_NS('author'), WT): materialize(BF_NS('Person'),
                                     BF_NS('creator'),
                                     vars={
-                                        'name': target(),
                                         'birthDate': follow(SCH_NS('authorBirthDate'),
                                             origin=var('input-resource'))
                                     },
                                     fprint=[
                                         # Supplementary type
                                         (VTYPE_REL, SCH_NS('Novelist')),
-                                        (BF_NS('name'), var('name')),
+                                        (BF_NS('name'), target()),
                                         (BF_NS('birthDate'), var('birthDate')),
                                     ],
                                     links=[
                                         # Supplementary type
                                         (VTYPE_REL, SCH_NS('Novelist')),
-                                        (BF_NS('name'), var('name')),
+                                        (BF_NS('name'), target()),
                                         (BF_NS('birthDate'), var('birthDate')),
                                     ],
                                     preserve_fprint=True

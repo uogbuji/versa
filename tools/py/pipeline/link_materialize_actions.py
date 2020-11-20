@@ -193,7 +193,10 @@ def materialize(typ, rel=None, origin=None, unique=None, fprint=None, links=None
             if None in (k, v): continue
             #v = v if isinstance(v, list) else [v]
             v = v(ctx) if is_pipeline_action(v) else v
-            ctx.variables[k] = v
+            if v:
+                v = v[0] if isinstance(v, list) else v
+                ctx.variables[k] = v
+
         added_links = set()
 
         # Make sure we end up with a list or None
@@ -213,6 +216,7 @@ def materialize(typ, rel=None, origin=None, unique=None, fprint=None, links=None
                 continue
 
             computed_fprint = [] if _fprint else None
+            rtypes = set([_typ])
             if _fprint:
                 # strip None values from computed unique list, including pairs where v is None
                 for k, v in _fprint:
@@ -221,6 +225,7 @@ def materialize(typ, rel=None, origin=None, unique=None, fprint=None, links=None
                         subval = subitem(ctx_stem) if is_pipeline_action(subitem) else subitem
                         if subval:
                             subval = subval if isinstance(subval, list) else [subval]
+                            if k == VTYPE_REL: rtypes.update(set(subval))
                             computed_fprint.extend([(k, s) for s in subval])
 
             objid = materialize_entity(ctx_stem, _typ, fprint=computed_fprint)
@@ -245,7 +250,10 @@ def materialize(typ, rel=None, origin=None, unique=None, fprint=None, links=None
                 if _typ:
                     _smart_add(ctx_stem.output_model, I(objid), VTYPE_REL, I(iri.absolutize(_typ, ctx_stem.base)), (), added_links)
                 if preserve_fprint:
-                    attrs = tuple(computed_fprint)
+                    # Consolidate types
+                    computed_fprint = [ (k, v) for (k, v) in computed_fprint if k != VTYPE_REL ]
+                    # computed_fprint += 
+                    attrs = tuple(computed_fprint + [(VTYPE_REL, r) for r in rtypes])
                     _smart_add(ctx_stem.output_model, I(objid), VFPRINT_REL, _typ, attrs, added_links)
 
                 # XXX: Use Nones to mark blanks, or should Versa define some sort of null resource?
@@ -261,15 +269,21 @@ def materialize(typ, rel=None, origin=None, unique=None, fprint=None, links=None
                     vein_vars = ctx_stem.variables.copy()
                     vein_vars['@stem'] = ctx_stem.current_link[ORIGIN]
 
-                    # Newly materialized resource is basically the origin as well as target sent into embedded actions
-                    ctx_vein = ctx_stem.copy(current_link=(objid, ctx_stem.current_link[RELATIONSHIP], objid, ctx_stem.current_link[ATTRIBUTES]), variables=vein_vars)
+                    # Newly materialized resource is the origin. The overall context target for embedded actions
+                    ctx_vein = ctx_stem.copy(current_link=(objid, ctx_stem.current_link[RELATIONSHIP], ctx_stem.current_link[TARGET], ctx_stem.current_link[ATTRIBUTES]), variables=vein_vars)
 
                     lo = lo or ctx_vein.current_link[ORIGIN]
                     lr = lr or ctx_vein.current_link[RELATIONSHIP]
                     lt = lt or ctx_vein.current_link[TARGET]
 
                     lo = lo(ctx_vein) if is_pipeline_action(lo) else lo
+                    lo = lo if isinstance(lo, list) else [lo]
                     lr = lr(ctx_vein) if is_pipeline_action(lr) else lr
+
+                    # Update lr
+                    # XXX This needs cleaning up
+                    ctx_vein = ctx_stem.copy(current_link=(ctx_vein.current_link[ORIGIN], lr, ctx_vein.current_link[TARGET], ctx_stem.current_link[ATTRIBUTES]), variables=vein_vars)
+
                     # If k is a list of contexts use it to dynamically execute functions
                     if isinstance(lr, list):
                         if lr and isinstance(lr[0], context):
@@ -295,9 +309,11 @@ def materialize(typ, rel=None, origin=None, unique=None, fprint=None, links=None
                             if isinstance(lt, list):
                                 for valitems in lt:
                                     if valitems:
-                                        _smart_add(ctx_vein.output_model, lo, _lr, valitems, (), added_links)
+                                        for loi in lo:
+                                            _smart_add(ctx_vein.output_model, loi, _lr, valitems, (), added_links)
                             else:
-                                _smart_add(ctx_vein.output_model, lo, _lr, lt, (), added_links)
+                                for loi in lo:
+                                    _smart_add(ctx_vein.output_model, loi, _lr, lt, (), added_links)
                 ctx_stem.existing_ids.add(objid)
                 if '@new-entity-hook' in ctx.extras:
                     ctx.extras['@new-entity-hook'](objid)
