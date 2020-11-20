@@ -143,7 +143,7 @@ def test_basics_2(testresourcepath):
                                         (BF_NS('name'), var('name')),
                                         (BF_NS('birthDate'), var('birthDate')),
                                     ],
-                                    preserve_fprint=True
+                                    preserve_fprint=True,
         ),
     }
 
