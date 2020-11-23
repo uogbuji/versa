@@ -97,3 +97,6 @@ to this Versa built-in concept. You can write out this link in full as follows:
 
     ["http://uche.ogbuji.net/ndewo/", "http://www.w3.org/TR/html5/created", "2013-09-01", {"<http://purl.org/versa/type>", "<http://purl.org/versa/datetime>"}]
 
+# Developer notes
+
+Dosctring style: [Google](https://google.github.io/styleguide/pyguide.html#38-comments-and-docstrings) + Markdown

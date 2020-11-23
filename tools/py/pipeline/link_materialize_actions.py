@@ -102,7 +102,8 @@ def _smart_add(model, origin, rel, target, attrs, already_added):
 
 
 def materialize(typ, rel=None, origin=None, unique=None, fprint=None, links=None,
-                split=None, attributes=None, attach=True, preserve_fprint=False, vars=None):
+                split=None, attributes=None, attach=True, preserve_fprint=False,
+                vars=None, debug=None):
     '''
     Create a new resource related to the origin
 
@@ -117,30 +118,40 @@ def materialize(typ, rel=None, origin=None, unique=None, fprint=None, links=None
             or a list of relationship IRIs, each of which will be used
             to create a separate link, or a versa action to derive
             this relationship or list of relationships at run time,
-            or None, in which case use the relationship from the action
-            context link.
+            or None (the default), in which case use the relationship
+            from the action context link.
 
         origin: Literal IRI or Versa action function for origin of the
-            main generated link. If none, use the action context.
+            main generated link. Default is None, i.e. use the action context.
 
-        fprint (unique is the deprecated name): Used to derive a unique hash key input for the materialized
-            resource. May be a list of key, value pairs, from which the ID
-            is derived through the Versa hash convention, or may be an action
-            function that returns the ID
+        fprint (unique is the deprecated name): Used to derive a unique hash
+            key input for the materialized resource. May be a list of key,
+            value pairs, from which the ID is derived through the Versa hash
+            convention, or may be an action function that returns the ID.
+            Default is None, i.e. a random hash is used.
 
         links: List of links to create with the newly materialized resource
             as origin. Each can be a rel/target pair or an origin/rel/target
             triple. Each rel can be a simple IRIs, a Versa action function
             returning and IRI, a Versa action function returning a list of
             Versa contexts used to generate links, or a Versa action function
-            returning None, which signals that a particular link is skipped entirely.
+            returning None, which signals that a particular link is skipped
+            entirely. Default is None, i.e. no such links are created.
 
         attach: if True (the default) attach the newly materialized resource
-            to the context origin
+            to the context origin. 
 
-        preserve_fprint - if True record the fingerprint (from the fprint param) in a new relationship
+        preserve_fprint: if True record the fingerprint (from the fprint param) in a
+            new relationship. Default is False, i.e. this special rel is not created.
 
-    Return:
+        vars: list of 2-tuples, each of which is used to add a variable mapping
+            to the top-level context for the materialize action. Default is None,
+            i.e. no variables are mapped.
+
+        debug: optional file-like object to which debug/tracing info is written.
+            Default is None, i.e. no debug info is written.
+
+    Returns:
         Versa action function to do the actual work
     '''
     links = links or []
@@ -160,6 +171,13 @@ def materialize(typ, rel=None, origin=None, unique=None, fprint=None, links=None
         '''
         # FIXME: Part of the datachef sorting out
         if not ctx.idgen: ctx.idgen = idgen
+        if debug is None:
+            def log_debug(msg): return
+        elif not hasattr(debug, 'write'):
+            raise TypeError('debug argument to materialize must be file-like object or None')
+        else:
+            def log_debug(msg):
+                print(msg, file=debug)
         _typ = typ(ctx) if is_pipeline_action(typ) else typ
         _fprint = fprint(ctx) if is_pipeline_action(fprint) else fprint
         (o, r, t, a) = ctx.current_link
@@ -179,10 +197,12 @@ def materialize(typ, rel=None, origin=None, unique=None, fprint=None, links=None
                 v = v[0] if isinstance(v, list) else v
                 ctx.variables[k] = v
 
-        added_links = set()
+        if '@added-links' not in ctx.extras: ctx.extras['@added-links'] = set()
 
         # Make sure we end up with a list or None
         rels = rel if isinstance(rel, list) else ([rel] if rel else [r])
+        log_debug(f'materialize action. Type: {_typ}. Anchoring rels: {rels} Initial context current link: {ctx.current_link}')
+        log_debug(f'Variables (including from vars= arg): {ctx.variables}')
         objids = []
 
         # Botanical analogy: stem context is from the caller (e.g. connection point of newly materialized resource)
@@ -207,9 +227,11 @@ def materialize(typ, rel=None, origin=None, unique=None, fprint=None, links=None
                             subval = subval if isinstance(subval, list) else [subval]
                             if k == VTYPE_REL: rtypes.update(set(subval))
                             computed_fprint.extend([(k, s) for s in subval])
+            log_debug(f'Provided fingerprinting info: {computed_fprint}')
 
             objid = materialize_entity(ctx_stem, _typ, fprint=computed_fprint)
             objids.append(objid)
+            log_debug(f'Newly materialized object: {objid}')
             # rels = [ ('_' + curr_rel if curr_rel.isdigit() else curr_rel) for curr_rel in rels if curr_rel ]
             computed_rels = []
             for curr_relobj in rels:
@@ -221,19 +243,19 @@ def materialize(typ, rel=None, origin=None, unique=None, fprint=None, links=None
                     # FIXME: Fix properly, by slugifying & making sure slugify handles all numeric case (prepend '_')
                     curr_rel = '_' + curr_rel if curr_rel.isdigit() else curr_rel
                     if attach_:
-                        _smart_add(ctx_stem.output_model, I(o), I(iri.absolutize(curr_rel, ctx_stem.base)), I(objid), (), added_links)
+                        _smart_add(ctx_stem.output_model, I(o), I(iri.absolutize(curr_rel, ctx_stem.base)), I(objid), (), ctx.extras['@added-links'])
                     computed_rels.append(curr_rel)
             # print((objid, ctx_.existing_ids))
             # XXX: Means links are only processed on new objects! This needs some thought
             if objid not in ctx_stem.existing_ids:
                 if _typ:
-                    _smart_add(ctx_stem.output_model, I(objid), VTYPE_REL, I(iri.absolutize(_typ, ctx_stem.base)), (), added_links)
+                    _smart_add(ctx_stem.output_model, I(objid), VTYPE_REL, I(iri.absolutize(_typ, ctx_stem.base)), (), ctx.extras['@added-links'])
                 if preserve_fprint:
                     # Consolidate types
                     computed_fprint = [ (k, v) for (k, v) in computed_fprint if k != VTYPE_REL ]
                     # computed_fprint += 
                     attrs = tuple(computed_fprint + [(VTYPE_REL, r) for r in rtypes])
-                    _smart_add(ctx_stem.output_model, I(objid), VFPRINT_REL, _typ, attrs, added_links)
+                    _smart_add(ctx_stem.output_model, I(objid), VFPRINT_REL, _typ, attrs, ctx.extras['@added-links'])
 
                 # XXX: Use Nones to mark blanks, or should Versa define some sort of null resource?
                 for l in links:
@@ -283,17 +305,20 @@ def materialize(typ, rel=None, origin=None, unique=None, fprint=None, links=None
                         if lt is not None:
                             # FIXME: Fix properly, by slugifying & making sure slugify handles all-numeric case
                             if lr.isdigit(): lr = '_' + lr
+                            _lr = I(iri.absolutize(lr, ctx_vein.base))
+                            log_debug(f'Generated link: {lo, _lr, lt}')
                             if isinstance(lt, list):
                                 for valitems in lt:
                                     if valitems:
                                         for loi in lo:
-                                            _smart_add(ctx_vein.output_model, loi, I(iri.absolutize(lr, ctx_vein.base)), valitems, (), added_links)
+                                            _smart_add(ctx_vein.output_model, loi, _lr, valitems, (), ctx.extras['@added-links'])
                             else:
                                 for loi in lo:
-                                    _smart_add(ctx_vein.output_model, loi, I(iri.absolutize(lr, ctx_vein.base)), lt, (), added_links)
+                                    _smart_add(ctx_vein.output_model, loi, _lr, lt, (), ctx.extras['@added-links'])
                 ctx_stem.existing_ids.add(objid)
                 if '@new-entity-hook' in ctx.extras:
                     ctx.extras['@new-entity-hook'](objid)
+        log_debug(f'End materialize')
             
         return objids
 

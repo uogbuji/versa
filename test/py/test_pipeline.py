@@ -43,7 +43,7 @@ LABELIZE_RULES = {
 
 def test_basics_1(testresourcepath, expected_modout1):
     modin = newmodel()
-    modin_fpath = 'schemaorg/catcherintherye.md'
+    modin_fpath = 'schemaorg/catcherintherye-ugly.md'
     literate.parse(open(os.path.join(testresourcepath, modin_fpath)).read(), modin)
 
     FINGERPRINT_RULES = {
@@ -80,6 +80,7 @@ def test_basics_1(testresourcepath, expected_modout1):
 
     modout = ppl.run(input_model=modin)
     # Use -s to see this
+    print('='*10, 'test_basics_1', '='*10)
     literate.write(modout)
 
     assert len(modout) == 8
@@ -90,7 +91,7 @@ def test_basics_1(testresourcepath, expected_modout1):
 
 def test_basics_2(testresourcepath):
     modin = newmodel()
-    modin_fpath = 'schemaorg/catcherintherye.md'
+    modin_fpath = 'schemaorg/catcherintherye-ugly.md'
     literate.parse(open(os.path.join(testresourcepath, modin_fpath)).read(), modin)
 
     FINGERPRINT_RULES = {
@@ -141,7 +142,7 @@ def test_basics_2(testresourcepath):
                                         (BF_NS('name'), target()),
                                         (BF_NS('birthDate'), var('birthDate')),
                                     ],
-                                    preserve_fprint=True
+                                    preserve_fprint=True,
         ),
     }
 
@@ -149,6 +150,7 @@ def test_basics_2(testresourcepath):
 
     modout = ppl.run(input_model=modin)
     # Use -s to see this
+    print('='*10, 'test_basics_2', '='*10)
     literate.write(modout)
     #import pprint; pprint.pprint(list(iter(modout)))
 
@@ -162,7 +164,7 @@ def test_basics_2(testresourcepath):
 
 def test_basics_3(testresourcepath):
     modin = newmodel()
-    modin_fpath = 'schemaorg/catcherintherye.md'
+    modin_fpath = 'schemaorg/catcherintherye-ugly.md'
     literate.parse(open(os.path.join(testresourcepath, modin_fpath)).read(), modin)
 
     new_work = action_template(
@@ -231,6 +233,7 @@ def test_basics_3(testresourcepath):
 
     modout = ppl.run(input_model=modin)
     # Use -s to see this
+    print('='*10, 'test_basics_3', '='*10)
     literate.write(modout)
     #import pprint; pprint.pprint(list(iter(modout)))
 
@@ -240,7 +243,82 @@ def test_basics_3(testresourcepath):
     assert len(list(util.all_origins(modout, only_types={BF_NS('Person')}))) == 1
     assert len(list(modout.match(None, BF_NS('birthDate'), '1919-01-01'))) == 1
 
-#SCH_NS('Novelist')
+def test_basics_4(testresourcepath):
+    '''
+    Convert from schema.org to [MusicBrainz scheme](https://musicbrainz.org/doc/MusicBrainz_Database/Schema)
+    '''
+    import sys # Uncomment to debug
+    MB_NS = I('https://musicbrainz.org/doc/MusicBrainz_Database/Schema/')
+    R_TYP = MB_NS('Release')
+    RG_TYP = MB_NS('ReleaseGroup')
+    A_TYP = MB_NS('Artist')
+
+    modin = newmodel()
+    modin_fpath = 'schemaorg/blackstar.md'
+    literate.parse(open(os.path.join(testresourcepath, modin_fpath)).read(), modin)
+
+    FINGERPRINT_RULES = {
+        SCH_NS('MusicAlbum'): ( 
+            materialize(MB_NS('ReleaseGroup'),
+                fprint=[
+                    (MB_NS('title'), follow(SCH_NS('name'))),
+                    (MB_NS('artist'), follow(SCH_NS('byArtist'), SCH_NS('name'))),
+                ],
+                links=[
+                    (MB_NS('contains'), materialize(MB_NS('Release'),
+                        fprint=[
+                            (MB_NS('catalogue-number'), var('catnum')),
+                        ],
+                        links=[
+                            (MB_NS('catalogue-number'), var('catnum')),
+                        ]
+                    ))
+                ],
+                vars={'catnum': follow(SCH_NS('catalogNumber'))},
+                # debug=sys.stderr, # Uncomment to debug
+            )
+        ),
+
+        SCH_NS('Person'): ( 
+            materialize(MB_NS('Artist'),
+                fprint=[
+                    (MB_NS('name'), var('aname')),
+                ],
+                links=[
+                    (MB_NS('name'), var('aname')),
+                ],
+                vars={'aname': follow(SCH_NS('name'))},
+            )
+        )
+    }
+
+    TRANSFORM_RULES = {
+        (SCH_NS('name'), R_TYP, RG_TYP): link(rel=MB_NS('title')),
+
+        (SCH_NS('byArtist'), R_TYP): link(rel=MB_NS('by'), target=lookup('@resource')),
+    }
+
+    # Intentionally shadows the global LABELIZE_RULES
+    LABELIZE_RULES = {
+        MB_NS('ReleaseGroup'): follow(MB_NS('title')),
+        MB_NS('Release'): follow(MB_NS('title')),
+        MB_NS('Artist'): follow(MB_NS('name'))
+    }
+
+    ppl = generic_pipeline(FINGERPRINT_RULES, TRANSFORM_RULES, LABELIZE_RULES)
+
+    modout = ppl.run(input_model=modin)
+    # Use -s to see this
+    print('='*10, 'test_basics_4', '='*10)
+    literate.write(modout)
+    # import pprint; pprint.pprint(list(iter(modout)))
+
+    assert len(modout) == 15
+    assert len(list(util.all_origins(modout, only_types={MB_NS('ReleaseGroup')}))) == 1
+    assert len(list(util.all_origins(modout, only_types={MB_NS('ReleaseGroup')}))) == 1
+    assert len(list(util.all_origins(modout, only_types={MB_NS('Artist')}))) == 2
+    # assert len(list(modout.match(None, BF_NS('birthDate'), '1919-01-01'))) == 1
+
 
 if __name__ == '__main__':
     raise SystemExit("use py.test")

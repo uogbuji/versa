@@ -276,32 +276,39 @@ def foreach(origin=None, rel=None, target=None, attributes=None, action=None):
     return _foreach
 
 
-def follow(rel, origin=None, action=None):
+def follow(*rels, origin=None, action=None):
     '''
     Action function generator to retrieve a variable from context
     '''
     def _follow(ctx):
+        assert ctx.input_model
         _origin = origin(ctx) if is_pipeline_action(origin) else origin
-        _rel = rel(ctx) if is_pipeline_action(rel) else rel
-        targ_attrs = []
-        if ctx.input_model:
-            (o, r, t, a) = ctx.current_link
-            computed_o = o if _origin is None else _origin
-            for o_, r_, t_, a_ in ctx.input_model.match(computed_o, _rel):
-                targ_attrs.append((t_, a_))
+        _rels = [ (r(ctx) if is_pipeline_action(r) else r) for r in rels ]
+        (o, in_rel, t, a) = ctx.current_link
+        computed_o = o if _origin is None else _origin
+        pre_traverse = [(computed_o, a)]
+        post_traverse = []
+        for rel in _rels:
+            for o, a in pre_traverse:
+                for _, r, t, a in ctx.input_model.match(o, rel):
+                    post_traverse.append((t, a))
+            pre_traverse, post_traverse = post_traverse, []
+        # Since we already swapped them out above, we have to get the final from pre
+        final = pre_traverse
+
         if action:
             results = []
             if not(is_pipeline_action(action)):
                 raise TypeError('follow() action arg must be callable')
             for t, a in targ_attrs:
-                subctx = ctx.copy(current_link=(computed_o, _rel, t, a))
+                subctx = ctx.copy(current_link=(computed_o, in_rel, t, a))
                 res = action(subctx)
                 res = [] if res is None else (res if isinstance(res, list) else [res])
                 for r in res:
                     results.append(r)
             return results
         else:
-            return [ta[0] for ta in targ_attrs]
+            return [ t for (t, a) in final ]
     _follow.is_pipeline_action = True
     return _follow
 
@@ -361,12 +368,12 @@ def lookup(mapping, key=None, onmiss=None):
         :param ctx: Versa context used in processing (e.g. includes the prototype link)
         :return: Replacement text, or input text if not found
         '''
+        (origin, _, t, a) = ctx.current_link
+        _key = key(ctx) if is_pipeline_action(key) else (t if key is None else key)
         if isinstance(mapping, str):
             _mapping = ctx.extras['lookups'][mapping] if 'lookups' in ctx.extras else ctx.extras[mapping]
         else:
             _mapping = mapping
-        (origin, _, t, a) = ctx.current_link
-        _key = key(ctx) if is_pipeline_action(key) else (t if key is None else key)
 
         _onmiss = onmiss
         if onmiss == None:
