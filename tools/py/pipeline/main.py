@@ -269,7 +269,7 @@ class definition:
 
         self._raw_source = raw_source
 
-        # Sortkey is the first, discarded tuple item
+        # First tuple item is just sortkey, so discarded 
         for _, stage in self._stages:
             retval = stage(**kwargs)
             if retval is False:
@@ -313,8 +313,8 @@ class definition:
                         # fingerprinting stage
                         link = (rid, None, typ, {})
                         ctx = root_context.copy(current_link=link, input_model=self.input_model,
-                                        output_model=self.output_model,
-                                        extras = {'@new-entity-hook': new_entity})
+                            output_model=self.output_model)
+                        ctx.extras.update({'@new-entity-hook': new_entity})
                         main_ridouts = rule(ctx)
                         main_ridouts = set(main_ridouts) if isinstance(main_ridouts, list) else {main_ridouts}
                         mains, others = self.fingerprints.setdefault(rid, (set(), set()))
@@ -376,10 +376,13 @@ class definition:
                     # origin changed to the output resource
                     link = (out_rid, r, t, attribs)
                     # Build the rest of the context
-                    variables = {'input-resource': rid}
-                    variables.update(root_context.variables)
+                    variables = root_context.variables.copy()
+                    variables.update({'input-resource': rid})
+                    extras = root_context.extras.copy()
+                    extras.update({'@resource': { k: list(m) for (k, (m, o)) in self.fingerprints.items() }})
                     ctx = root_context.copy(current_link=link, input_model=self.input_model,
-                                                output_model=self.output_model, variables=variables)
+                                                output_model=self.output_model, variables=variables,
+                                                extras=extras)
                     # Run the rule, expecting the side effect of data added to the output model
                     rule(ctx)
                     applied_rules_count += 1

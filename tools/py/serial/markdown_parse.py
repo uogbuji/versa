@@ -214,18 +214,24 @@ def parse(md, model, encoding='utf-8', config=None):
 
         def prep_li(li):
             '''
-            a/href embedded in the li means it was specified as <link_text>.
+            Take care of Markdown parsing minutiae. Also, Exclude child uls
+
+            * a/href embedded in the li means it was specified as <link_text>.
             Restore the angle brackets as expected by the li parser
-            Also exclude child uls
+            * Similar for cases where e.g. prop: <abc> gets turned into prop: <abc></abc>
             '''
-            return ''.join([
-                ( ch if isinstance(ch, text) else (
-                    '<' + ch.xml_value + '>' if isinstance(ch, element) and ch.xml_name == 'a' else '')
-                )
-                for ch in itertools.takewhile(
-                    lambda x: not (isinstance(x, element) and x.xml_name == 'ul'), li.xml_children
-                )
-            ])
+            prepped = ''
+            for ch in itertools.takewhile(
+                lambda x: not (isinstance(x, element) and x.xml_name == 'ul'), li.xml_children
+            ):
+                if isinstance(ch, text):
+                    prepped += ch
+                elif isinstance(ch, element):
+                    if ch.xml_name == 'a':
+                        prepped += '<' + ch.xml_value + '>'
+                    else:
+                        prepped += '<' + ch.xml_name + '>'
+            return prepped
 
         #Go through each list item
         for li in field_list:

@@ -197,7 +197,7 @@ def materialize(typ, rel=None, origin=None, unique=None, fprint=None, links=None
                 v = v[0] if isinstance(v, list) else v
                 ctx.variables[k] = v
 
-        added_links = set()
+        if '@added-links' not in ctx.extras: ctx.extras['@added-links'] = set()
 
         # Make sure we end up with a list or None
         rels = rel if isinstance(rel, list) else ([rel] if rel else [r])
@@ -227,6 +227,7 @@ def materialize(typ, rel=None, origin=None, unique=None, fprint=None, links=None
                             subval = subval if isinstance(subval, list) else [subval]
                             if k == VTYPE_REL: rtypes.update(set(subval))
                             computed_fprint.extend([(k, s) for s in subval])
+            log_debug(f'Provided fingerprinting info: {computed_fprint}')
 
             objid = materialize_entity(ctx_stem, _typ, fprint=computed_fprint)
             objids.append(objid)
@@ -242,19 +243,19 @@ def materialize(typ, rel=None, origin=None, unique=None, fprint=None, links=None
                     # FIXME: Fix properly, by slugifying & making sure slugify handles all numeric case (prepend '_')
                     curr_rel = '_' + curr_rel if curr_rel.isdigit() else curr_rel
                     if attach_:
-                        _smart_add(ctx_stem.output_model, I(o), I(iri.absolutize(curr_rel, ctx_stem.base)), I(objid), (), added_links)
+                        _smart_add(ctx_stem.output_model, I(o), I(iri.absolutize(curr_rel, ctx_stem.base)), I(objid), (), ctx.extras['@added-links'])
                     computed_rels.append(curr_rel)
             # print((objid, ctx_.existing_ids))
             # XXX: Means links are only processed on new objects! This needs some thought
             if objid not in ctx_stem.existing_ids:
                 if _typ:
-                    _smart_add(ctx_stem.output_model, I(objid), VTYPE_REL, I(iri.absolutize(_typ, ctx_stem.base)), (), added_links)
+                    _smart_add(ctx_stem.output_model, I(objid), VTYPE_REL, I(iri.absolutize(_typ, ctx_stem.base)), (), ctx.extras['@added-links'])
                 if preserve_fprint:
                     # Consolidate types
                     computed_fprint = [ (k, v) for (k, v) in computed_fprint if k != VTYPE_REL ]
                     # computed_fprint += 
                     attrs = tuple(computed_fprint + [(VTYPE_REL, r) for r in rtypes])
-                    _smart_add(ctx_stem.output_model, I(objid), VFPRINT_REL, _typ, attrs, added_links)
+                    _smart_add(ctx_stem.output_model, I(objid), VFPRINT_REL, _typ, attrs, ctx.extras['@added-links'])
 
                 # XXX: Use Nones to mark blanks, or should Versa define some sort of null resource?
                 for l in links:
@@ -310,10 +311,10 @@ def materialize(typ, rel=None, origin=None, unique=None, fprint=None, links=None
                                 for valitems in lt:
                                     if valitems:
                                         for loi in lo:
-                                            _smart_add(ctx_vein.output_model, loi, _lr, valitems, (), added_links)
+                                            _smart_add(ctx_vein.output_model, loi, _lr, valitems, (), ctx.extras['@added-links'])
                             else:
                                 for loi in lo:
-                                    _smart_add(ctx_vein.output_model, loi, _lr, lt, (), added_links)
+                                    _smart_add(ctx_vein.output_model, loi, _lr, lt, (), ctx.extras['@added-links'])
                 ctx_stem.existing_ids.add(objid)
                 if '@new-entity-hook' in ctx.extras:
                     ctx.extras['@new-entity-hook'](objid)
