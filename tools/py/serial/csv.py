@@ -41,7 +41,7 @@ def fromlist(l):
 
 
 def parse_iter(csvfp, template_obj, model_fact=newmodel,
-                csv_fact=None, header_loc=None, nosy=None):
+                csv_fact=None, prerow=None, header_loc=None, nosy=None):
     '''
     Parse CSV file into Versa model based on template for interpreting the data
     Yield a new model representing each row
@@ -55,6 +55,7 @@ def parse_iter(csvfp, template_obj, model_fact=newmodel,
             intepreted from the Versa literate of each row
     csv_fact - callable that convers data from csvfp into Python csv
             module-compatible objects
+    prerow - callable to preprocess row mapping from CSV
     header_loc - how many rows down in the CSV file header data can be found
     nosy - optional function which is called with the result of each row's
             Versa literal output, useful for debugging
@@ -81,6 +82,8 @@ def parse_iter(csvfp, template_obj, model_fact=newmodel,
 
         for k, ad_k in adapted_keys.items():
             row[ad_k] = row[k]
+        if prerow:
+            row = prerow(row)
         if isinstance(template_obj, str):
             vliterate_text = template_obj.format(**row)
         else:

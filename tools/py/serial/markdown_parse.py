@@ -29,6 +29,9 @@ TEXT_VAL, RES_VAL, UNKNOWN_VAL = 1, 2, 3
 
 TYPE_REL = VERSA_BASEIRI('type')
 
+# IRI ref candidate
+IRIREF_CAND_PAT = re.compile('<(.+)?>')
+
 # Does not support the empty URL <> as a property name
 # REL_PAT = re.compile('((<(.+)>)|([@\\-_\\w#/]+)):\s*((<(.+)>)|("(.*?)")|(\'(.*?)\')|(.*))', re.DOTALL)
 REL_PAT = re.compile('((<(.+)>)|([@\\-_\\w#/]+)):\s*((<(.+)>)|("(.*)")|(\'(.*)\')|(.*))', re.DOTALL)
@@ -140,6 +143,13 @@ def parse(md, model, encoding='utf-8', config=None):
 
     #Prep ID generator, in case needed
     idg = idgen(None)
+
+    #Preprocess the Markdown to deal with IRI-valued property values
+    def iri_ref_tool(m):
+        body = m.group(1)
+        lchar = '&lt;' if iri.matches_uri_ref_syntax(body ) else '<'
+        return lchar + m.group(1) + '>'
+    md = IRIREF_CAND_PAT.sub(iri_ref_tool, md)
 
     #Parse the Markdown
     #Alternately:
