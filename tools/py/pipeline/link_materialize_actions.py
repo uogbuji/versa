@@ -320,8 +320,8 @@ def materialize(typ, rel=None, origin=None, unique=None, fprint=None, links=None
                                 for loi in lo:
                                     _smart_add(ctx_vein.output_model, loi, _lr, lt, (), ctx.extras['@added-links'])
                 ctx_stem.existing_ids.add(objid)
-                if '@new-entity-hook' in ctx.extras:
-                    ctx.extras['@new-entity-hook'](objid)
+                for func in ctx.extras.get('@new-entity-hook', []):
+                    func(objid)
         log_debug(f'End materialize')
             
         return objids

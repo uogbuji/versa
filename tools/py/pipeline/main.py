@@ -69,6 +69,9 @@ class context(object):
         self.existing_ids = existing_ids or set()
 
     def copy(self, current_link=None, input_model=None, output_model=None, base=None, variables=None, extras=None, idgen=None, existing_ids=None):
+        '''
+        Shallow copy of context
+        '''
         current_link = current_link if current_link else self.current_link
         input_model = self.input_model if input_model is None else input_model
         output_model = self.output_model if output_model is None else output_model
@@ -218,6 +221,13 @@ def stage(sortkey):
     return _stage
 
 
+# Copied from datachef. Move to amara3 core
+def make_list(lvalue, *items):
+    new_lvalue = lvalue if isinstance(lvalue, list) else [lvalue]
+    new_lvalue.extend(items)
+    return new_lvalue
+
+
 class definition:
     '''
     Definition of a pipeline for transforming one Versa model to another
@@ -314,7 +324,8 @@ class definition:
                         link = (rid, None, typ, {})
                         ctx = root_context.copy(current_link=link, input_model=self.input_model,
                             output_model=self.output_model)
-                        ctx.extras.update({'@new-entity-hook': new_entity})
+                        ne_hook = ctx.extras.setdefault('@new-entity-hook', [])
+                        ctx.extras['@new-entity-hook'] = make_list(ne_hook, new_entity)
                         main_ridouts = rule(ctx)
                         main_ridouts = set(main_ridouts) if isinstance(main_ridouts, list) else {main_ridouts}
                         mains, others = self.fingerprints.setdefault(rid, (set(), set()))
