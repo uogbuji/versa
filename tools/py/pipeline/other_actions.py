@@ -300,7 +300,7 @@ def follow(*rels, origin=None, action=None):
             results = []
             if not(is_pipeline_action(action)):
                 raise TypeError('follow() action arg must be callable')
-            for t, a in targ_attrs:
+            for t, a in final:
                 subctx = ctx.copy(current_link=(computed_o, in_rel, t, a))
                 res = action(subctx)
                 res = [] if res is None else (res if isinstance(res, list) else [res])
