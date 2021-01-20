@@ -252,10 +252,13 @@ def test_basics_4(testresourcepath):
     R_TYP = MB_NS('Release')
     RG_TYP = MB_NS('ReleaseGroup')
     A_TYP = MB_NS('Artist')
+    DOC_NS = I('http://example.org/records/')
 
     modin = newmodel()
     modin_fpath = 'schemaorg/blackstar.md'
     literate.parse(open(os.path.join(testresourcepath, modin_fpath)).read(), modin)
+    # Hand-add a comment property to the Mos Def resource to test that this value doesn't bleed e.g. to Kweli's output
+    modin.add(DOC_NS('md'), SCH_NS('comment'), 'test')
 
     FINGERPRINT_RULES = {
         SCH_NS('MusicAlbum'): ( 
@@ -286,8 +289,9 @@ def test_basics_4(testresourcepath):
                 ],
                 links=[
                     (MB_NS('name'), var('aname')),
+                    (MB_NS('remark'), var('comment')),
                 ],
-                vars={'aname': follow(SCH_NS('name'))},
+                vars={'aname': follow(SCH_NS('name')), 'comment': follow(SCH_NS('comment'))},
             )
         )
     }
@@ -313,11 +317,13 @@ def test_basics_4(testresourcepath):
     literate.write(modout)
     # import pprint; pprint.pprint(list(iter(modout)))
 
-    assert len(modout) == 15
+    assert len(modout) == 16
     assert len(list(util.all_origins(modout, only_types={MB_NS('ReleaseGroup')}))) == 1
     assert len(list(util.all_origins(modout, only_types={MB_NS('ReleaseGroup')}))) == 1
     assert len(list(util.all_origins(modout, only_types={MB_NS('Artist')}))) == 2
     # assert len(list(modout.match(None, BF_NS('birthDate'), '1919-01-01'))) == 1
+    # DOC_NS('md') -> I('i5GvPVm7ClA') in the transform
+    assert [ l[0] for l in modout.match(None, MB_NS('remark'), 'test')] == [I('i5GvPVm7ClA')]
 
 
 if __name__ == '__main__':
