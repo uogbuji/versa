@@ -1,7 +1,7 @@
 # test_pipeline.py (use py.test)
 '''
 
-Note: to see stdout, stderr, ets:
+Note: to see stdout, stderr & logging regardless of outcome:
 
 py.test -s test/py/test_pipeline.py
 

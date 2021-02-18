@@ -79,9 +79,12 @@ See also:
  * http://www.postgresql.org/docs/9.1/static/app-pgdump.html
  * http://www.postgresql.org/docs/9.1/static/app-psql.html
 
+Note: to see stdout, stderr & logging regardless of outcome:
 '''
 
 import logging
+import pytest
+psycopg2 = pytest.importorskip("psycopg2")
 
 from versa.driver import postgres
 
