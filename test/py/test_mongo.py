@@ -1,23 +1,27 @@
 '''
 
-Note: to see DEBUG log even if the tests pass do:
+Note: to see stdout, stderr & logging regardless of outcome:
 
 py.test test/py/test_memory.py --tc=debug:y --nologcapture
 
 '''
 
-#import logging
+# Outdated (?) Note: to see DEBUG log even if the tests pass do:
+# py.test test/py/test_memory.py --tc=debug:y --nologcapture
+
+# import logging
 
 import pytest
-#from testconfig import config
+pymongo = pytest.importorskip("pymongo")
+# from testconfig import config
 
 from versa.driver.mongo import newmodel
 from versa import I, ORIGIN, RELATIONSHIP, TARGET, ATTRIBUTES
 
-##If you do this you also need --nologcapture
-##Handle  --tc=debug:y option
-#if config.get('debug', 'n').startswith('y'):
-#    logging.basicConfig(level=logging.DEBUG)
+# If you do this you also need --nologcapture
+# Handle  --tc=debug:y option
+# if config.get('debug', 'n').startswith('y'):
+#     logging.basicConfig(level=logging.DEBUG)
 
 MONGOCONN = 'mongodb://verser:password31337@localhost/?authSource=admin'
 

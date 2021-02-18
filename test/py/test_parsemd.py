@@ -3,7 +3,8 @@ import logging
 
 from versa import I
 from versa.driver import memory
-from versa.reader.md import from_markdown
+from versa.serial import literate
+from versa.driver.memory import newmodel
 
 
 VERSA_BASEIRI = 'http://bibfra.me/purl/versa/'
@@ -28,16 +29,16 @@ Test Versa literate model
 
 
 def Xtest_versa_syntax1():
-    #logging.debug(recs)
-    m = connection()
+    # logging.debug(recs)
+    m = newmodel()
     m.create_space()
-    #from_markdown(VERSA_LITERATE1, m, encoding='utf-8')
-    from_markdown(VERSA_LITERATE1, m)
+    # from_markdown(VERSA_LITERATE1, m, encoding='utf-8')
+    literate.parse(VERSA_LITERATE1, m)
     logging.debug('VERSA LITERATE EXAMPLE 1')
     for link in m.match():
         logging.debug('Result: {0}'.format(repr(link)))
-        #assert result == ()
-    #assert results == None, "Boo! "
+        # assert result == ()
+    # assert results == None, "Boo! "
 
 
 def test_versa_syntax1(testresourcepath):
@@ -51,15 +52,15 @@ def test_versa_syntax1(testresourcepath):
         }
     }
 
-    m1 = memory.connection(baseiri='http://example.org/')
-    #from_markdown(VERSA_LITERATE1, m, encoding='utf-8')
+    m1 = newmodel(baseiri='http://example.org/')
+    # from_markdown(VERSA_LITERATE1, m, encoding='utf-8')
     doc = open(os.path.join(testresourcepath, 'doc1.md')).read()
-    from_markdown(doc, m1, config=config)
+    literate.parse(doc, m1, config=config)
 
-    m2 = memory.connection(baseiri='http://example.org/')
-    #from_markdown(VERSA_LITERATE1, m, encoding='utf-8')
+    m2 = newmodel(baseiri='http://example.org/')
+    # from_markdown(VERSA_LITERATE1, m, encoding='utf-8')
     doc = open(os.path.join(testresourcepath, 'doc1.abbr.md')).read()
-    from_markdown(doc, m2, config=config)
+    literate.parse(doc, m2, config=config)
 
     # logging.debug('VERSA LITERATE EXAMPLE 1')
     equiv_results = [list(m1.match()), list(m2.match())]
