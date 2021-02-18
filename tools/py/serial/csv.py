@@ -13,6 +13,7 @@ import re
 import csv
 import logging
 import operator
+import inspect
 from operator import truth
 from itertools import chain, islice, repeat, starmap, takewhile
 
@@ -60,6 +61,21 @@ def parse_iter(csvfp, template_obj, model_fact=newmodel,
     nosy - optional function which is called with the result of each row's
             Versa literal output, useful for debugging
     '''
+    def process_rows(rows):
+        '''
+        Handle a list of rows (a list of 1 unless prerow is a generator)
+        '''
+        for row in rows:
+            if isinstance(template_obj, str):
+                vliterate_text = template_obj.format(**row)
+            else:
+                vliterate_text = template_obj(row)
+            if nosy:
+                nosy(vliterate_text)
+            model = model_fact()
+            markdown_parse(vliterate_text, model)
+            yield model
+
     if csv_fact is None:
         rows = csv.DictReader(csvfp, delimiter=',',
                                 quotechar='"', quoting=csv.QUOTE_MINIMAL)
@@ -82,17 +98,12 @@ def parse_iter(csvfp, template_obj, model_fact=newmodel,
 
         for k, ad_k in adapted_keys.items():
             row[ad_k] = row[k]
-        if prerow:
-            row = prerow(row)
-        if isinstance(template_obj, str):
-            vliterate_text = template_obj.format(**row)
+        if inspect.isgeneratorfunction(prerow):
+            yield from process_rows(prerow(row))
+        elif prerow:
+            yield process_rows([prerow(row)])
         else:
-            vliterate_text = template_obj(row)
-        if nosy:
-            nosy(vliterate_text)
-        model = model_fact()
-        markdown_parse(vliterate_text, model)
-        yield model
+            yield process_rows([row])
 
 
 # Optimized version courtesy https://stackoverflow.com/a/34935239
