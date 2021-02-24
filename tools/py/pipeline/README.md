@@ -1,11 +1,9 @@
-# Versa pipeline
-
-Tools for constructing data transformation pipelines for Versa models
+A Versa pipeline transforms one graph's patterns and vocabularies to another, based on a set of declared rules for pattern matching and output graph construction. This module includes tools for implementing such pipelines.
 
 # Overview
 
 These tools provide a declarative means for expressing rules for
-transformation one data dialect to another. For example, you might
+transformation from one data dialect to another. For example, you might
 have data expressed according to in the [Dublin Core Metadata Initiative](https://www.dublincore.org/specifications/dublin-core/dces/) and you want it remodeled as Schema.org.
 
 Versa pipelines provide a framework for writing this conversion DC. The DC
@@ -15,7 +13,7 @@ focuses on conversion from one abstract model of Versa to another. You would
 use a built-in or custom reader to create the input model, and use
 a writer to serialize the output model.
 
-This implementation of Versa pipelines is a Python-based DSL, but
+At the heart of this implementation of Versa pipelines is a Python-based DSL, but
 the intended general semantics are declarative.
 
 # Structure
@@ -129,4 +127,40 @@ The standard items in the context are as follows:
     * output model - Versa model holding the main output result of the transform
     * base IRI - reference base IRI, used resolve created resources into full IRIs, if specified in abbreviated form
     * variables - values that can be used to adjust aspects of data generated in the output model
+
+# Example
+
+Take the following pair of graphs:
+
+![Black Star graph](http://gonzaga.ogbuji.net/~uche/tech/2021/blackstar1.jpg)
+
+The left hand side is the input graph, based on the [Black Star test example](https://raw.githubusercontent.com/uogbuji/versa/pipeline_uni/test/resource/schemaorg/blackstar.md), which is based on [Schema.org MusicAlbum](https://schema.org/MusicAlbum). The right hand is the output graph, based on the [MusicBrainz schema](https://musicbrainz.org/doc/MusicBrainz_Database/Schema).
+
+Here is the input graph in Versa literate format:
+
+```
+<!-- 
+# @docheader
+
+* @iri:
+    * @base: http://example.org/records/
+    * @schema: https://schema.org/
+
+# black-star [MusicAlbum]
+
+* name: Mos Def & Talib Kweli Are Black Star
+* byArtist: <md>
+* byArtist: <tk>
+* release:
+    * catalogNumber: RWK 1158-2
+
+# md [Person]
+
+* name: Mos Def
+
+# tk [Person]
+
+* name: Talib Kweli
+* ```
+
 
