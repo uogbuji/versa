@@ -11,8 +11,8 @@ import sys
 
 from amara3 import iri
 
-from versa import I, VERSA_BASEIRI, ORIGIN, RELATIONSHIP, TARGET
-from versa.util import all_origins
+from versa import I, VERSA_BASEIRI, ORIGIN, RELATIONSHIP, TARGET, VTYPE_REL
+from versa.util import all_origins, resourcetypes
 
 from .markdown_parse import parse
 
@@ -66,19 +66,21 @@ def value_format(val):
         return f'"{val}"'
 
 
-def write(model, out=sys.stdout, base=None, propertybase=None, shorteners=None):
+def write(model, out=sys.stdout, base=None, schema=None, shorteners=None):
     '''
     models - input Versa model from which output is generated
     '''
     shorteners = shorteners or {}
 
-    all_propertybase = [propertybase] if propertybase else []
-    all_propertybase.append(VERSA_BASEIRI)
+    all_schema = [schema] if schema else []
+    all_schema.append(VERSA_BASEIRI)
 
-    if any((base, propertybase, shorteners)):
+    if any((base, schema, shorteners)):
         out.write('# @docheader\n\n* @iri:\n')
     if base:
         out.write('    * @base: {0}'.format(base))
+    if schema:
+        out.write('    * @schema: {0}'.format(schema))
     #for k, v in shorteners:
     #    out.write('    * @base: {0}'.format(base))
 
@@ -87,15 +89,24 @@ def write(model, out=sys.stdout, base=None, propertybase=None, shorteners=None):
     origin_space = set(all_origins(model))
 
     for o in origin_space:
-        out.write('# {0}\n\n'.format(o))
+        # First type found
+        # XXX: Maybe there could be a standard primary-type attribute
+        # to flag the property with the type to highlight
+        first_type = next(resourcetypes(model, o), None)
+        if first_type:
+            first_type_str = abbreviate(first_type, all_schema)
+            out.write(f'# {o} [{first_type_str}]\n\n')
+        else:
+            out.write(f'# {o}\n\n')
         for o_, r, t, a in model.match(o):
-            rendered_r = abbreviate(r, all_propertybase)
+            if (r, t) == (VTYPE_REL, first_type): continue
+            rendered_r = abbreviate(r, all_schema)
             if isinstance(rendered_r, I):
                 rendered_r = f'<{rendered_r}>'
             value_format(t)
             out.write(f'* {rendered_r}: {value_format(t)}\n')
             for k, v in a.items():
-                rendered_k = abbreviate(k, all_propertybase)
+                rendered_k = abbreviate(k, all_schema)
                 if isinstance(rendered_k, I):
                     rendered_r = f'<{rendered_k}>'
                 out.write(f'    * {rendered_k}: {value_format(t)}\n')

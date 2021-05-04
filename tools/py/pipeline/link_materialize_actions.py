@@ -11,7 +11,7 @@ from versa.terms import VFPRINT_REL
 
 from . import context, materialize_entity, create_resource, is_pipeline_action
 
-__all__ = ['link', 'materialize']
+__all__ = ['link', 'materialize', 'COPY']
 
 # SKIP = object()
 DEFAULT_ARG = object()
@@ -178,9 +178,20 @@ def materialize(typ, rel=None, origin=None, unique=None, fprint=None, links=None
         else:
             def log_debug(msg):
                 print(msg, file=debug)
-        _typ = typ(ctx) if is_pipeline_action(typ) else typ
-        _fprint = fprint(ctx) if is_pipeline_action(fprint) else fprint
         (o, r, t, a) = ctx.current_link
+        if isinstance(typ, COPY):
+            object_copy = typ
+            object_copy.id = o
+            _typ = next(util.resourcetypes(ctx.input_model, o), None)
+            object_copy.links = []
+            for stmt in ctx.input_model.match(o):
+                if object_copy.rels is None or stmt[RELATIONSHIP] in typ.rels:
+                    # FIXME: Attributes?
+                    object_copy.links.append((stmt[RELATIONSHIP], stmt[TARGET]))
+        else:
+            _typ = typ(ctx) if is_pipeline_action(typ) else typ
+            object_copy = None
+        _fprint = fprint(ctx) if is_pipeline_action(fprint) else fprint
         # FIXME: On redesign implement split using function composition instead
         targets = [ sub_t.strip() for sub_t in t.split(split) if sub_t.strip() ] if split else [t]
 
@@ -233,7 +244,10 @@ def materialize(typ, rel=None, origin=None, unique=None, fprint=None, links=None
                             computed_fprint.extend([(k, s) for s in subval])
             log_debug(f'Provided fingerprinting info: {computed_fprint}')
 
-            objid = materialize_entity(ctx_stem, _typ, fprint=computed_fprint)
+            if object_copy:
+                objid = object_copy.id
+            else:
+                objid = materialize_entity(ctx_stem, _typ, fprint=computed_fprint)
             objids.append(objid)
             log_debug(f'Newly materialized object: {objid}')
             # rels = [ ('_' + curr_rel if curr_rel.isdigit() else curr_rel) for curr_rel in rels if curr_rel ]
@@ -262,7 +276,8 @@ def materialize(typ, rel=None, origin=None, unique=None, fprint=None, links=None
                     _smart_add(ctx_stem.output_model, I(objid), VFPRINT_REL, _typ, attrs, ctx.extras['@added-links'])
 
                 # XXX: Use Nones to mark blanks, or should Versa define some sort of null resource?
-                for l in links:
+                all_links = object_copy.links + links if object_copy else links
+                for l in all_links:
                     if len(l) == 2:
                         lo = I(objid)
                         lr, lt = l
@@ -328,4 +343,18 @@ def materialize(typ, rel=None, origin=None, unique=None, fprint=None, links=None
 
     _materialize.is_pipeline_action = True
     return _materialize
+
+
+class COPY:
+    '''
+    Signal object for materialize action function to copy the context origin
+    resource from the input to the output graph. The copied object has the
+    identical ID, and is a shallow copy, with rel and target for selected,
+    or for all links.
+    '''
+    def __init__(self, rels=None):
+        '''
+        rels - if None (the default), copy all rels from the input graph
+        '''
+        self.rels = rels
 

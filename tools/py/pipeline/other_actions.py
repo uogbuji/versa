@@ -5,16 +5,16 @@ import itertools
 from amara3 import iri
 
 from versa import I, VERSA_BASEIRI, ORIGIN, RELATIONSHIP, TARGET, ATTRIBUTES, VTYPE_REL
-from versa.terms import VFPRINT_REL
-from versa import util
-from versa.util import simple_lookup
+#from versa.terms import VFPRINT_REL
+#from versa import util
+#from versa.util import simple_lookup
 
 from . import context, materialize_entity, create_resource, is_pipeline_action
 
 __all__ = [ 'var', 'extra', 'attr', 'origin', 'rel', 'target', 'values',
             'ifexists', 'if_', 'foreach', 'follow', 'toiri', 'lookup',
             'regex_match_modify', 'compose', 'ignore', 'replace_from',
-            'action_template', 'SKIP'
+            'action_template', 'contains', 'SKIP'
             ]
 
 
@@ -54,6 +54,22 @@ def attr(aid):
         return ctx.current_link[ATTRIBUTES].get(_aid)
     _attr.is_pipeline_action = True
     return _attr
+
+
+def contains(l, val):
+    '''
+    Action function generator to check that a list contains a value
+    '''
+    def _contains(ctx):
+        _l = l(ctx) if is_pipeline_action(l) else l
+        vlist = val if isinstance(val, list) else [val]
+        for v in vlist:
+            if v in _l:
+                return True
+        else:
+            return False 
+    _contains.is_pipeline_action = True
+    return _contains
 
 
 def origin(fprint=None):

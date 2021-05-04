@@ -115,7 +115,7 @@ def resource_id(etype, fprint=None, idgen=default_idgen(None), vocabbase=None):
         etype = vocabbase(etype)
 
     fprint_processed = []
-    for k, v in fprint:
+    for k, v in fprint or []:
         if vocabbase and not iri.is_absolute(k):
             k = vocabbase(k)
         fprint_processed.append((k, v))
@@ -148,7 +148,7 @@ def materialize_entity(ctx, etype, fprint=None):
                 unique ID, or None in which case one is randomly generated
     '''
     fprint_processed = []
-    for ix, (k, v) in enumerate(fprint):
+    for ix, (k, v) in enumerate(fprint or []):
         fprint_processed.append((k, v(ctx) if is_pipeline_action(v) else v))
     return I(resource_id(etype, fprint=fprint_processed, idgen=ctx.idgen,
                 vocabbase=ctx.base))
