@@ -34,17 +34,18 @@ SCRIPTS = [
         'tools/exec/parse_versa_model',
         'tools/exec/atom2versa',
         'tools/exec/parse_rdfa',
+        'tools/exec/versa',
 ]
 
 CORE_REQUIREMENTS = [
     'amara3.xml',
     'Markdown',
     'python-slugify',
+    'click',
 ]
 
 EXTRA_REQUIREMENTS = [
-    'pytest-mock', # For testing
-    'click', # For demos
+    'pytest-mock',  # For testing
 ]
 
 # From http://pypi.python.org/pypi?%3Aaction=list_classifiers

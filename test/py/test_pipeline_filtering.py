@@ -68,17 +68,12 @@ def expected_modout1():
     #''', modout)
     return modout
 
-MB_NS = I('https://musicbrainz.org/doc/MusicBrainz_Database/Schema/')
 SCH_NS = I('https://schema.org/')
+DOC_NS = I('http://example.org/records/')
 
 def test_mosdef_only(testresourcepath, expected_modout1):
     modin = newmodel()
     literate.parse(INPUT_GRAPH_1, modin)
-
-    R_TYP = MB_NS('Release')
-    RG_TYP = MB_NS('ReleaseGroup')
-    A_TYP = MB_NS('Artist')
-    DOC_NS = I('http://example.org/records/')
 
     modin = newmodel()
     literate.parse(INPUT_GRAPH_1, modin)
