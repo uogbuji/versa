@@ -25,3 +25,6 @@ FINGERPRINT_RULES = {
 }
 
 VERSA_PIPELINE_ENTRY = generic_pipeline(FINGERPRINT_RULES, {}, {})
+
+# Example of how you could pre-trim an graph for efficiency, if you liked
+# VERSA_PIPELINE_ENTRY.only_rel = set([SCH_NS('byArtist'), SCH_NS('name')])

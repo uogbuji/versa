@@ -26,7 +26,7 @@ from versa.serial import ntriples, csv, literate
 from versa import pipeline
 
 
-def smart_parse(source_path, model):
+def smart_parse(source_path, model, ppl):
     format = None
     if source_path.endswith('.vlit'):
         format = 'vlit'
@@ -46,7 +46,10 @@ def smart_parse(source_path, model):
         elif format == 'vdump':
             util.jsonload(model, mdfp)
         elif format == 'nt':
-            ntriples.parse(mdfp.read(), model)
+            only_rel = getattr(ppl, 'only_rel', None)
+            exclude_rel = getattr(ppl, 'exclude_rel', None)
+            ntriples.parse(mdfp.read(), model, only_rel=only_rel,
+                            exclude_rel=exclude_rel)
     return
 
 
@@ -90,6 +93,7 @@ def transform(ctx, rulespec, gr_in, gr_out):
     'Transform an input to an output graph according to a rules specification'
 
     if ctx.obj['debug']: print(f'Loading transform specification, {rulespec}', file=sys.stderr)
+    # Set up an environment where common Versa pipeline imports are already in place
     gcapture = {}
     gcapture.update(vars(versa))
     gcapture.update(vars(pipeline))
@@ -102,8 +106,9 @@ def transform(ctx, rulespec, gr_in, gr_out):
         raise RuntimeError(
             'The Versa pipeline rules specification must be a Python file \
 that defines a VERSA_PIPELINE_ENTRY object.')
+
     model_in = newmodel()
-    smart_parse(gr_in, model_in)
+    smart_parse(gr_in, model_in, ppl)
 
     model_out = ppl.run(input_model=model_in)
 
