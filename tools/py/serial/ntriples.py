@@ -1,9 +1,9 @@
 # versa.serial.ntriples
-"""
+'''
 Serialize and deserialize between a Versa model and NTriples
 
 https://www.w3.org/TR/rdf-testcases/#ntriples
-"""
+'''
 
 import re
 
@@ -83,6 +83,7 @@ def parse(nt, model, encoding='utf-8', disjoint=None, only_rel=None, exclude_rel
             p_iri = I(p_iri)
             if only_rel:
                 if p_iri not in only_rel:
+                    print('skipped', line)
                     continue
             else:
                 if p_iri in exclude_rel:

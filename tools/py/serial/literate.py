@@ -8,6 +8,7 @@ see: doc/literate_format.md
 """
 
 import sys
+import re
 
 from amara3 import iri
 
@@ -19,8 +20,8 @@ from .markdown_parse import parse
 TYPE_REL = I(iri.absolutize('type', VERSA_BASEIRI))
 
 __all__ = ['parse', 'parse_iter', 'write',
-    # Non-standard
-    'longtext',
+    # Extras
+    'longtext', 'md_escape',
 ]
 
 
@@ -113,3 +114,13 @@ def write(model, out=sys.stdout, base=None, schema=None, shorteners=None):
 
         out.write('\n')
     return
+
+ESCAPE_MD_PAT = re.compile(r'(\`\*_\{\}\[\]\(\)\#\+\-\.\!)')
+
+def md_escape(t):
+    '''
+    Useful resources:
+      * https://wilsonmar.github.io/markdown-text-for-github-from-html/
+    '''
+    subbed_t = ESCAPE_MD_PAT.sub(lambda m: '\\'+m.group(1))
+    return subbed_t
