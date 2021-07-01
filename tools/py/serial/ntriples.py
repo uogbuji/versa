@@ -51,7 +51,8 @@ def parse(nt, model, encoding='utf-8', disjoint=None, only_rel=None, exclude_rel
     new_origins = set()
 
     # Make sure typing is not accidentally omitted
-    only_rel.add(VTYPE_REL)
+    if only_rel:
+        only_rel.add(VTYPE_REL)
 
     def _add(o, r, t, a=None):
         '''
