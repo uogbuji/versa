@@ -136,6 +136,23 @@ def static_index(m, rel, setvals=False, include_attrs=True, intern=False):
     return index    
     
 
+def origin_view(m):
+    '''
+    Materialize a view of all origina, mapping from origin to a list
+    of rel/target/attribute tuples, covering all rels in the model
+    
+    Args:
+        m - model from which to create the index
+    
+    Return:
+        the created index (mapping)
+    '''
+    index = {}
+    for o, r, t, a in m.match():
+        index.setdefault(o, []).append((r,t,a))
+    return index    
+    
+
 #XXX Could use a factory defined on in_m to create out_m, or do we want to use this approach to support append?
 def replace_values(in_m, out_m, map_from=(), map_to=()):
     '''

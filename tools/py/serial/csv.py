@@ -101,9 +101,9 @@ def parse_iter(csvfp, template_obj, model_fact=newmodel,
         if inspect.isgeneratorfunction(prerow):
             yield from process_rows(prerow(row))
         elif prerow:
-            yield process_rows([prerow(row)])
+            yield from process_rows([prerow(row)])
         else:
-            yield process_rows([row])
+            yield from process_rows([row])
 
 
 # Optimized version courtesy https://stackoverflow.com/a/34935239
