@@ -3,6 +3,9 @@
 import pytest
 import os, inspect
 
+# pytest_plugins = ['pytest_profiling']
+
+
 def pytest_addoption(parser):
     parser.addoption("--user", action="store", default="versa", help="Postgres user")
     parser.addoption("--pass", action="store", help="Postgres password")
