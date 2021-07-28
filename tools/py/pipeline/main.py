@@ -239,8 +239,6 @@ class definition:
         self._stages = []
         self._stages_hash = None
 
-        self.fingerprints = {}
-
     def check_update_stages(self):
         stage_func_names = [ k for k in dir(self) if hasattr(getattr(self, k), 'pipeline_sort_key') ]
         if hash(tuple(stage_func_names)) != self._stages_hash:
@@ -278,6 +276,7 @@ class definition:
         self.output_model = newmodel() if output_model is None else output_model
 
         self._raw_source = raw_source
+        self.fingerprints = {}
 
         # First tuple item is just sortkey, so discarded 
         for _, stage in self._stages:
