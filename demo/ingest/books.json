@@ -1,0 +1,14 @@
+[
+    {"title": "Half of a Yellow Sun",
+        "author": {"name": "Chimamanda Ngozi Adichie", "date": "1977"},
+        "publication": {"name": "Fourth Estate", "date": "2006"},
+        "isbn": "9780008205249"},
+    {"title": "Things Fall Apart",
+        "author": {"name": "Chinụalụmọgụ Achebe", "date": "1930"},
+        "publication": {"name": "William Heinemann Ltd.", "date": "1958"},
+        "isbn": "9781841593272"},
+    {"title": "Death and the King's Horseman",
+        "author": {"name": "Olúwolé Sóyíinká", "date": "1934"},
+        "publication": {"name": "Eyre Methuen", "date": "1975"},
+        "isbn": "9780413333506"}
+]

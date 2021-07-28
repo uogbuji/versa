@@ -6,24 +6,15 @@ Tool to parse Versa
 
 """
 
-import re
 import sys
-import os
-import glob
-import time
 import argparse
-from itertools import islice
 
 import logging
 
-#from amara.thirdparty import httplib2, json
-#from amara3.iri import relativize, absolutize
-
-from versa.driver import memory
-from versa import VERSA_BASEIRI
-from versa.reader.md import from_markdown
-from versa import ORIGIN, RELATIONSHIP, TARGET, ATTRIBUTES
+from versa.driver.memory import newmodel
+from versa.serial.literate import parse
 from versa.util import jsondump
+
 
 def run(inputs=None, base=None, config=None, out=None, verbose=False):
     '''
@@ -32,9 +23,9 @@ def run(inputs=None, base=None, config=None, out=None, verbose=False):
     if verbose:
         logging.basicConfig(level=logging.DEBUG)
 
-    m = memory.connection(baseiri=base)
+    m = newmodel(baseiri=base)
     for inf in inputs:
-        base_out = from_markdown(inf.read(), m, config=config)
+        base_out = parse(inf.read(), m, config=config)
         #for sid, link in m:
         #    link_out = link if link[ATTRIBUTES] else link[:3]
         #    out.write(repr(link_out) + '\n')

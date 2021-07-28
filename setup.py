@@ -26,18 +26,26 @@ PROJECT_AUTHOR = 'Uche Ogbuji'
 PROJECT_AUTHOR_EMAIL = 'uche@ogbuji.net'
 PROJECT_URL = 'https://github.com/uogbuji/versa'
 PACKAGE_DIR = {'versa': 'tools/py'}
-PACKAGES = ['versa', 'versa.driver', 'versa.reader', 'versa.writer', 'versa.query', 'versa.pipeline', 'versa.contrib']
+PACKAGES = ['versa', 'versa.driver', 'versa.serial', 'versa.query',
+            'versa.pipeline', 'versa.contrib']
 SCRIPTS = [
         'tools/exec/build_model_site',
         'tools/exec/parse_versa',
         'tools/exec/parse_versa_model',
         'tools/exec/atom2versa',
         'tools/exec/parse_rdfa',
+        'tools/exec/versa',
 ]
 
 CORE_REQUIREMENTS = [
     'amara3.xml',
     'Markdown',
+    'python-slugify',
+    'click',
+]
+
+EXTRA_REQUIREMENTS = [
+    'pytest-mock',  # For testing
 ]
 
 # From http://pypi.python.org/pypi?%3Aaction=list_classifiers

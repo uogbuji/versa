@@ -1,3 +1,4 @@
+# versa.serial.rdfalite
 '''
 '''
 
@@ -9,13 +10,18 @@ from itertools import *
 #from versa.writer.rdfs import prep as statement_prep
 from versa import I, VERSA_BASEIRI, ORIGIN, RELATIONSHIP, TARGET, ATTRIBUTES
 
-from . import statement_prep, dumb_triples, rdfize, versalinks
+from .util import statement_prep, dumb_triples, rdfize, versalinks
 from versa.writer.rdf import mock_bnode, prep, RDF_TYPE, RDF_NS
 
 from amara3 import iri
-from amara3.uxml import tree
+# from amara3.uxml import tree
 from amara3.uxml.treeutil import *
 from amara3.uxml import html5
+
+__all__ = ['parse', 'parse_iter', 'write',
+    # Non-standard
+]
+
 
 #SCHEMAORG_NS is proper name. Deprecate the other
 SCHEMAORG_NS = SCHEMA_NS = 'http://schema.org/'
@@ -164,3 +170,11 @@ def parse(htmlsource, statement_sink, source_uri):
 
     do_parse(root, source_uri)
     return
+
+
+def parse_iter():
+    raise NotImplementedError
+
+
+def write():
+    raise NotImplementedError

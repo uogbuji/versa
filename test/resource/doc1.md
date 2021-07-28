@@ -1,3 +1,7 @@
+<!--- Sample Versa literate model --->
+
+<!--- Notice how the resource bases all end with / . Due to tricky IRI resolution rules, this is by far the path of least resistance --->
+
 # http://uche.ogbuji.net/ndewo/
 
 * <http://www.w3.org/TR/html5/title>: "Ndewo, Colorado"

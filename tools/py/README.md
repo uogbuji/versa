@@ -1,11 +1,8 @@
 # Versa Python tools
 
-## Quick start
+Python tools for using [Versa](https://github.com/uogbuji/versa/blob/master/README.md) in practice.
 
-pip install -r pyreqs.txt
+# Quick start
 
-## Quick start on Postgres
-
-createdb -U uche dendrite_sandox "DB for learning about and experimenting with Dendrite."
-
+pip install versa
 
