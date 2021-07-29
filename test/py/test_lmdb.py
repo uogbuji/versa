@@ -1,15 +1,17 @@
-# test_diskcache.py (use py.test)
+# test_lmdb.py (use py.test)
 '''
 
-Note: to see stdout, stderr, ets:
+Note: to see stdout, stderr & logging regardless of outcome:
 
-py.test -s test/py/test_diskcache.py
+py.test -s test/py/test_lmdb.py
 
 '''
 
 #import logging
 
 import pytest
+docutils = pytest.importorskip("lmdb")
+
 #from testconfig import config
 
 from versa.driver.lmdb import newmodel

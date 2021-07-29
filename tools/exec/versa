@@ -1,0 +1,138 @@
+#!/usr/bin/env python
+# -*- mode: python -*-
+# -*- coding: utf-8 -*-
+# versa
+
+'''
+Versa umbrella command
+
+Sample usage:
+
+versa transform rulespec.py input_graph.vlit output_graph.vlit
+
+'''
+
+import sys
+# import logging
+import warnings
+
+import click
+
+import versa
+# from versa import I
+from versa.driver.memory import newmodel
+from versa.serial import ntriples, csv, literate
+# from versa.pipeline import *
+from versa import pipeline
+
+
+def smart_parse(source_path, model, ppl):
+    format = None
+    if source_path.endswith('.vlit'):
+        format = 'vlit'
+    elif source_path.endswith('.vdump'):
+        format = 'vdump'
+    elif source_path.endswith('.nt'):
+        format = 'nt'
+    if format is None:
+        # warnings.warn('Unknown Versa source format')
+        raise ValueError('Unable to determine Versa source file format from filename')
+
+    with open(source_path) as mdfp:
+        if format == 'vlit':
+            text = mdfp.read()
+            # text = mdfp.read().replace('@type', f'<{VTYPE_REL}>')
+            literate.parse(text, model)
+        elif format == 'vdump':
+            util.jsonload(model, mdfp)
+        elif format == 'nt':
+            only_rel = getattr(ppl, 'only_rel', None)
+            exclude_rel = getattr(ppl, 'exclude_rel', None)
+            ntriples.parse(mdfp.read(), model, only_rel=only_rel,
+                            exclude_rel=exclude_rel)
+    return
+
+
+def smart_write(dest_path, model):
+    format = None
+    if dest_path.endswith('.vlit'):
+        format = 'vlit'
+    elif dest_path.endswith('.vdump'):
+        format = 'vdump'
+    elif dest_path.endswith('.nt'):
+        format = 'nt'
+    if format is None:
+        raise ValueError('Unable to determine Versa output file format from filename')
+
+    with open(dest_path, 'w') as model_fp:
+        if format == 'vlit':
+            literate.write(model, out=model_fp)
+        elif format == 'vdump':
+            util.jsonload(model, model_fp)
+        elif format == 'nt':
+            ntriples.write(model, out=model_fp)
+    return
+
+
+@click.group()
+@click.option('--debug', is_flag=True,
+    help='Output additional debugging info to stderr.')
+@click.pass_context
+def main(ctx, debug=False, **kwargs):
+    ctx.obj.update(kwargs)
+    ctx.obj.update({'debug': debug})
+    return
+
+
+@main.command('transform')
+@click.argument('rulespec')
+@click.argument('gr_in')
+@click.argument('gr_out')
+@click.pass_context
+def transform(ctx, rulespec, gr_in, gr_out):
+    'Transform an input to an output graph according to a rules specification'
+
+    if ctx.obj['debug']: print(f'Loading transform specification, {rulespec}', file=sys.stderr)
+    # Set up an environment where common Versa pipeline imports are already in place
+    gcapture = {}
+    gcapture.update(vars(versa))
+    gcapture.update(vars(pipeline))
+    lcapture = {}
+    exec(compile(open(rulespec, "rb").read(), rulespec, 'exec'), gcapture, lcapture)
+
+    try:
+        ppl = lcapture['VERSA_PIPELINE_ENTRY']
+    except AttributeError:
+        raise RuntimeError(
+            'The Versa pipeline rules specification must be a Python file \
+that defines a VERSA_PIPELINE_ENTRY object.')
+
+    model_in = newmodel()
+    smart_parse(gr_in, model_in, ppl)
+
+    model_out = ppl.run(input_model=model_in)
+
+    smart_write(gr_out, model_out)
+    return
+
+
+if __name__ == '__main__':
+    main(obj={})
+
+
+
+'''
+@click.option('--imp', multiple=True,
+    help='Module to be imported in order to access pipeline implementation')
+@click.option('--ppl',
+    help='Name (not full imported path) of python object providing pipeline implementation')
+@click.option('--provenance',
+    help='IRI: Provenance of data. Used to tag the output.')
+@click.option('--out', type=click.File('w'),
+    help='Output file of Z WebPub JSON object (form feed concatenated)')
+@click.option('--out-multi', type=click.Path(exists=True),
+    help='Directory of Z WebPub JSON object files')
+@click.option('--batch-size', type=int, default=0,
+    help='Allows you to break processing of large input CSVs into chunks of the given size')
+'''
+

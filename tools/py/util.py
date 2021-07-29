@@ -11,10 +11,12 @@ import sys
 import json
 from collections import OrderedDict
 
+from amara3 import iri
+
 from versa import I, ORIGIN, RELATIONSHIP, TARGET, ATTRIBUTES
 from versa import init_localization
 init_localization()
-from versa import VERSA_BASEIRI, VTYPE_REL
+from versa import VERSA_BASEIRI, VTYPE_REL, VLABEL_REL
 
 def versa_list_to_pylist(m, vlistid):
     return [ s[TARGET] for s in m.match(vlistid, VERSA_BASEIRI + 'item') ]
@@ -46,16 +48,26 @@ def transitive_closure(m, orig, rel):
         yield from transitive_closure(m, target, rel)
 
 
-def all_origins(m):
+def all_origins(m, of_types=None, only_types=None):
     '''
     Generate all unique statement origins in the given model
     '''
     seen = set()
+    if not of_types: of_types = only_types
+    # Undocumented, defensive coding against common error
+    if isinstance(of_types, I): of_types = {of_types}
+    of_types = set(of_types) if of_types else set()
+    if '*' in of_types: of_types = {'*'}
     for link in m.match():
         origin = link[ORIGIN]
         if origin not in seen:
             seen.add(origin)
-            yield origin
+            if not of_types:
+                yield origin
+                continue
+            otypes = set(resourcetypes(m, origin))
+            if ('*' in of_types and otypes) or (of_types & otypes):
+                yield origin
 
 
 def column(m, linkpart):
@@ -73,12 +85,18 @@ def column(m, linkpart):
 
 def resourcetypes(m, rid):
     '''
-    Return a list of Versa types for a resource
+    Yield a list of Versa types for a resource
     '''
-    types = []
     for o, r, t, a in m.match(rid, VTYPE_REL):
-        types.append(t)
-    return types
+        yield t
+
+
+def labels(m, rid):
+    '''
+    Yield a list of Versa labels for a resource
+    '''
+    for o, r, t, a in m.match(rid, VLABEL_REL):
+        yield t
 
 
 def static_index(m, rel, setvals=False, include_attrs=True, intern=False):
@@ -115,6 +133,23 @@ def static_index(m, rel, setvals=False, include_attrs=True, intern=False):
                 curr.append(val)
             else:
                 index[o] = [curr, val]
+    return index    
+    
+
+def origin_view(m):
+    '''
+    Materialize a view of all origina, mapping from origin to a list
+    of rel/target/attribute tuples, covering all rels in the model
+    
+    Args:
+        m - model from which to create the index
+    
+    Return:
+        the created index (mapping)
+    '''
+    index = {}
+    for o, r, t, a in m.match():
+        index.setdefault(o, []).append((r,t,a))
     return index    
     
 
@@ -181,6 +216,36 @@ def uniquify(model):
 
     model.remove(to_remove)
     return
+
+
+def zoom_in(model, focus, depth=1, model_fact=None, max_rels=0):
+    '''
+    Given a model and a resource within it to focus on, create a new model
+    with only relationships originating with the focus resource, or N
+    rels removed therefrom, up to the specified depth
+
+    max_rels - if non-zero set a maximum number of relationships to be copied
+        into the output model
+    '''
+    model_fact = model_fact or model.factory
+    zoomed = model_fact()
+
+    def zoom_in_(m, f, d, relcount):
+        for o, r, t, a in m.match(f):
+            relcount += 1
+            if max_rels and relcount > max_rels:
+                return False, relcount
+            zoomed.add(o, r, t, a)
+            # XXX For now the Versa dump does not differentiate IRI targets
+            # So we have to use an IRI ref syntax check, which is a bit awkward
+            # if d and isinstance(t, I):
+            if d and isinstance(t, str) and iri.matches_uri_ref_syntax(t):
+                c, rc = zoom_in_(m, t, d-1, relcount)
+                relcount += rc
+        return True, relcount
+
+    completed, _ = zoom_in_(model, focus, depth, 0)
+    return zoomed, completed
 
 
 def jsonload(model, fp):

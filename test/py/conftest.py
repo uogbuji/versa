@@ -1,11 +1,31 @@
 #versa conftest.py
 
 import pytest
+import os, inspect
+
+# pytest_plugins = ['pytest_profiling']
+
 
 def pytest_addoption(parser):
     parser.addoption("--user", action="store", default="versa", help="Postgres user")
     parser.addoption("--pass", action="store", help="Postgres password")
     parser.addoption("--host", action="store", default="localhost", help="Postgres host")
+
+
+def module_path(local_function):
+    '''
+    returns the module path without the use of __file__.  Requires a function defined 
+    locally in the module.
+    from http://stackoverflow.com/questions/729583/getting-file-path-of-imported-module
+    '''
+    return os.path.abspath(inspect.getsourcefile(local_function))
+
+
+# Hack to locate test resource (data) files regardless of from where nose was run
+@pytest.fixture
+def testresourcepath():
+    return os.path.normpath(os.path.join(
+        module_path(lambda _: None), '../../resource/'))
 
 
 @pytest.fixture

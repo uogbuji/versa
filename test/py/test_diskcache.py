@@ -1,7 +1,7 @@
 # test_diskcache.py (use py.test)
 '''
 
-Note: to see stdout, stderr, ets:
+Note: to see stdout, stderr & logging regardless of outcome:
 
 py.test -s test/py/test_diskcache.py
 
@@ -10,10 +10,12 @@ py.test -s test/py/test_diskcache.py
 #import logging
 
 import pytest
+diskcache = pytest.importorskip("diskcache")
 #from testconfig import config
 
 from versa.driver.diskcache import newmodel
 from versa import I, ORIGIN, RELATIONSHIP, TARGET, ATTRIBUTES
+
 
 ##If you do this you also need --nologcapture
 ##Handle  --tc=debug:y option

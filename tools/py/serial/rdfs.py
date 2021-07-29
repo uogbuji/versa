@@ -83,7 +83,7 @@ def process(source, target, rdfsonly, base=None, logger=logging):
     return
 
 
-def write(models, base=None, graph=None, rdfsonly=False, prefixes=None, logger=logging):
+def write(model, base=None, graph=None, rdfsonly=False, prefixes=None, logger=logging):
     '''
     See the command line help
     '''
@@ -95,7 +95,6 @@ def write(models, base=None, graph=None, rdfsonly=False, prefixes=None, logger=l
     g.bind('v', VNS)
     for k, v in prefixes.items():
         g.bind(k, v)
-    for m in models:
-        base_out = m.base
-        process(m, g, rdfsonly, base=base_out, logger=logger)
+    base_out = model.base
+    process(model, g, rdfsonly, base=base_out, logger=logger)
     return g

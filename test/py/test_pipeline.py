@@ -1,120 +1,329 @@
-'''
-Structured Data Validators Structured Data Linter http://linter.structured-data.org/ Open Graph Debugger https://developers.facebook.com/tools/debug Schema Validator http://validator.nu/ Twitter Card Preview https://dev.twitter.com/docs/cards/preview Google Structured Data Testing Tool http://www.google.com/webmasters/tools/richsnippets
+# test_pipeline.py (use py.test)
 '''
 
-import logging
-import functools
+Note: to see stdout, stderr & logging regardless of outcome:
 
+py.test -s test/py/test_pipeline.py
+
+'''
+
+import os
+
+# Requires pytest-mock
 import pytest
 
-from versa import I, VERSA_BASEIRI, ORIGIN, RELATIONSHIP, TARGET
-from versa.driver import memory
+from versa import I, VERSA_BASEIRI, VTYPE_REL, VLABEL_REL, ORIGIN, RELATIONSHIP, TARGET
+from versa import util
+from versa.driver.memory import newmodel
+from versa.serial import csv, literate, mermaid
 from versa.pipeline import *
-from versa.contrib.datachefids import idgen, FROM_EMPTY_64BIT_HASH
-from versa.util import jsondump, jsonload
+
+SCH_NS = I('https://schema.org/')
+BF_NS = I('http://bibfra.me/')
 
 
-# FIXME: Move to a test utils module
-import os, inspect
-def module_path(local_function):
+@pytest.fixture
+def expected_modout1():
+    modout = newmodel()
+    #literate.parse('''
+
+    #''', modout)
+    return modout
+
+
+WT = BF_NS('Work')
+IT = BF_NS('Instance')
+
+LABELIZE_RULES = {
+    BF_NS('Work'): follow(BF_NS('name')),
+    BF_NS('Instance'): follow(BF_NS('name')),
+    BF_NS('Person'): follow(BF_NS('name'))
+}
+
+
+def test_basics_1(testresourcepath, expected_modout1):
+    modin = newmodel()
+    modin_fpath = 'schemaorg/catcherintherye-ugly.md'
+    literate.parse(open(os.path.join(testresourcepath, modin_fpath)).read(), modin)
+
+    FINGERPRINT_RULES = {
+        SCH_NS('Book'): ( 
+            materialize(BF_NS('Instance'),
+                fprint=[
+                    (BF_NS('isbn'), follow(SCH_NS('isbn'))),
+                ],
+            )
+        )
+    }
+
+    TRANSFORM_RULES = {
+        SCH_NS('name'): link(rel=BF_NS('name')),
+
+        SCH_NS('author'): materialize(BF_NS('Person'),
+                                    BF_NS('creator'),
+                                    vars={
+                                        'birthDate': follow(SCH_NS('authorBirthDate'),
+                                            origin=var('input-resource'))
+                                    },
+                                    fprint=[
+                                        (BF_NS('name'), target()),
+                                        (BF_NS('birthDate'), var('birthDate')),
+                                    ],
+                                    links=[
+                                        (BF_NS('name'), target()),
+                                        (BF_NS('birthDate'), var('birthDate')),
+                                    ]
+        ),
+    }
+
+    ppl = generic_pipeline(FINGERPRINT_RULES, TRANSFORM_RULES, LABELIZE_RULES)
+
+    modout = ppl.run(input_model=modin)
+    # Use -s to see this
+    print('='*10, 'test_basics_1', '='*10)
+    literate.write(modout)
+
+    assert len(modout) == 8
+    assert len(list(util.all_origins(modout, only_types={BF_NS('Instance')}))) == 1
+    assert len(list(util.all_origins(modout, only_types={BF_NS('Person')}))) == 1
+    assert len(list(modout.match(None, BF_NS('birthDate'), '1919-01-01'))) == 1
+
+
+def test_basics_2(testresourcepath):
+    modin = newmodel()
+    modin_fpath = 'schemaorg/catcherintherye-ugly.md'
+    literate.parse(open(os.path.join(testresourcepath, modin_fpath)).read(), modin)
+
+    FINGERPRINT_RULES = {
+        SCH_NS('Book'): ( 
+            materialize(BF_NS('Instance'),
+                fprint=[
+                    (BF_NS('isbn'), follow(SCH_NS('isbn'))),
+                ],
+                links=[
+                    (BF_NS('instantiates'),
+                        materialize(BF_NS('Work'),
+                            fprint=[
+                                (BF_NS('name'), follow(SCH_NS('title'))),
+                                (BF_NS('creator'), follow(SCH_NS('author'))),
+                                (BF_NS('language'), var('lang')),
+                            ],
+                            links=[('http://instantiated-by', var('@stem'))],
+                            attach=False # Can remove when we have smart sessions to avoid duplicate instantiates links
+                        ),
+                    )
+                ],
+                # Not really necessary; just testing vars in this scenario
+                vars={'lang': follow(SCH_NS('inLanguage'))}
+            )
+        )
+    }
+
+    TRANSFORM_RULES = {
+        # Rule for output resource type of Work or Instance
+        (SCH_NS('name'), WT, IT): link(rel=BF_NS('name')),
+
+        # Rule only for output resource type of Work
+        (SCH_NS('author'), WT): materialize(BF_NS('Person'),
+                                    BF_NS('creator'),
+                                    vars={
+                                        'birthDate': follow(SCH_NS('authorBirthDate'),
+                                            origin=var('input-resource'))
+                                    },
+                                    fprint=[
+                                        # Supplementary type
+                                        (VTYPE_REL, SCH_NS('Novelist')),
+                                        (BF_NS('name'), target()),
+                                        (BF_NS('birthDate'), var('birthDate')),
+                                    ],
+                                    links=[
+                                        # Supplementary type
+                                        (VTYPE_REL, SCH_NS('Novelist')),
+                                        (BF_NS('name'), target()),
+                                        (BF_NS('birthDate'), var('birthDate')),
+                                    ],
+                                    preserve_fprint=True,
+        ),
+    }
+
+    ppl = generic_pipeline(FINGERPRINT_RULES, TRANSFORM_RULES, LABELIZE_RULES)
+
+    modout = ppl.run(input_model=modin)
+    # Use -s to see this
+    print('='*10, 'test_basics_2', '='*10)
+    literate.write(modout)
+    #import pprint; pprint.pprint(list(iter(modout)))
+
+    assert len(modout) == 15
+    assert len(list(util.all_origins(modout, only_types={BF_NS('Instance')}))) == 1
+    assert len(list(util.all_origins(modout, only_types={BF_NS('Work')}))) == 1
+    assert len(list(util.all_origins(modout, only_types={BF_NS('Person')}))) == 1
+    assert len(list(modout.match(None, BF_NS('birthDate'), '1919-01-01'))) == 1
+
+#SCH_NS('Novelist')
+
+def test_basics_3(testresourcepath):
+    modin = newmodel()
+    modin_fpath = 'schemaorg/catcherintherye-ugly.md'
+    literate.parse(open(os.path.join(testresourcepath, modin_fpath)).read(), modin)
+
+    new_work = action_template(
+        materialize(BF_NS('Work'),
+            fprint=[
+                (BF_NS('name'), var('title')),
+                (BF_NS('creator'), var('author')),
+                (BF_NS('language'), var('lang')),
+            ],
+            links=[('http://instantiated-by', var('stem'))],
+            attach=False # Can remove when we have smart sessions to avoid duplicate instantiates links
+        )
+    )
+
+    FINGERPRINT_RULES = {
+        SCH_NS('Book'): ( 
+            materialize(BF_NS('Instance'),
+                fprint=[
+                    (BF_NS('isbn'), follow(SCH_NS('isbn'))),
+                ],
+                links=[
+                    (BF_NS('instantiates'),
+                    new_work(
+                        title=follow(SCH_NS('title')),
+                        creator=follow(SCH_NS('author')),
+                        lang=var('lang'),
+                        # At this point both origin and target are the resource
+                        # created by the materialize in scope i.e. the new Instance.
+                        stem=origin(),
+                    ))
+                ],
+                # Not really necessary; just testing vars in this scenario
+                vars={'lang': follow(SCH_NS('inLanguage'))}
+            )
+        )
+    }
+
+    TRANSFORM_RULES = {
+        # Rule for output resource type of Work or Instance
+        (SCH_NS('name'), WT, IT): link(rel=BF_NS('name')),
+
+        # Rule only for output resource type of Work
+        (SCH_NS('author'), WT): materialize(BF_NS('Person'),
+                                    BF_NS('creator'),
+                                    vars={
+                                        'birthDate': follow(SCH_NS('authorBirthDate'),
+                                            origin=var('input-resource'))
+                                    },
+                                    fprint=[
+                                        # Supplementary type
+                                        (VTYPE_REL, SCH_NS('Novelist')),
+                                        (BF_NS('name'), target()),
+                                        (BF_NS('birthDate'), var('birthDate')),
+                                    ],
+                                    links=[
+                                        # Supplementary type
+                                        (VTYPE_REL, SCH_NS('Novelist')),
+                                        (BF_NS('name'), target()),
+                                        (BF_NS('birthDate'), var('birthDate')),
+                                    ],
+                                    preserve_fprint=True
+        ),
+    }
+
+    ppl = generic_pipeline(FINGERPRINT_RULES, TRANSFORM_RULES, LABELIZE_RULES)
+
+    modout = ppl.run(input_model=modin)
+    # Use -s to see this
+    print('='*10, 'test_basics_3', '='*10)
+    literate.write(modout)
+    #import pprint; pprint.pprint(list(iter(modout)))
+
+    assert len(modout) == 15
+    assert len(list(util.all_origins(modout, only_types={BF_NS('Instance')}))) == 1
+    assert len(list(util.all_origins(modout, only_types={BF_NS('Work')}))) == 1
+    assert len(list(util.all_origins(modout, only_types={BF_NS('Person')}))) == 1
+    assert len(list(modout.match(None, BF_NS('birthDate'), '1919-01-01'))) == 1
+
+def test_basics_4(testresourcepath):
     '''
-    returns the module path without the use of __file__.  Requires a function defined 
-    locally in the module.
-    from http://stackoverflow.com/questions/729583/getting-file-path-of-imported-module
+    Convert from schema.org to [MusicBrainz scheme](https://musicbrainz.org/doc/MusicBrainz_Database/Schema)
     '''
-    return os.path.abspath(inspect.getsourcefile(local_function))
+    import sys # Uncomment to debug
+    MB_NS = I('https://musicbrainz.org/doc/MusicBrainz_Database/Schema/')
+    R_TYP = MB_NS('Release')
+    RG_TYP = MB_NS('ReleaseGroup')
+    A_TYP = MB_NS('Artist')
+    DOC_NS = I('http://example.org/records/')
 
-# Hack to locate test resource (data) files regardless of from where nose was run
-RESOURCEPATH = os.path.normpath(os.path.join(module_path(lambda _: None), '../../resource/'))
+    modin = newmodel()
+    modin_fpath = 'schemaorg/blackstar.md'
+    literate.parse(open(os.path.join(testresourcepath, modin_fpath)).read(), modin)
+    # Hand-add a comment property to the Mos Def resource to test that this value doesn't bleed e.g. to Kweli's output
+    modin.add(DOC_NS('md'), SCH_NS('comment'), 'test')
 
-SIMPLE_BOOK = {
-    'id': 'http://example.org/book/catcher-in-the-rye',
-    'title': 'The Catcher in the Rye',
-    'type': 'http://ogp.me/ns/books#books.book',
-    'link': 'https://en.wikipedia.org/wiki/The_Catcher_in_the_Rye',
-    'author': 'J.D. Salinger',
-    'cover': 'http://example.org/book/catcher-in-the-rye-book-cover.jpg',
-}
+    FINGERPRINT_RULES = {
+        SCH_NS('MusicAlbum'): ( 
+            materialize(MB_NS('ReleaseGroup'),
+                fprint=[
+                    (MB_NS('title'), follow(SCH_NS('name'))),
+                    (MB_NS('artist'), follow(SCH_NS('byArtist'), SCH_NS('name'))),
+                ],
+                links=[
+                    (MB_NS('contains'), materialize(MB_NS('Release'),
+                        fprint=[
+                            (MB_NS('catalogue-number'), var('catnum')),
+                        ],
+                        links=[
+                            (MB_NS('catalogue-number'), var('catnum')),
+                        ]
+                    ))
+                ],
+                vars={'catnum': follow(SCH_NS('catalogNumber'))},
+                # debug=sys.stderr, # Uncomment to debug
+            )
+        ),
 
-BOOK_TYPE = 'http://schema.org/Book'
-SCH = SCHEMA_ORG = 'http://schema.org/'
-EXAMPLE_ORG = 'http://example.org/'
+        SCH_NS('Person'): ( 
+            materialize(MB_NS('Artist'),
+                fprint=[
+                    (MB_NS('name'), var('aname')),
+                ],
+                links=[
+                    (MB_NS('name'), var('aname')),
+                    (MB_NS('remark'), var('comment')),
+                ],
+                vars={'aname': follow(SCH_NS('name')), 'comment': follow(SCH_NS('comment'))},
+            )
+        )
+    }
 
-BOOK_ID = 'http://example.org/book/catcher-in-the-rye'
-SCHEMA_NAME = I(iri.absolutize('name', SCHEMA_ORG))
-SCHEMA_AUTHOR = I(iri.absolutize('author', SCHEMA_ORG))
-XXX_WROTE = 'http://example.org/wrote'
+    TRANSFORM_RULES = {
+        (SCH_NS('name'), R_TYP, RG_TYP): link(rel=MB_NS('title')),
 
-# Not really needed.
-IN_M = memory.connection(baseiri='http://example.org/')
+        (SCH_NS('byArtist'), R_TYP): link(rel=MB_NS('by'), target=lookup('@resource')),
+    }
 
-BOOK_CASES = []
+    # Intentionally shadows the global LABELIZE_RULES
+    LABELIZE_RULES = {
+        MB_NS('ReleaseGroup'): follow(MB_NS('title')),
+        MB_NS('Release'): follow(MB_NS('title')),
+        MB_NS('Artist'): follow(MB_NS('name'))
+    }
 
-transforms = {
-    'id': ignore(),
-    'title': link(rel=SCH+'name'),
-    'author': materialize(SCH+'Person', rel=SCH+'author', unique=[(SCH+'name', target())], links=[(SCH+'name', target())]),
-    'link': link(rel=SCH+'link'),
-    'cover': link(rel=SCH+'cover'),
-}
+    ppl = generic_pipeline(FINGERPRINT_RULES, TRANSFORM_RULES, LABELIZE_RULES)
 
-def asserter(out_m):
-    assert out_m.size() == 7, repr(out_m)
-    assert next(out_m.match(BOOK_ID, VTYPE_REL))[TARGET] == BOOK_TYPE
-    assert next(out_m.match(BOOK_ID, SCHEMA_NAME))[TARGET] == 'The Catcher in the Rye'
-    author = next(out_m.match(BOOK_ID, SCHEMA_AUTHOR, None))[TARGET]
-    assert next(out_m.match(author, SCHEMA_NAME), None)[TARGET] == 'J.D. Salinger'
+    modout = ppl.run(input_model=modin)
+    # Use -s to see this
+    print('='*10, 'test_basics_4', '='*10)
+    literate.write(modout)
+    # import pprint; pprint.pprint(list(iter(modout)))
 
-BOOK_CASES.append(('simple1', transforms, asserter))
-
-# Inverted form
-transforms = {
-    'id': ignore(),
-    'title': link(rel=SCH+'name'),
-    #For testing; doesn't make much sense, really, otherwise 
-    'author': link(
-        origin=materialize(
-            SCH+'Person',
-            unique=[(SCH+'name', target())],
-            links=[(SCH+'name', target())],
-            attach=False),
-        rel=XXX_WROTE,
-        target=origin()),
-    'link': link(rel=SCH+'link'),
-    'cover': link(rel=SCH+'cover'),
-}
-
-def asserter(out_m):
-    #import pprint; pprint.pprint(out_m)
-    assert out_m.size() == 7, repr(out_m)
-    assert next(out_m.match(BOOK_ID, VTYPE_REL))[TARGET] == BOOK_TYPE
-    assert next(out_m.match(BOOK_ID, SCHEMA_NAME))[TARGET] == 'The Catcher in the Rye'
-    author = next(out_m.match(None, XXX_WROTE), BOOK_ID)[ORIGIN]
-    assert next(out_m.match(author, SCHEMA_NAME), None)[TARGET] == 'J.D. Salinger'
-
-
-BOOK_CASES.append(('inverted1', transforms, asserter))
-
-#    'author': link(rel=SCH+'author') materialize(SCH+'Person', unique=[(SCH+'name', run('target'))], links=[(SCH+'name', target()), (None, SCH+'wrote', origin())]),
-
-
-@pytest.mark.parametrize('label,transforms,asserter', BOOK_CASES)
-def test_book_cases(label, transforms, asserter):
-    idg = idgen(EXAMPLE_ORG)
-    existing_ids = set()
-    out_m = memory.connection(baseiri='http://example.org/')
-
-    rid = SIMPLE_BOOK['id']
-    out_m.add(rid, VTYPE_REL, BOOK_TYPE)
-
-    for k, v in SIMPLE_BOOK.items():
-        ctxlink = (rid, k, v, {})
-        func = transforms.get(k)
-        if func:
-            ctx = context(ctxlink, IN_M, out_m, base=SCHEMA_ORG, idgen=idg)
-            func(ctx)
-
-    asserter(out_m)
+    assert len(modout) == 16
+    assert len(list(util.all_origins(modout, only_types={MB_NS('ReleaseGroup')}))) == 1
+    assert len(list(util.all_origins(modout, only_types={MB_NS('ReleaseGroup')}))) == 1
+    assert len(list(util.all_origins(modout, only_types={MB_NS('Artist')}))) == 2
+    # assert len(list(modout.match(None, BF_NS('birthDate'), '1919-01-01'))) == 1
+    # DOC_NS('md') -> I('i5GvPVm7ClA') in the transform
+    assert [ l[0] for l in modout.match(None, MB_NS('remark'), 'test')] == [I('i5GvPVm7ClA')]
 
 
 if __name__ == '__main__':
