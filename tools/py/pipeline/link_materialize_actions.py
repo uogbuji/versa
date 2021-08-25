@@ -178,6 +178,20 @@ def materialize(typ, rel=None, origin=None, unique=None, fprint=None, links=None
         else:
             def log_debug(msg):
                 print(msg, file=debug)
+
+        # Set up variables to be made available in any derived contexts
+        vars_items = list((vars or {}).items())
+        if vars_items:
+            # First make sure we're not tainting the passed-in context
+            ctx = ctx.copy(variables=ctx.variables.copy())
+            for k, v in vars_items:
+                if None in (k, v): continue
+                #v = v if isinstance(v, list) else [v]
+                v = v(ctx) if is_pipeline_action(v) else v
+                if v:
+                    v = v[0] if isinstance(v, list) else v
+                    ctx.variables[k] = v
+
         (o, r, t, a) = ctx.current_link
         if isinstance(typ, COPY):
             object_copy = typ
@@ -198,19 +212,6 @@ def materialize(typ, rel=None, origin=None, unique=None, fprint=None, links=None
         # If the rel in the incoming context is null and there is no rel passed in, nothing to attach
         # Especially useful signal in a pipeline's fingerprinting stage
         attach_ = False if rel is None and r is None else attach
-
-        # Set up variables to be made available in any derived contexts
-        vars_items = list((vars or {}).items())
-        if vars_items:
-            # First make sure we're not tainting the passed-in context
-            ctx = ctx.copy(variables=ctx.variables.copy())
-            for k, v in vars_items:
-                if None in (k, v): continue
-                #v = v if isinstance(v, list) else [v]
-                v = v(ctx) if is_pipeline_action(v) else v
-                if v:
-                    v = v[0] if isinstance(v, list) else v
-                    ctx.variables[k] = v
 
         if '@added-links' not in ctx.extras: ctx.extras['@added-links'] = set()
 
