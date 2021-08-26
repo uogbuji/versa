@@ -120,7 +120,8 @@ def write(model, out=sys.stdout, base=None, schema=None, shorteners=None):
 # GENERAL_ESCAPE_PAT = re.compile(r'([\\]|)')
 
 # FIXME: Make < pattern stricter, to avoid false positives
-LINE_START_ESCAPE_PAT = re.compile(r'^(#|\*|-|=|<|_)')
+# LINE_START_ESCAPE_PAT = re.compile(r'^(#|\*|-|=|<|_)')
+LINE_START_ESCAPE_PAT = re.compile(r'^(#|\*|-|=|<|_|\[|\])')
 LINE_START_AFTER_SPACE_ESCAPE_PAT = re.compile(r'^(\s+)(\*|-)')
 GLOBAL_REPLS = '>'
 
