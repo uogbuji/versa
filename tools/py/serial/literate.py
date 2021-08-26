@@ -122,6 +122,7 @@ def write(model, out=sys.stdout, base=None, schema=None, shorteners=None):
 # FIXME: Make < pattern stricter, to avoid false positives
 LINE_START_ESCAPE_PAT = re.compile(r'^(#|\*|-|=|<|_)')
 LINE_START_AFTER_SPACE_ESCAPE_PAT = re.compile(r'^(\s+)(\*|-)')
+GLOBAL_REPLS = '>'
 
 def md_escape(t):
     '''
@@ -140,5 +141,7 @@ def md_escape(t):
     oneline_t = ' '.join(t.splitlines())
     subbed_t = LINE_START_ESCAPE_PAT.sub(r'\\\1', oneline_t)
     subbed_t = LINE_START_AFTER_SPACE_ESCAPE_PAT.sub(r'\1\\\2', subbed_t)
+    for c in GLOBAL_REPLS:
+        subbed_t = subbed_t.replace(c, '\\' + c)
     # subbed_t = ESCAPE_MD_PAT.sub(lambda m: '\\'+m.group(1))
     return subbed_t
