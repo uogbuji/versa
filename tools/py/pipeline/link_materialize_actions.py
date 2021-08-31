@@ -189,7 +189,7 @@ def materialize(typ, rel=None, origin=None, unique=None, fprint=None, links=None
                 #v = v if isinstance(v, list) else [v]
                 v = v(ctx) if is_pipeline_action(v) else v
                 if v:
-                    v = v[0] if isinstance(v, list) else v
+                    # v = v[0] if isinstance(v, list) else v
                     ctx.variables[k] = v
 
         (o, r, t, a) = ctx.current_link
