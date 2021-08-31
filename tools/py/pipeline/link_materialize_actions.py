@@ -232,7 +232,7 @@ def materialize(typ, rel=None, origin=None, unique=None, fprint=None, links=None
                 continue
 
             computed_fprint = [] if _fprint else None
-            rtypes = set([_typ])
+            rtypes = set(_typ if isinstance(_typ, list) else [_typ])
             if _fprint:
                 # strip None values from computed unique list, including pairs where v is None
                 for k, v in _fprint:
