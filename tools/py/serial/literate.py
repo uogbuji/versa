@@ -123,7 +123,7 @@ def write(model, out=sys.stdout, base=None, schema=None, shorteners=None):
 # LINE_START_ESCAPE_PAT = re.compile(r'^(#|\*|-|=|<|_)')
 LINE_START_ESCAPE_PAT = re.compile(r'^(#|\*|-|=|<|_|\[|\])')
 LINE_START_AFTER_SPACE_ESCAPE_PAT = re.compile(r'^(\s+)(\*|-)')
-GLOBAL_REPLS = '>'
+GLOBAL_REPLS = '`>'
 
 def md_escape(t):
     '''
