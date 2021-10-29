@@ -11,3 +11,5 @@ RDF_TYPE = RDF_TYPE_REL = RDF_NS('type')
 
 VFPRINT_REL = VERSA_BASEIRI('fingerprint')
 
+VFPRINT_REL = I(VERSA_BASEIRI + 'fingerprint')
+

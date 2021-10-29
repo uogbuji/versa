@@ -12,11 +12,11 @@ import os
 # Requires pytest-mock
 import pytest
 
-from versa import I, VERSA_BASEIRI, VTYPE_REL, VLABEL_REL, ORIGIN, RELATIONSHIP, TARGET
+from amara3 import iri
+from versa import I, VERSA_BASEIRI, ORIGIN, RELATIONSHIP, TARGET
 from versa import util
 from versa.driver.memory import newmodel
-from versa.serial import csv, literate, mermaid
-from versa.pipeline import *
+from versa.serial import literate
 
 SCH_NS = I('https://schema.org/')
 BF_NS = I('http://bibfra.me/')
