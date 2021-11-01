@@ -396,6 +396,8 @@ def lookup(mapping, key=None, onmiss=None):
             _onmiss = key
         elif onmiss == SKIP:
             _onmiss = None
+        if isinstance(_key, list):
+            _key = next(iter(_key), None)
         result = _mapping.get(_key, _onmiss)
         return result
     _lookup.is_pipeline_action = True

@@ -178,6 +178,20 @@ def materialize(typ, rel=None, origin=None, unique=None, fprint=None, links=None
         else:
             def log_debug(msg):
                 print(msg, file=debug)
+
+        # Set up variables to be made available in any derived contexts
+        vars_items = list((vars or {}).items())
+        if vars_items:
+            # First make sure we're not tainting the passed-in context
+            ctx = ctx.copy(variables=ctx.variables.copy())
+            for k, v in vars_items:
+                if None in (k, v): continue
+                #v = v if isinstance(v, list) else [v]
+                v = v(ctx) if is_pipeline_action(v) else v
+                if v:
+                    # v = v[0] if isinstance(v, list) else v
+                    ctx.variables[k] = v
+
         (o, r, t, a) = ctx.current_link
         if isinstance(typ, COPY):
             object_copy = typ
@@ -199,19 +213,6 @@ def materialize(typ, rel=None, origin=None, unique=None, fprint=None, links=None
         # Especially useful signal in a pipeline's fingerprinting stage
         attach_ = False if rel is None and r is None else attach
 
-        # Set up variables to be made available in any derived contexts
-        vars_items = list((vars or {}).items())
-        if vars_items:
-            # First make sure we're not tainting the passed-in context
-            ctx = ctx.copy(variables=ctx.variables.copy())
-            for k, v in vars_items:
-                if None in (k, v): continue
-                #v = v if isinstance(v, list) else [v]
-                v = v(ctx) if is_pipeline_action(v) else v
-                if v:
-                    v = v[0] if isinstance(v, list) else v
-                    ctx.variables[k] = v
-
         if '@added-links' not in ctx.extras: ctx.extras['@added-links'] = set()
 
         # Make sure we end up with a list or None
@@ -230,8 +231,9 @@ def materialize(typ, rel=None, origin=None, unique=None, fprint=None, links=None
             if not o: #Defensive coding
                 continue
 
-            computed_fprint = [] if _fprint else None
-            rtypes = set([_typ])
+            computed_fprint = set()
+            first_type = _typ[0] if isinstance(_typ, list) else _typ
+            rtypes = set(_typ if isinstance(_typ, list) else [_typ])
             if _fprint:
                 # strip None values from computed unique list, including pairs where v is None
                 for k, v in _fprint:
@@ -241,13 +243,16 @@ def materialize(typ, rel=None, origin=None, unique=None, fprint=None, links=None
                         if subval:
                             subval = subval if isinstance(subval, list) else [subval]
                             if k == VTYPE_REL: rtypes.update(set(subval))
-                            computed_fprint.extend([(k, s) for s in subval])
+                            computed_fprint.update(set([(k, s) for s in subval]))
+            for t in rtypes:
+                if t != first_type:
+                    computed_fprint.add((VTYPE_REL, t))
             log_debug(f'Provided fingerprinting info: {computed_fprint}')
 
             if object_copy:
                 objid = object_copy.id
             else:
-                objid = materialize_entity(ctx_stem, _typ, fprint=computed_fprint)
+                objid = materialize_entity(ctx_stem, first_type, fprint=computed_fprint)
             objids.append(objid)
             log_debug(f'Newly materialized object: {objid}')
             # rels = [ ('_' + curr_rel if curr_rel.isdigit() else curr_rel) for curr_rel in rels if curr_rel ]
@@ -266,14 +271,14 @@ def materialize(typ, rel=None, origin=None, unique=None, fprint=None, links=None
             # print((objid, ctx_.existing_ids))
             # XXX: Means links are only processed on new objects! This needs some thought
             if objid not in ctx_stem.existing_ids:
-                if _typ:
-                    _smart_add(ctx_stem.output_model, I(objid), VTYPE_REL, I(iri.absolutize(_typ, ctx_stem.base)), (), ctx.extras['@added-links'])
+                if first_type:
+                    _smart_add(ctx_stem.output_model, I(objid), VTYPE_REL, I(iri.absolutize(first_type, ctx_stem.base)), (), ctx.extras['@added-links'])
                 if preserve_fprint:
                     # Consolidate types
                     computed_fprint = [ (k, v) for (k, v) in computed_fprint if k != VTYPE_REL ]
                     # computed_fprint += 
                     attrs = tuple(computed_fprint + [(VTYPE_REL, r) for r in rtypes])
-                    _smart_add(ctx_stem.output_model, I(objid), VFPRINT_REL, _typ, attrs, ctx.extras['@added-links'])
+                    _smart_add(ctx_stem.output_model, I(objid), VFPRINT_REL, first_type, attrs, ctx.extras['@added-links'])
 
                 # XXX: Use Nones to mark blanks, or should Versa define some sort of null resource?
                 all_links = object_copy.links + links if object_copy else links
