@@ -5,16 +5,17 @@
 * label: Uche Ogbuji's poems
 * @iri:
     * @base: http://uche.ogbuji.net/poems/
+    * @schema: http://uche.ogbuji.net/schema/
 
-# [Poem]
+# http://www.staxtes.com/2013/10/ [Poem]
 
 * updated: 2013-10-15
 * link: http://www.staxtes.com/2013/10/uche-ogbuji-sunlight-stealing-over.html
 * title: "Lashed," "Fire Next Time," "Zounds," "Brandy Lève Tôt" & "Twit Jug."
-* source_link: http://www.staxtes.com
+* source_link: <http://www.staxtes.com>
 * source_title: Stachtes
-* author_name: Uche Ogbuji
-* author_link: http://uche.ogbuji.net
+* author_name: "Uche Ogbuji"
+* author_link: <http://uche.ogbuji.net>
 * author_addr: uche@ogbuji.net
 * summary: It's as if that vengeful god has called;
 He's up the sky soon to be burst with terrors
