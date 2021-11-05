@@ -98,7 +98,7 @@ OPCOMMENT       = Optional(COMMENT)
 IDENT           = Word(alphas, alphanums + '_' + '-')
 IDENT_KEY       = Combine(Optional('@') + IDENT).leaveWhitespace()
 # EXPLICIT_IRI    = QuotedString('<', end_quote_char='>')
-QUOTED_STRING   = MatchFirst((QuotedString('"'), QuotedString("'"))) \
+QUOTED_STRING   = MatchFirst((QuotedString('"', escChar='\\'), QuotedString("'", escChar='\\'))) \
                     .setParseAction(literal_parse_action)
 # See: https://rdflib.readthedocs.io/en/stable/_modules/rdflib/plugins/sparql/parser.html
 IRIREF          = Regex(r'[^<>"{}|^`\\\[\]%s]*' % "".join(
