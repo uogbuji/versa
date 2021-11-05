@@ -153,15 +153,14 @@ def parse(vlit, model, encoding='utf-8', config=None):
     if config.get('autotype-h2'): syntaxtypemap['h2'] = config.get('autotype-h2')
     if config.get('autotype-h3'): syntaxtypemap['h3'] = config.get('autotype-h3')
     interp_stanza = config.get('interpretations', {})
-    interpretations = {}
 
-    setup_interpretations(interp_stanza)
+    interp = setup_interpretations(interp_stanza)
 
     # Prep ID generator, in case needed
     idg = idgen(None)
 
     # Set up doc info
-    doc = doc_info(iri=None, resbase=None, schemabase=None, rtbase=None, iris=None, interp={}, lang={})
+    doc = doc_info(iri=None, resbase=None, schemabase=None, rtbase=None, iris=None, interp=interp, lang={})
 
     parsed = resource_seq.parseString(vlit)
 
@@ -173,6 +172,7 @@ def parse(vlit, model, encoding='utf-8', config=None):
 
 def setup_interpretations(interp):
     #Map the interpretation IRIs to functions to do the data prep
+    interpretations = {}
     for prop, interp_key in interp.items():
         if interp_key.startswith('@'):
             interp_key = iri.absolutize(interp_key[1:], VERSA_BASEIRI)
@@ -181,6 +181,7 @@ def setup_interpretations(interp):
         else:
             #just use the identity, i.e. no-op
             interpretations[prop] = lambda x, **kwargs: x
+    return interpretations
 
 
 def expand_iri(iri_in, base):
@@ -228,7 +229,8 @@ def process_resblock(resblock, model, doc):
             attrs = {}
 
             pname = prop.key
-            prop.value, typeindic = prop.value.verbatim, prop.value.typeindic
+            if prop.value:
+                prop.value, typeindic = prop.value.verbatim, prop.value.typeindic
             prop.key = expand_iri(pname, doc.schemabase)
             if typeindic == RES_VAL:
                 prop.value = expand_iri(prop.value, doc.rtbase)
@@ -279,17 +281,17 @@ def process_docheader(props, model, doc):
             current_outer_prop = prop
             #Setting an IRI for this very document being parsed
             if prop.key == '@document':
-                doc.iri = prop.value
+                doc.iri = prop.value.verbatim
             elif prop.key == '@language':
-                doc.lang = prop.value
+                doc.lang = prop.value.verbatim
             #If we have a resource to which to attach them, just attach all other properties
             elif doc.iri:
                 fullprop = I(iri.absolutize(prop.key, doc.schemabase))
                 if fullprop in doc.interp:
-                    val = doc.interp[fullprop](prop.value, rid=doc.iri, fullprop=fullprop, base=doc.resbase, model=model)
+                    val = doc.interp[fullprop](prop.value.verbatim, rid=doc.iri, fullprop=fullprop, base=doc.resbase, model=model)
                     if val is not None: model.add(doc.iri, fullprop, val)
                 else:
-                    model.add(doc.iri, fullprop, prop.value)
+                    model.add(doc.iri, fullprop, prop.value.verbatim)
         elif current_outer_prop.key == '@iri':
             k, uri = prop.key, prop.value.verbatim
             if k == '@base':
@@ -303,9 +305,9 @@ def process_docheader(props, model, doc):
         # @interpretations section is where defaults can be set as to the primitive types of values from the Markdown, based on the relevant property/relationship
         # Note: @iri section must come before @interpretations
         elif current_outer_prop.key == '@interpretations':
-            k, uri = prop.key, prop.value
-            doc.interp[I(iri.absolutize(k, doc.schemabase))] = uri
-            setup_interpretations(doc.interp)
+            k, uri = prop.key, prop.value.verbatim
+            interp_basis = {I(iri.absolutize(k, doc.schemabase)): uri}
+            doc.interp.update(setup_interpretations(interp_basis))
     return
 
 
@@ -325,6 +327,7 @@ def handle_resourceset(ltext, **kwargs):
 
 PREP_METHODS = {
     VERSA_BASEIRI + 'text': lambda x, **kwargs: x,
+    # '@text': lambda x, **kwargs: x,
     VERSA_BASEIRI + 'resource': lambda x, base=VERSA_BASEIRI, **kwargs: I(iri.absolutize(x, base)),
     VERSA_BASEIRI + 'resourceset': handle_resourceset,
 }
