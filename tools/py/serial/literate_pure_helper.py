@@ -189,13 +189,13 @@ def expand_iri(iri_in, base):
         return I(iri.absolutize(iri_in[1:], VERSA_BASEIRI))
     iri_match = URI_EXPLICIT_PAT.match(iri_in)
     if iri_match:
-        return I(iri.absolutize(iri_match.group(1), base))
+        return iri_match.group(1) if base is None else I(iri.absolutize(iri_match.group(1), base))
     iri_match = URI_ABBR_PAT.match(iri_in)
     if iri_match:
         uri = iris[iri_match.group(1)]
         fulliri = URI_ABBR_PAT.sub(uri + '\\2\\3', iri_in)
     else:
-        fulliri = I(iri.absolutize(iri_in, base))
+        fulliri = iri_in if base is None else I(iri.absolutize(iri_in, base))
     return fulliri
 
 
