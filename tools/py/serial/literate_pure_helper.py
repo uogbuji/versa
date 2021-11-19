@@ -184,7 +184,7 @@ def setup_interpretations(interp):
     return interpretations
 
 
-def expand_iri(iri_in, base):
+def expand_iri(iri_in, base, relcontext=None):
     if iri_in.startswith('@'):
         return I(iri.absolutize(iri_in[1:], VERSA_BASEIRI))
     iri_match = URI_EXPLICIT_PAT.match(iri_in)
@@ -195,6 +195,10 @@ def expand_iri(iri_in, base):
         uri = iris[iri_match.group(1)]
         fulliri = URI_ABBR_PAT.sub(uri + '\\2\\3', iri_in)
     else:
+        # Replace upstream ValueError with our own
+        if relcontext and not(iri.matches_uri_ref_syntax(iri_in)):
+            # FIXME: Replace with a Versa-specific error
+            raise ValueError(f'Invalid IRI reference provided for relation {relcontext}: "{iri_in}"')
         fulliri = iri_in if base is None else I(iri.absolutize(iri_in, base))
     return fulliri
 
@@ -211,7 +215,7 @@ def process_resblock(resblock, model, doc):
     # typeindic = RES_VAL | TEXT_VAL | UNKNOWN_VAL
     # FIXME: Use syntaxtypemap
     if rtype:
-        model.add(rid, TYPE_REL, rtype)
+        model.add(rid, TYPE_REL, expand_iri(rtype, doc.schemabase))
 
     outer_indent = -1
     current_outer_prop = None
@@ -233,7 +237,7 @@ def process_resblock(resblock, model, doc):
                 prop.value, typeindic = prop.value.verbatim, prop.value.typeindic
             prop.key = expand_iri(pname, doc.schemabase)
             if typeindic == RES_VAL:
-                prop.value = expand_iri(prop.value, doc.rtbase)
+                prop.value = expand_iri(prop.value, doc.rtbase, relcontext=prop.key)
             elif typeindic == TEXT_VAL:
                 if '@lang' not in attrs and doc.lang:
                     attrs['@lang'] = doc.lang
