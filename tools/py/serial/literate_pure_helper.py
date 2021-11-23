@@ -136,7 +136,7 @@ def parse(vlit, model, encoding='utf-8', config=None):
     Returns: The overall base URI (`@base`) specified in the Markdown file, or None
 
     >>> from versa.driver.memory import newmodel
-    >>> from versa.serial.literate_pure_helper import parse
+    >>> from versa.serial.literate import parse # Delegates to literate_pure_helper.parse
     >>> m = newmodel()
     >>> parse(open('test/resource/poetry.md').read(), m)
     'http://uche.ogbuji.net/poems/'
@@ -200,7 +200,7 @@ def expand_iri(iri_in, base, relcontext=None):
             # FIXME: Replace with a Versa-specific error
             raise ValueError(f'Invalid IRI reference provided for relation {relcontext}: "{iri_in}"')
         fulliri = iri_in if base is None else I(iri.absolutize(iri_in, base))
-    return fulliri
+    return I(fulliri)
 
 
 def process_resblock(resblock, model, doc):
@@ -250,11 +250,11 @@ def process_resblock(resblock, model, doc):
             aval, typeindic = aval.verbatim, aval.typeindic
             fullaprop = expand_iri(aprop, doc.schemabase)
             if atype == RES_VAL:
-                val = expand_iri(aval, doc.rtbase)
+                aval = expand_iri(aval, doc.rtbase)
                 valmatch = URI_ABBR_PAT.match(aval)
                 if valmatch:
-                    uri = doc.iris[valmatch.group(1)]
-                    attrs[fullaprop] = URI_ABBR_PAT.sub(uri + '\\2\\3', aval)
+                    uri = doc.iris[I(valmatch.group(1))]
+                    attrs[fullaprop] = I(URI_ABBR_PAT.sub(uri + '\\2\\3', aval))
                 else:
                     attrs[fullaprop] = I(iri.absolutize(aval, doc.rtbase))
             elif atype == TEXT_VAL:
