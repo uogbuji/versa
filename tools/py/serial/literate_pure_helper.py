@@ -212,6 +212,7 @@ def process_resblock(resblock, model, doc):
         process_docheader(props, model, doc)
         return
 
+    rid = expand_iri(rid, doc.resbase)
     # typeindic = RES_VAL | TEXT_VAL | UNKNOWN_VAL
     # FIXME: Use syntaxtypemap
     if rtype:
