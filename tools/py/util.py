@@ -37,6 +37,11 @@ def lookup(m, orig, rel):
         yield link[TARGET]
 
 
+def lookup_byvalue(m, rel, target):
+    links = list(m.match(None, rel, target))
+    return [ l[ORIGIN] for l in links]
+
+
 def transitive_closure(m, orig, rel):
     '''
     Generate the closure over a transitive relationship in depth-first fashion
