@@ -21,7 +21,7 @@ from pyparsing import * # pip install pyparsing==3.0.0.rc1
 # from amara3 import iri # for absolutize & matches_uri_syntax
 ParserElement.setDefaultWhitespaceChars(' \t')
 
-from versa import I, VERSA_BASEIRI
+from versa import I, VERSA_BASEIRI, VERSA_NULL
 
 URI_ABBR_PAT = re.compile('@([\\-_\\w]+)([#/@])(.+)', re.DOTALL)
 URI_EXPLICIT_PAT = re.compile('<(.+)>', re.DOTALL)
@@ -185,6 +185,8 @@ def setup_interpretations(interp):
 
 
 def expand_iri(iri_in, base, relcontext=None):
+    if iri_in is None:
+        return VERSA_NULL
     if iri_in.startswith('@'):
         return I(iri.absolutize(iri_in[1:], VERSA_BASEIRI))
     iri_match = URI_EXPLICIT_PAT.match(iri_in)
