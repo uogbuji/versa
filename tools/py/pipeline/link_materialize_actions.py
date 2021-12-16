@@ -85,10 +85,12 @@ def _smart_add(model, origin, rel, target, attrs, already_added):
     model - model to which the link should be added
     origin, rel, target - parts of the link
     attrs - tuple of key/value pairs for the link
-    already_added - set of previously added links
+    already_added - set of previously added link hashes
     '''
     attr_dict = {}
-    if (origin, rel, target, attrs) not in (already_added):
+    newhash = hash(util.make_immutable((origin, rel, target, attrs))) & util.HASHMASK
+
+    if newhash not in already_added:
         for (k, v) in attrs:
             if k not in attr_dict:
                 attr_dict[k] = v
@@ -97,7 +99,7 @@ def _smart_add(model, origin, rel, target, attrs, already_added):
             else:
                 attr_dict[k] = [attr_dict[k], v]
         model.add(origin, rel, target, attr_dict)
-        already_added.add((origin, rel, target, attrs))
+        already_added.add(newhash)
     return
 
 

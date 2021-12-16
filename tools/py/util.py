@@ -299,3 +299,32 @@ class OrderedJsonEncoder(json.JSONEncoder):
         else:
             return json.JSONEncoder.encode(self, o)
 
+
+# Helper for slightly friendlier (non-crypto) hashes
+HASHMASK = (1 << sys.hash_info.width) - 1
+
+
+def make_immutable(obj):
+    if isinstance(obj, list) or isinstance(obj, set):
+        out = []
+        for elem in obj:
+            v = make_immutable(elem)
+            out.append(v)
+        return tuple(out)
+        # XXX Maybe frozenset(out) instead if obj is set?
+    if isinstance(obj, dict):
+        out = []
+        for k, v in obj.items():
+            vv = make_immutable(v)
+            out.append((k, vv))
+        return tuple(out)
+    return obj
+    # FIXME: Think about handling instances
+    # elif hasattr(obj, '__dict__'):
+    #     out = []
+    #     for k, v in obj.items():
+    #         vv = make_immutable(v)
+    #         out.append((k, vv))
+    #     return tuple(out)
+
+

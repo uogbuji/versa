@@ -175,6 +175,11 @@ class connection(connection_base):
         #assert isinstance(origin, str) and isinstance(origin, str) and isinstance(origin, str) and isinstance(origin, dict), (origin, rel, target, attrs)
 
         item = (origin, rel, target, attrs)
+
+        # Refuse dupes
+        if item in self._relationships:
+            return
+
         if index is not None:
             rid = index
             self._relationships.insert(index, item)

@@ -315,7 +315,8 @@ class definition:
                             Ensures we capture additional entities created by
                             pipeline actions during this fingerprint phase
                             '''
-                            out_rids.add(eid)
+                            if out_rids is not None:
+                                out_rids.add(eid)
 
                         # None relationship here acts as a signal to actions
                         # such as materialize to not try to attach the newly created
@@ -332,6 +333,7 @@ class definition:
                         mains.update(main_ridouts), others.update(out_rids)
                         others -= mains
                         new_rids.update(out_rids)
+                        out_rids = None
         return new_rids
 
     def transform_by_rel_helper(self, rules, origins=None, handle_misses=None,
