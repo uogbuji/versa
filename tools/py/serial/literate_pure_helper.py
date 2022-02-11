@@ -236,17 +236,17 @@ def process_resblock(resblock, model, doc):
             attrs = {}
 
             pname = prop.key
+            prop.key = expand_iri(pname, doc.schemabase)
             if prop.value:
                 prop.value, typeindic = prop.value.verbatim, prop.value.typeindic
-            prop.key = expand_iri(pname, doc.schemabase)
-            if typeindic == RES_VAL:
-                prop.value = expand_iri(prop.value, doc.rtbase, relcontext=prop.key)
-            elif typeindic == TEXT_VAL:
-                if '@lang' not in attrs and doc.lang:
-                    attrs['@lang'] = doc.lang
-            elif typeindic == UNKNOWN_VAL:
-                if prop.key in doc.interp:
-                    prop.value = doc.interp[prop.key](prop.value, rid=rid, fullprop=current_outer_prop.key, base=doc.iri, model=model)
+                if typeindic == RES_VAL:
+                    prop.value = expand_iri(prop.value, doc.rtbase, relcontext=prop.key)
+                elif typeindic == TEXT_VAL:
+                    if '@lang' not in attrs and doc.lang:
+                        attrs['@lang'] = doc.lang
+                elif typeindic == UNKNOWN_VAL:
+                    if prop.key in doc.interp:
+                        prop.value = doc.interp[prop.key](prop.value, rid=rid, fullprop=current_outer_prop.key, base=doc.iri, model=model)
 
         else:
             aprop, aval, atype = prop.key, prop.value, UNKNOWN_VAL
