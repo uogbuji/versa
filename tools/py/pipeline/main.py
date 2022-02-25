@@ -27,12 +27,8 @@ from types import GeneratorType
 
 from amara3 import iri
 
-<<<<<<< HEAD
 from versa import I, VERSA_BASEIRI, ORIGIN, RELATIONSHIP, TARGET, ATTRIBUTES, VTYPE_REL, VLABEL_REL
-=======
-from versa import I, VERSA_BASEIRI, ORIGIN, RELATIONSHIP, TARGET, ATTRIBUTES, VTYPE_REL
 from versa.terms import VFPRINT_REL
->>>>>>> 9964c986123e6ee48074aca73a4ab4e237895d2a
 from versa import util
 from versa.util import simple_lookup, OrderedJsonEncoder
 from versa.driver.memory import newmodel
@@ -117,7 +113,6 @@ def resource_id(etype, fprint=None, idgen=default_idgen(None), vocabbase=None):
     '''
     params = {}
     if vocabbase and not iri.is_absolute(etype):
-<<<<<<< HEAD
         etype = vocabbase(etype)
 
     fprint_processed = []
@@ -130,21 +125,6 @@ def resource_id(etype, fprint=None, idgen=default_idgen(None), vocabbase=None):
         fprint_processed.append((VTYPE_REL, etype))
         fprint_processed.sort()
         plaintext = json.dumps(fprint_processed, separators=(',', ':'), cls=OrderedJsonEncoder)
-=======
-        etype = vocabbase + etype
-
-    unique_computed = []
-    for k, v in unique:
-        if vocabbase:
-            #XXX OK absolutize used here. Go figure
-            k = k if iri.is_absolute(k) else iri.absolutize(k, vocabbase)
-        unique_computed.append((k, v))
-
-    if unique_computed:
-        unique_computed.append((VTYPE_REL, etype))
-        unique_computed.sort()
-        plaintext = json.dumps(unique_computed, separators=(',', ':'), cls=OrderedJsonEncoder)
->>>>>>> 9964c986123e6ee48074aca73a4ab4e237895d2a
         eid = idgen.send(plaintext)
     else:
         #We only have a type; no other distinguishing data. Generate a random hash
@@ -175,11 +155,7 @@ def materialize_entity(ctx, etype, fprint=None):
                 vocabbase=ctx.base))
 
 
-<<<<<<< HEAD
 def create_resource(output_model, rtypes, fprint, links, existing_ids=None, id_helper=None, preserve_fprint=False):
-=======
-def create_resource(output_model, rtype, unique, links, existing_ids=None, id_helper=None, preserve_fprint=False):
->>>>>>> 9964c986123e6ee48074aca73a4ab4e237895d2a
     '''
     General-purpose routine to create a new resource in the output model, based on provided resource types and fingerprinting info
 
@@ -213,12 +189,8 @@ def create_resource(output_model, rtype, unique, links, existing_ids=None, id_he
     output_model.add(rid, VTYPE_REL, rtype)
 
     if preserve_fprint:
-<<<<<<< HEAD
         attrs = { k:v for (k,v) in fprint }
         attrs[VTYPE_REL] = rtypes
-=======
-        attrs = { k:v for (k, v) in unique }
->>>>>>> 9964c986123e6ee48074aca73a4ab4e237895d2a
         output_model.add(rid, VFPRINT_REL, rtype, attrs)
 
     for r, t in links:
@@ -226,7 +198,6 @@ def create_resource(output_model, rtype, unique, links, existing_ids=None, id_he
     return (True, rid)
 
 
-<<<<<<< HEAD
 # iritype = object()
 # force_iritype = object()
 
@@ -250,25 +221,6 @@ def stage(sortkey):
         return func
     return _stage
 
-=======
-def create_resource_mt(output_model, rtypes, unique, links, existing_ids=None, id_helper=None, preserve_fprint=False):
-    '''
-    Convenience variation of create_resource which supports multiple entity types.
-    The first is taken as primary
-
-    output_model    - Versa connection to model to be updated
-    rtypes          - Type IRIor list of IRIs for the new resource, set with Versa type
-    unique          - list of key/value pairs for determining a unique hash for the new resource
-    links           - list of key/value pairs for setting properties on the new resource
-    id_helper       - If a string, a base URL for the generatd ID. If callable, a function used to return the entity. If None, set a default good enough for testing.
-    existing_ids    - set of existing IDs to not recreate, or None, in which case a new resource will always be created
-    '''
-    rtypes = rtypes if isinstance(rtypes, list) else [rtypes]
-    rtype, *moretypes = rtypes
-    for t in moretypes:
-        links.append([VTYPE_REL, t])
-    return create_resource(output_model, rtype, unique, links, existing_ids=None, id_helper=None, preserve_fprint=preserve_fprint)
->>>>>>> 9964c986123e6ee48074aca73a4ab4e237895d2a
 
 # Copied from datachef. Move to amara3 core
 def make_list(lvalue, *items):
@@ -363,7 +315,8 @@ class definition:
                             Ensures we capture additional entities created by
                             pipeline actions during this fingerprint phase
                             '''
-                            out_rids.add(eid)
+                            if out_rids is not None:
+                                out_rids.add(eid)
 
                         # None relationship here acts as a signal to actions
                         # such as materialize to not try to attach the newly created
@@ -380,6 +333,7 @@ class definition:
                         mains.update(main_ridouts), others.update(out_rids)
                         others -= mains
                         new_rids.update(out_rids)
+                        out_rids = None
         return new_rids
 
     def transform_by_rel_helper(self, rules, origins=None, handle_misses=None,

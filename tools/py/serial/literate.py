@@ -25,6 +25,15 @@ __all__ = ['parse', 'parse_iter', 'write',
     'longtext', 'md_escape',
 ]
 
+def md_escape(s):
+    # import warnings
+    # warnings.warn('md_escape is no longer needed, and will be removed soon', DeprecationWarning)
+    # Actually, one relevant case: the string starts & ends with </> & user forgot to wrap with quotes
+    stripped = s.strip()
+    if stripped and stripped[0] == '<' and stripped[-1] == '>':
+        s = '\"' + s.replace('"', '\\"') + '\"'
+    return s
+
 
 def longtext(t):
     '''

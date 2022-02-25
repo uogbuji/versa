@@ -21,7 +21,7 @@ from pyparsing import * # pip install pyparsing==3.0.0.rc1
 # from amara3 import iri # for absolutize & matches_uri_syntax
 ParserElement.setDefaultWhitespaceChars(' \t')
 
-from versa import I, VERSA_BASEIRI
+from versa import I, VERSA_BASEIRI, VERSA_NULL
 
 URI_ABBR_PAT = re.compile('@([\\-_\\w]+)([#/@])(.+)', re.DOTALL)
 URI_EXPLICIT_PAT = re.compile('<(.+)>', re.DOTALL)
@@ -98,7 +98,7 @@ OPCOMMENT       = Optional(COMMENT)
 IDENT           = Word(alphas, alphanums + '_' + '-')
 IDENT_KEY       = Combine(Optional('@') + IDENT).leaveWhitespace()
 # EXPLICIT_IRI    = QuotedString('<', end_quote_char='>')
-QUOTED_STRING   = MatchFirst((QuotedString('"'), QuotedString("'"))) \
+QUOTED_STRING   = MatchFirst((QuotedString('"', escChar='\\'), QuotedString("'", escChar='\\'))) \
                     .setParseAction(literal_parse_action)
 # See: https://rdflib.readthedocs.io/en/stable/_modules/rdflib/plugins/sparql/parser.html
 IRIREF          = Regex(r'[^<>"{}|^`\\\[\]%s]*' % "".join(
@@ -136,7 +136,7 @@ def parse(vlit, model, encoding='utf-8', config=None):
     Returns: The overall base URI (`@base`) specified in the Markdown file, or None
 
     >>> from versa.driver.memory import newmodel
-    >>> from versa.serial.literate_pure_helper import parse
+    >>> from versa.serial.literate import parse # Delegates to literate_pure_helper.parse
     >>> m = newmodel()
     >>> parse(open('test/resource/poetry.md').read(), m)
     'http://uche.ogbuji.net/poems/'
@@ -153,15 +153,14 @@ def parse(vlit, model, encoding='utf-8', config=None):
     if config.get('autotype-h2'): syntaxtypemap['h2'] = config.get('autotype-h2')
     if config.get('autotype-h3'): syntaxtypemap['h3'] = config.get('autotype-h3')
     interp_stanza = config.get('interpretations', {})
-    interpretations = {}
 
-    setup_interpretations(interp_stanza)
+    interp = setup_interpretations(interp_stanza)
 
     # Prep ID generator, in case needed
     idg = idgen(None)
 
     # Set up doc info
-    doc = doc_info(iri=None, resbase=None, schemabase=None, rtbase=None, iris=None, interp={}, lang={})
+    doc = doc_info(iri=None, resbase=None, schemabase=None, rtbase=None, iris=None, interp=interp, lang={})
 
     parsed = resource_seq.parseString(vlit)
 
@@ -173,6 +172,7 @@ def parse(vlit, model, encoding='utf-8', config=None):
 
 def setup_interpretations(interp):
     #Map the interpretation IRIs to functions to do the data prep
+    interpretations = {}
     for prop, interp_key in interp.items():
         if interp_key.startswith('@'):
             interp_key = iri.absolutize(interp_key[1:], VERSA_BASEIRI)
@@ -181,21 +181,28 @@ def setup_interpretations(interp):
         else:
             #just use the identity, i.e. no-op
             interpretations[prop] = lambda x, **kwargs: x
+    return interpretations
 
 
-def expand_iri(iri_in, base):
+def expand_iri(iri_in, base, relcontext=None):
+    if iri_in is None:
+        return VERSA_NULL
     if iri_in.startswith('@'):
         return I(iri.absolutize(iri_in[1:], VERSA_BASEIRI))
     iri_match = URI_EXPLICIT_PAT.match(iri_in)
     if iri_match:
-        return I(iri.absolutize(iri_match.group(1), base))
+        return iri_match.group(1) if base is None else I(iri.absolutize(iri_match.group(1), base))
     iri_match = URI_ABBR_PAT.match(iri_in)
     if iri_match:
         uri = iris[iri_match.group(1)]
         fulliri = URI_ABBR_PAT.sub(uri + '\\2\\3', iri_in)
     else:
-        fulliri = I(iri.absolutize(iri_in, base))
-    return fulliri
+        # Replace upstream ValueError with our own
+        if relcontext and not(iri.matches_uri_ref_syntax(iri_in)):
+            # FIXME: Replace with a Versa-specific error
+            raise ValueError(f'Invalid IRI reference provided for relation {relcontext}: "{iri_in}"')
+        fulliri = iri_in if base is None else I(iri.absolutize(iri_in, base))
+    return I(fulliri)
 
 
 def process_resblock(resblock, model, doc):
@@ -207,10 +214,11 @@ def process_resblock(resblock, model, doc):
         process_docheader(props, model, doc)
         return
 
+    rid = expand_iri(rid, doc.resbase)
     # typeindic = RES_VAL | TEXT_VAL | UNKNOWN_VAL
     # FIXME: Use syntaxtypemap
     if rtype:
-        model.add(rid, TYPE_REL, rtype)
+        model.add(rid, TYPE_REL, expand_iri(rtype, doc.schemabase))
 
     outer_indent = -1
     current_outer_prop = None
@@ -228,27 +236,28 @@ def process_resblock(resblock, model, doc):
             attrs = {}
 
             pname = prop.key
-            prop.value, typeindic = prop.value.verbatim, prop.value.typeindic
             prop.key = expand_iri(pname, doc.schemabase)
-            if typeindic == RES_VAL:
-                prop.value = expand_iri(prop.value, doc.rtbase)
-            elif typeindic == TEXT_VAL:
-                if '@lang' not in attrs and doc.lang:
-                    attrs['@lang'] = doc.lang
-            elif typeindic == UNKNOWN_VAL:
-                if prop.key in doc.interp:
-                    prop.value = doc.interp[prop.key](prop.value, rid=rid, fullprop=current_outer_prop.key, base=doc.iri, model=model)
+            if prop.value:
+                prop.value, typeindic = prop.value.verbatim, prop.value.typeindic
+                if typeindic == RES_VAL:
+                    prop.value = expand_iri(prop.value, doc.rtbase, relcontext=prop.key)
+                elif typeindic == TEXT_VAL:
+                    if '@lang' not in attrs and doc.lang:
+                        attrs['@lang'] = doc.lang
+                elif typeindic == UNKNOWN_VAL:
+                    if prop.key in doc.interp:
+                        prop.value = doc.interp[prop.key](prop.value, rid=rid, fullprop=current_outer_prop.key, base=doc.iri, model=model)
 
         else:
             aprop, aval, atype = prop.key, prop.value, UNKNOWN_VAL
             aval, typeindic = aval.verbatim, aval.typeindic
             fullaprop = expand_iri(aprop, doc.schemabase)
             if atype == RES_VAL:
-                val = expand_iri(aval, doc.rtbase)
+                aval = expand_iri(aval, doc.rtbase)
                 valmatch = URI_ABBR_PAT.match(aval)
                 if valmatch:
-                    uri = doc.iris[valmatch.group(1)]
-                    attrs[fullaprop] = URI_ABBR_PAT.sub(uri + '\\2\\3', aval)
+                    uri = doc.iris[I(valmatch.group(1))]
+                    attrs[fullaprop] = I(URI_ABBR_PAT.sub(uri + '\\2\\3', aval))
                 else:
                     attrs[fullaprop] = I(iri.absolutize(aval, doc.rtbase))
             elif atype == TEXT_VAL:
@@ -279,17 +288,17 @@ def process_docheader(props, model, doc):
             current_outer_prop = prop
             #Setting an IRI for this very document being parsed
             if prop.key == '@document':
-                doc.iri = prop.value
+                doc.iri = prop.value.verbatim
             elif prop.key == '@language':
-                doc.lang = prop.value
+                doc.lang = prop.value.verbatim
             #If we have a resource to which to attach them, just attach all other properties
             elif doc.iri:
                 fullprop = I(iri.absolutize(prop.key, doc.schemabase))
                 if fullprop in doc.interp:
-                    val = doc.interp[fullprop](prop.value, rid=doc.iri, fullprop=fullprop, base=doc.resbase, model=model)
+                    val = doc.interp[fullprop](prop.value.verbatim, rid=doc.iri, fullprop=fullprop, base=doc.resbase, model=model)
                     if val is not None: model.add(doc.iri, fullprop, val)
                 else:
-                    model.add(doc.iri, fullprop, prop.value)
+                    model.add(doc.iri, fullprop, prop.value.verbatim)
         elif current_outer_prop.key == '@iri':
             k, uri = prop.key, prop.value.verbatim
             if k == '@base':
@@ -303,9 +312,9 @@ def process_docheader(props, model, doc):
         # @interpretations section is where defaults can be set as to the primitive types of values from the Markdown, based on the relevant property/relationship
         # Note: @iri section must come before @interpretations
         elif current_outer_prop.key == '@interpretations':
-            k, uri = prop.key, prop.value
-            doc.interp[I(iri.absolutize(k, doc.schemabase))] = uri
-            setup_interpretations(doc.interp)
+            k, uri = prop.key, prop.value.verbatim
+            interp_basis = {I(iri.absolutize(k, doc.schemabase)): uri}
+            doc.interp.update(setup_interpretations(interp_basis))
     return
 
 
@@ -325,6 +334,7 @@ def handle_resourceset(ltext, **kwargs):
 
 PREP_METHODS = {
     VERSA_BASEIRI + 'text': lambda x, **kwargs: x,
+    # '@text': lambda x, **kwargs: x,
     VERSA_BASEIRI + 'resource': lambda x, base=VERSA_BASEIRI, **kwargs: I(iri.absolutize(x, base)),
     VERSA_BASEIRI + 'resourceset': handle_resourceset,
 }
