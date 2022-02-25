@@ -96,7 +96,7 @@ def test_basics_2(testresourcepath):
 
     FINGERPRINT_RULES = {
         SCH_NS('Book'): ( 
-            materialize(BF_NS('Instance'),
+            materialize(var('itype'),
                 fprint=[
                     (BF_NS('isbn'), follow(SCH_NS('isbn'))),
                 ],
@@ -114,7 +114,10 @@ def test_basics_2(testresourcepath):
                     )
                 ],
                 # Not really necessary; just testing vars in this scenario
-                vars={'lang': follow(SCH_NS('inLanguage'))}
+                vars={
+                    'lang': follow(SCH_NS('inLanguage')),
+                    'itype': BF_NS('Instance')
+                    }
             )
         )
     }

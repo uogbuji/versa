@@ -49,3 +49,5 @@ VERSA_BASEIRI = I('http://bibfra.me/purl/versa/')
 #Very common Versa:specific types. Analogous to rdf:type & rdfs:label
 VTYPE_REL = I(iri.absolutize('type', VERSA_BASEIRI))
 VLABEL_REL = I(iri.absolutize('label', VERSA_BASEIRI))
+
+VERSA_NULL = VERSA_BASEIRI('NULL')

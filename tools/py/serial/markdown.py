@@ -1,7 +1,9 @@
-# versa.serial.literate
+# versa.serial.markdown
 
 """
 Serialize and deserialize between a Versa model and Versa Literate (Markdown)
+
+Using the old PyMarkdown-based parser
 
 see: doc/literate_format.md
 
@@ -15,8 +17,7 @@ from amara3 import iri
 from versa import I, VERSA_BASEIRI, ORIGIN, RELATIONSHIP, TARGET, VTYPE_REL
 from versa.util import all_origins, resourcetypes
 
-# from versa.serial.markdown_parse import parse
-from versa.serial.literate_pure_helper import parse
+from versa.serial.markdown_parse import parse
 
 TYPE_REL = I(iri.absolutize('type', VERSA_BASEIRI))
 
@@ -24,15 +25,6 @@ __all__ = ['parse', 'parse_iter', 'write',
     # Extras
     'longtext', 'md_escape',
 ]
-
-def md_escape(s):
-    # import warnings
-    # warnings.warn('md_escape is no longer needed, and will be removed soon', DeprecationWarning)
-    # Actually, one relevant case: the string starts & ends with </> & user forgot to wrap with quotes
-    stripped = s.strip()
-    if stripped and stripped[0] == '<' and stripped[-1] == '>':
-        s = '\"' + s.replace('"', '\\"') + '\"'
-    return s
 
 
 def longtext(t):
@@ -124,3 +116,31 @@ def write(model, out=sys.stdout, base=None, schema=None, shorteners=None):
 
         out.write('\n')
     return
+
+
+# ESCAPE_MD_PAT = re.compile(r'([\\\`\*_\{\}\[\]\(\)\#\+\-\.\!])')
+# GENERAL_ESCAPE_PAT = re.compile(r'([\\]|)')
+
+# FIXME: Make < pattern stricter, to avoid false positives
+LINE_START_ESCAPE_PAT = re.compile(r'^(#|\*|-|=|<|_)')
+LINE_START_AFTER_SPACE_ESCAPE_PAT = re.compile(r'^(\s+)(\*|-)')
+
+def md_escape(t):
+    '''
+    Useful resources:
+      * https://wilsonmar.github.io/markdown-text-for-github-from-html/
+
+    >>> from versa.serial.literate import md_escape
+    >>> md_escape('*_\\ abc')
+    ... '\\*\\_\\\\ abc'
+    >>> md_escape(' * spam\n * eggs')
+    ... ' \\* spam  * eggs'
+    '''
+    # Super-simple wouldd be data = re.sub(r'([\\*_])', r'\\\1', data)
+    # subbed_t = ESCAPE_MD_PAT.sub(r'\\\1', t)
+    # Strip newlines, for now. Investigate escaping with more nuance
+    oneline_t = ' '.join(t.splitlines())
+    subbed_t = LINE_START_ESCAPE_PAT.sub(r'\\\1', oneline_t)
+    subbed_t = LINE_START_AFTER_SPACE_ESCAPE_PAT.sub(r'\1\\\2', subbed_t)
+    # subbed_t = ESCAPE_MD_PAT.sub(lambda m: '\\'+m.group(1))
+    return subbed_t

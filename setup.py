@@ -42,6 +42,7 @@ CORE_REQUIREMENTS = [
     'Markdown',
     'python-slugify',
     'click',
+    'pyparsing==3.0.4'
 ]
 
 EXTRA_REQUIREMENTS = [

@@ -151,12 +151,12 @@ def parse(md, model, encoding='utf-8', config=None):
         return lchar + m.group(1) + '>'
     md = IRIREF_CAND_PAT.sub(iri_ref_tool, md)
 
-    #Parse the Markdown
-    #Alternately:
-    #from xml.sax.saxutils import escape, unescape
-    #h = markdown.markdown(escape(md.decode(encoding)), output_format='html5')
-    #Note: even using safe_mode this should not be presumed safe from tainted input
-    #h = markdown.markdown(md.decode(encoding), safe_mode='escape', output_format='html5')
+    # Parse the Markdown
+    # Alternately:
+    # from xml.sax.saxutils import escape, unescape
+    # h = markdown.markdown(escape(md.decode(encoding)), output_format='html5')
+    # Note: even using safe_mode this should not be presumed safe from tainted input
+    # h = markdown.markdown(md.decode(encoding), safe_mode='escape', output_format='html5')
     comments = mkdcomments.CommentsExtension()
     h = markdown.markdown(md, safe_mode='escape', output_format='html5', extensions=[comments])
 
