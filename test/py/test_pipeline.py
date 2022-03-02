@@ -1,9 +1,9 @@
-# test_pipeline.py (use py.test)
+# test_pipeline.py (use pytest)
 '''
 
 Note: to see stdout, stderr & logging regardless of outcome:
 
-py.test -s test/py/test_pipeline.py
+pytest -s test/py/test_pipeline.py
 
 '''
 
@@ -17,6 +17,7 @@ from versa import I, VERSA_BASEIRI, ORIGIN, RELATIONSHIP, TARGET
 from versa import util
 from versa.driver.memory import newmodel
 from versa.serial import literate
+from versa.pipeline import *
 
 SCH_NS = I('https://schema.org/')
 BF_NS = I('http://bibfra.me/')
