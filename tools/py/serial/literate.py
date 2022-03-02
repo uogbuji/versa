@@ -77,7 +77,7 @@ def value_format(val):
         return f'"{val}"'
 
 
-def write(model, out=sys.stdout, base=None, schema=None, shorteners=None):
+def write(model, out=sys.stdout, base=None, schema=None, shorteners=None, canonical=False):
     '''
     models - input Versa model from which output is generated
     '''
@@ -98,29 +98,35 @@ def write(model, out=sys.stdout, base=None, schema=None, shorteners=None):
     out.write('\n\n')
 
     origin_space = set(all_origins(model))
+    if canonical:
+        origin_space = sorted(origin_space)
 
     for o in origin_space:
         # First type found
         # XXX: Maybe there could be a standard primary-type attribute
         # to flag the property with the type to highlight
-        first_type = next(resourcetypes(model, o), None)
+        first_type = next(iter(sorted(resourcetypes(model, o))), None)
         if first_type:
             first_type_str = abbreviate(first_type, all_schema)
             out.write(f'# {o} [{first_type_str}]\n\n')
         else:
             out.write(f'# {o}\n\n')
-        for o_, r, t, a in model.match(o):
+        rels = model.match(o)
+        rels = [ (o_, r, t, sorted(a.items())) for (o_, r, t, a) in rels ]
+        if canonical:
+            rels = sorted(rels)
+        for o_, r, t, a in rels:
             if (r, t) == (VTYPE_REL, first_type): continue
             rendered_r = abbreviate(r, all_schema)
             if isinstance(rendered_r, I):
                 rendered_r = f'<{rendered_r}>'
             value_format(t)
             out.write(f'* {rendered_r}: {value_format(t)}\n')
-            for k, v in a.items():
+            for k, v in a:
                 rendered_k = abbreviate(k, all_schema)
                 if isinstance(rendered_k, I):
                     rendered_r = f'<{rendered_k}>'
-                out.write(f'    * {rendered_k}: {value_format(t)}\n')
+                out.write(f'    * {rendered_k}: {value_format(v)}\n')
 
         out.write('\n')
     return
