@@ -18,9 +18,8 @@ using patterns and declared rules.
 
 import json
 import itertools
-import functools
+# import functools
 from operator import itemgetter
-import logging
 # from enum import Enum #https://docs.python.org/3.4/library/enum.html
 from collections import defaultdict, OrderedDict
 from types import GeneratorType
@@ -122,7 +121,8 @@ def resource_id(etype, fprint=None, idgen=default_idgen(None), vocabbase=None):
         fprint_processed.append((k, v))
 
     if fprint_processed:
-        fprint_processed.append((VTYPE_REL, etype))
+        if (VTYPE_REL, etype) not in fprint_processed:
+            fprint_processed.append((VTYPE_REL, etype))
         fprint_processed.sort()
         plaintext = json.dumps(fprint_processed, separators=(',', ':'), cls=OrderedJsonEncoder)
         eid = idgen.send(plaintext)

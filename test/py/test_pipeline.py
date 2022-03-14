@@ -13,7 +13,7 @@ import os
 import pytest
 
 from amara3 import iri
-from versa import I, VERSA_BASEIRI, ORIGIN, RELATIONSHIP, TARGET
+from versa import I, VTYPE_REL
 from versa import util
 from versa.driver.memory import newmodel
 from versa.serial import literate
@@ -90,7 +90,88 @@ def test_basics_1(testresourcepath, expected_modout1):
     assert len(list(modout.match(None, BF_NS('birthDate'), '1919-01-01'))) == 1
 
 
-def test_basics_2(testresourcepath):
+# Similar to test_basics_2, but with redundant type information given in materialize(links=)
+# With duplicate resources generation to make sure the same output resource ID & fingerprints result
+def test_basics_2(testresourcepath, expected_modout1):
+    modin = newmodel()
+    modin_fpath = 'schemaorg/catcherintherye-ugly.md'
+    literate.parse(open(os.path.join(testresourcepath, modin_fpath)).read(), modin)
+
+    FINGERPRINT_RULES = {
+        SCH_NS('Book'): ( 
+            materialize(BF_NS('Instance'),
+                fprint=[
+                    (BF_NS('isbn'), follow(SCH_NS('isbn'))),
+                ],
+            )
+        )
+    }
+
+    TRANSFORM_RULES = {
+        SCH_NS('name'): link(rel=BF_NS('name')),
+
+        SCH_NS('author'): materialize(BF_NS('Person'),
+                                    BF_NS('creator'),
+                                    vars={
+                                        'birthDate': follow(SCH_NS('authorBirthDate'),
+                                            origin=var('input-resource'))
+                                    },
+                                    fprint=[
+                                        (BF_NS('name'), target()),
+                                        (BF_NS('birthDate'), var('birthDate')),
+                                    ],
+                                    links=[
+                                        (BF_NS('name'), target()),
+                                        (BF_NS('birthDate'), var('birthDate')),
+                                    ]
+        ),
+    }
+
+    ppl = generic_pipeline(FINGERPRINT_RULES, TRANSFORM_RULES, LABELIZE_RULES)
+
+    literate.write(modin)
+    modout = ppl.run(input_model=modin)
+    # Use -s to see this
+    print('='*10, 'test_basics_2, pt 1', '='*10)
+    literate.write(modout)
+
+    assert len(modout) == 8
+    assert len(list(util.all_origins(modout, only_types={BF_NS('Instance')}))) == 1
+    assert len(list(util.all_origins(modout, only_types={BF_NS('Person')}))) == 1
+    assert len(list(modout.match(None, BF_NS('birthDate'), '1919-01-01'))) == 1
+
+    # Run the pipeline again, now with the redundant type info
+    TRANSFORM_RULES[SCH_NS('author')] = materialize(BF_NS('Person'),
+                                    BF_NS('creator'),
+                                    vars={
+                                        'birthDate': follow(SCH_NS('authorBirthDate'),
+                                            origin=var('input-resource'))
+                                    },
+                                    fprint=[
+                                        (BF_NS('name'), target()),
+                                        (BF_NS('birthDate'), var('birthDate')),
+                                        # Here's the redundant type assertion
+                                        (VTYPE_REL, BF_NS('Person')),
+                                    ],
+                                    links=[
+                                        (BF_NS('name'), target()),
+                                        (BF_NS('birthDate'), var('birthDate')),
+                                    ]
+        )
+    ppl = generic_pipeline(FINGERPRINT_RULES, TRANSFORM_RULES, LABELIZE_RULES)
+
+    modout.update(ppl.run(input_model=modin))
+    # Use -s to see this
+    print('='*10, 'test_basics_2, pt 2', '='*10)
+    literate.write(modout, canonical=True)
+
+    assert len(modout) == 8
+    assert len(list(util.all_origins(modout, only_types={BF_NS('Instance')}))) == 1
+    assert len(list(util.all_origins(modout, only_types={BF_NS('Person')}))) == 1
+    assert len(list(modout.match(None, BF_NS('birthDate'), '1919-01-01'))) == 1
+
+
+def test_basics_3(testresourcepath):
     modin = newmodel()
     modin_fpath = 'schemaorg/catcherintherye-ugly.md'
     literate.parse(open(os.path.join(testresourcepath, modin_fpath)).read(), modin)
@@ -154,7 +235,7 @@ def test_basics_2(testresourcepath):
 
     modout = ppl.run(input_model=modin)
     # Use -s to see this
-    print('='*10, 'test_basics_2', '='*10)
+    print('='*10, 'test_basics_3', '='*10)
     literate.write(modout)
     #import pprint; pprint.pprint(list(iter(modout)))
 
@@ -166,7 +247,7 @@ def test_basics_2(testresourcepath):
 
 #SCH_NS('Novelist')
 
-def test_basics_3(testresourcepath):
+def test_basics_4(testresourcepath):
     modin = newmodel()
     modin_fpath = 'schemaorg/catcherintherye-ugly.md'
     literate.parse(open(os.path.join(testresourcepath, modin_fpath)).read(), modin)
@@ -237,7 +318,7 @@ def test_basics_3(testresourcepath):
 
     modout = ppl.run(input_model=modin)
     # Use -s to see this
-    print('='*10, 'test_basics_3', '='*10)
+    print('='*10, 'test_basics_4', '='*10)
     literate.write(modout)
     #import pprint; pprint.pprint(list(iter(modout)))
 
@@ -247,7 +328,7 @@ def test_basics_3(testresourcepath):
     assert len(list(util.all_origins(modout, only_types={BF_NS('Person')}))) == 1
     assert len(list(modout.match(None, BF_NS('birthDate'), '1919-01-01'))) == 1
 
-def test_basics_4(testresourcepath):
+def test_basics_5(testresourcepath):
     '''
     Convert from schema.org to [MusicBrainz scheme](https://musicbrainz.org/doc/MusicBrainz_Database/Schema)
     '''
@@ -317,7 +398,7 @@ def test_basics_4(testresourcepath):
 
     modout = ppl.run(input_model=modin)
     # Use -s to see this
-    print('='*10, 'test_basics_4', '='*10)
+    print('='*10, 'test_basics_5', '='*10)
     literate.write(modout)
     # import pprint; pprint.pprint(list(iter(modout)))
 

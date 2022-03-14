@@ -113,7 +113,7 @@ explicit_iriref = Combine(Suppress("<") + IRIREF + Suppress(">")) \
 
 value_expr      = Combine(explicit_iriref | QUOTED_STRING | rest_of_line).leaveWhitespace()
 prop            = Optional(White(' \t').leaveWhitespace(), '') + Suppress('*' + White()) + IDENT_KEY + Suppress(':') + Optional(value_expr, None)
-propset         = Group(delimited_list(prop, delim='\n'))
+propset         = Group(delimited_list(prop | COMMENT, delim='\n'))
 resource_header = Word('#') + Optional(IRIREF, None) + Optional(QuotedString('[', end_quote_char=']'), None)
 resource_block  = Forward()
 resource_block  << Group(resource_header + White('\n').suppress() + Suppress(ZeroOrMore(blank_line)) + propset)
@@ -223,6 +223,10 @@ def process_resblock(resblock, model, doc):
     outer_indent = -1
     current_outer_prop = None
     for prop in props:
+        if isinstance(prop, str):
+            #Just a comment. Skip.
+            continue
+
         # @iri section is where key IRI prefixes can be set
         # First property encountered determines outer indent
         if outer_indent == -1:
