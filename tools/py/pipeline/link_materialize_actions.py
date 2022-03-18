@@ -1,6 +1,6 @@
 #versa.pipeline.link_materialize_actions
 
-import itertools
+import warnings
 
 from amara3 import iri
 
@@ -195,6 +195,8 @@ def materialize(typ, rel=None, origin=None, unique=None, fprint=None, links=None
                     ctx.variables[k] = v
 
         (o, r, t, a) = ctx.current_link
+        if typ is None:
+            raise ValueError('typ (type) argument to materialize cannot be None')
         if isinstance(typ, COPY):
             object_copy = typ
             object_copy.id = o
@@ -250,6 +252,10 @@ def materialize(typ, rel=None, origin=None, unique=None, fprint=None, links=None
                 if t != first_type:
                     computed_fprint.add((VTYPE_REL, t))
             log_debug(f'Provided fingerprinting info: {computed_fprint}')
+
+            non_type_fprints = [ (k, v) for (k, v) in computed_fprint if k != VTYPE_REL ]
+            if not non_type_fprints:
+                warnings.warn("Only type information was provided for fingerprinting. Unexpected output resource IDs might result.")
 
             if object_copy:
                 objid = object_copy.id

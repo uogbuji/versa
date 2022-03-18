@@ -123,7 +123,8 @@ def test_basics_2(testresourcepath, expected_modout1):
                                     links=[
                                         (BF_NS('name'), target()),
                                         (BF_NS('birthDate'), var('birthDate')),
-                                    ]
+                                    ],
+                                    preserve_fprint=True
         ),
     }
 
@@ -135,12 +136,12 @@ def test_basics_2(testresourcepath, expected_modout1):
     print('='*10, 'test_basics_2, pt 1', '='*10)
     literate.write(modout)
 
-    assert len(modout) == 8
+    assert len(modout) == 9
     assert len(list(util.all_origins(modout, only_types={BF_NS('Instance')}))) == 1
     assert len(list(util.all_origins(modout, only_types={BF_NS('Person')}))) == 1
     assert len(list(modout.match(None, BF_NS('birthDate'), '1919-01-01'))) == 1
 
-    # Run the pipeline again, now with the redundant type info
+    # Run the pipeline again, now with redundant type info
     TRANSFORM_RULES[SCH_NS('author')] = materialize(BF_NS('Person'),
                                     BF_NS('creator'),
                                     vars={
@@ -150,13 +151,14 @@ def test_basics_2(testresourcepath, expected_modout1):
                                     fprint=[
                                         (BF_NS('name'), target()),
                                         (BF_NS('birthDate'), var('birthDate')),
-                                        # Here's the redundant type assertion
+                                        # Redundant type assertion
                                         (VTYPE_REL, BF_NS('Person')),
                                     ],
                                     links=[
                                         (BF_NS('name'), target()),
                                         (BF_NS('birthDate'), var('birthDate')),
-                                    ]
+                                    ],
+                                    preserve_fprint=True
         )
     ppl = generic_pipeline(FINGERPRINT_RULES, TRANSFORM_RULES, LABELIZE_RULES)
 
@@ -165,7 +167,7 @@ def test_basics_2(testresourcepath, expected_modout1):
     print('='*10, 'test_basics_2, pt 2', '='*10)
     literate.write(modout, canonical=True)
 
-    assert len(modout) == 8
+    assert len(modout) == 9
     assert len(list(util.all_origins(modout, only_types={BF_NS('Instance')}))) == 1
     assert len(list(util.all_origins(modout, only_types={BF_NS('Person')}))) == 1
     assert len(list(modout.match(None, BF_NS('birthDate'), '1919-01-01'))) == 1
@@ -362,6 +364,8 @@ def test_basics_5(testresourcepath):
                         ]
                     ))
                 ],
+                # Leads to a warning because catnum will be null
+                # Should actually be picking up release/@catalogNumber
                 vars={'catnum': follow(SCH_NS('catalogNumber'))},
                 # debug=sys.stderr, # Uncomment to debug
             )
