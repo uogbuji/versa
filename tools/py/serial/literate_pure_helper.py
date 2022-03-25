@@ -75,12 +75,12 @@ def make_tree(string, location, tokens):
 
 def make_value(string, location, tokens):
     val = tokens[0].strip()
-    if val[0] == val[-1] and val[0] in '"\'':
+    if isinstance(val, I):
+        typeindic = RES_VAL
+    elif val[0] == val[-1] and val[0] in '"\'':
         typeindic = TEXT_VAL
         val = val[1:-1]
-    elif val[0] == '<' and val[-1] == '>':
-        typeindic = RES_VAL
-        val = val[1:-1]
+    #elif val[0] == '<' and val[-1] == '>':
     else:
         typeindic = UNKNOWN_VAL
 
@@ -112,12 +112,13 @@ explicit_iriref = Combine(Suppress("<") + IRIREF + Suppress(">")) \
                     .setParseAction(iriref_parse_action)
 
 value_expr      = Combine(explicit_iriref | QUOTED_STRING | rest_of_line).leaveWhitespace()
-prop            = Optional(White(' \t').leaveWhitespace(), '') + Suppress('*' + White()) + IDENT_KEY + Suppress(':') + Optional(value_expr, None)
+prop            = Optional(White(' \t').leaveWhitespace(), '') + Suppress('*' + White()) + ( explicit_iriref | IDENT_KEY | IRIREF  ) + Suppress(':') + Optional(value_expr, None)
 propset         = Group(delimited_list(prop | COMMENT, delim='\n'))
 resource_header = Word('#') + Optional(IRIREF, None) + Optional(QuotedString('[', end_quote_char=']'), None)
 resource_block  = Forward()
 resource_block  << Group(resource_header + White('\n').suppress() + Suppress(ZeroOrMore(blank_line)) + propset)
 
+# Start symbol
 resource_seq    = OneOrMore(Suppress(ZeroOrMore(blank_line)) + resource_block + White('\n').suppress() + Suppress(ZeroOrMore(blank_line)))
 
 prop.setParseAction(make_tree)
@@ -343,13 +344,14 @@ PREP_METHODS = {
     VERSA_BASEIRI + 'resourceset': handle_resourceset,
 }
 
-if False:
+'''
     from versa.driver.memory import newmodel
     m = newmodel()
     parse(open('/tmp/poetry.md').read(), m)
     print(m.size())
     import pprint; pprint.pprint(list(m.match()))
     # next(m.match(None, 'http://uche.ogbuji.net/poems/updated', '2013-10-15'))
+'''
 
 
 '''

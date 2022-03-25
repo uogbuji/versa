@@ -18,22 +18,27 @@ import warnings
 
 import click
 
-import versa
-# from versa import I
+from versa import util
 from versa.driver.memory import newmodel
 from versa.serial import ntriples, csv, literate
 # from versa.pipeline import *
 from versa import pipeline
 
 
-def smart_parse(source_path, model, ppl):
+def smart_parse(source_path, model, only_rel=None, exclude_rel=None):
     format = None
-    if source_path.endswith('.vlit'):
+    if source_path.endswith('.vlit') or source_path.endswith('.md'):
         format = 'vlit'
     elif source_path.endswith('.vdump'):
         format = 'vdump'
     elif source_path.endswith('.nt'):
         format = 'nt'
+
+    if source_path == '-':
+        text = sys.stdout.read()
+        literate.parse(text, model)
+        return
+
     if format is None:
         # warnings.warn('Unknown Versa source format')
         raise ValueError('Unable to determine Versa source file format from filename')
@@ -46,8 +51,6 @@ def smart_parse(source_path, model, ppl):
         elif format == 'vdump':
             util.jsonload(model, mdfp)
         elif format == 'nt':
-            only_rel = getattr(ppl, 'only_rel', None)
-            exclude_rel = getattr(ppl, 'exclude_rel', None)
             ntriples.parse(mdfp.read(), model, only_rel=only_rel,
                             exclude_rel=exclude_rel)
     return
@@ -55,18 +58,23 @@ def smart_parse(source_path, model, ppl):
 
 def smart_write(dest_path, model):
     format = None
-    if dest_path.endswith('.vlit'):
+    if dest_path.endswith('.vlit') or dest_path.endswith('.md'):
         format = 'vlit'
     elif dest_path.endswith('.vdump'):
         format = 'vdump'
     elif dest_path.endswith('.nt'):
         format = 'nt'
+
+    if dest_path == '-':
+        literate.write(model, out=sys.stdout, canonical=True)
+        return
+
     if format is None:
         raise ValueError('Unable to determine Versa output file format from filename')
 
     with open(dest_path, 'w') as model_fp:
         if format == 'vlit':
-            literate.write(model, out=model_fp)
+            literate.write(model, out=model_fp, canonical=True)
         elif format == 'vdump':
             util.jsonload(model, model_fp)
         elif format == 'nt':
@@ -84,10 +92,24 @@ def main(ctx, debug=False, **kwargs):
     return
 
 
+@main.command('parse')
+@click.argument('gr_in', type=click.Path(exists=True))
+@click.argument('gr_out', type=click.Path(), default='-')
+@click.pass_context
+def parse(ctx, gr_in, gr_out):
+    'Parse an input and write it back out in a form specified by the output extension, or as canonicalized Versa Literate to the command line'
+
+    model_in = newmodel()
+    smart_parse(gr_in, model_in)
+
+    smart_write(gr_out, model_in)
+    return
+
+
 @main.command('transform')
-@click.argument('rulespec')
-@click.argument('gr_in')
-@click.argument('gr_out')
+@click.argument('rulespec', type=click.Path(exists=True))
+@click.argument('gr_in', type=click.Path(exists=True))
+@click.argument('gr_out', type=click.Path(), default='-')
 @click.pass_context
 def transform(ctx, rulespec, gr_in, gr_out):
     'Transform an input to an output graph according to a rules specification'
@@ -107,8 +129,11 @@ def transform(ctx, rulespec, gr_in, gr_out):
             'The Versa pipeline rules specification must be a Python file \
 that defines a VERSA_PIPELINE_ENTRY object.')
 
+    only_rel = getattr(ppl, 'only_rel', None)
+    exclude_rel = getattr(ppl, 'exclude_rel', None)
+
     model_in = newmodel()
-    smart_parse(gr_in, model_in, ppl)
+    smart_parse(gr_in, model_in, only_rel=only_rel,exclude_rel=exclude_rel )
 
     model_out = ppl.run(input_model=model_in)
 

@@ -15,8 +15,9 @@ Test Versa literate model
 
 # @docheader
 
-* @base: http://bibfra.me/vocab/
-* @property-base: http://bibfra.me/purl/versa/support
+* @iri:
+    * @base: http://bibfra.me/vocab/
+    * @schema: http://bibfra.me/purl/versa/support
 
 # Resource
 
@@ -56,11 +57,17 @@ def test_versa_syntax1(testresourcepath):
     # from_markdown(VERSA_LITERATE1, m, encoding='utf-8')
     doc = open(os.path.join(testresourcepath, 'doc1.md')).read()
     literate.parse(doc, m1, config=config)
+    # Use -s to see this
+    print('='*10, 'test_versa_syntax1, pt 1', '='*10)
+    literate.write(m1)
 
     m2 = newmodel(baseiri='http://example.org/')
     # from_markdown(VERSA_LITERATE1, m, encoding='utf-8')
     doc = open(os.path.join(testresourcepath, 'doc1.abbr.md')).read()
     literate.parse(doc, m2, config=config)
+    # Use -s to see this
+    print('='*10, 'test_versa_syntax1, pt 2', '='*10)
+    literate.write(m2)
 
     # logging.debug('VERSA LITERATE EXAMPLE 1')
     equiv_results = [list(m1.match()), list(m2.match())]
