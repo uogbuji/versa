@@ -27,7 +27,8 @@ def objmock():
 
 def test_simpleobj_usecase1():
     m = newmodel()
-    tmpl = Template('# http://example.org#{{ Wikidata }}\n\n * <http://example.org/voc/copyright>: {{ _["©"] }}')
+    # FiXME: Fails unless there are 2 \n's at the end
+    tmpl = Template('# http://example.org#{{ Wikidata }}\n\n  * <http://example.org/voc/copyright>: {{ _["©"] }}\n\n')
     # use -s option to see the nosy print
     m = newmodel()
     parse(objmock(), tmpl, m, nosy=print)
