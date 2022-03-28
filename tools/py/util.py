@@ -37,6 +37,11 @@ def lookup(m, orig, rel):
         yield link[TARGET]
 
 
+def lookup_byvalue(m, rel, target):
+    links = list(m.match(None, rel, target))
+    return [ l[ORIGIN] for l in links]
+
+
 def transitive_closure(m, orig, rel):
     '''
     Generate the closure over a transitive relationship in depth-first fashion
@@ -293,4 +298,33 @@ class OrderedJsonEncoder(json.JSONEncoder):
             return '{'+','.join(( self.encode(k)+':'+self.encode(v) for (k,v) in o.items() ))+'}'
         else:
             return json.JSONEncoder.encode(self, o)
+
+
+# Helper for slightly friendlier (non-crypto) hashes
+HASHMASK = (1 << sys.hash_info.width) - 1
+
+
+def make_immutable(obj):
+    if isinstance(obj, list) or isinstance(obj, set):
+        out = []
+        for elem in obj:
+            v = make_immutable(elem)
+            out.append(v)
+        return tuple(out)
+        # XXX Maybe frozenset(out) instead if obj is set?
+    if isinstance(obj, dict):
+        out = []
+        for k, v in obj.items():
+            vv = make_immutable(v)
+            out.append((k, vv))
+        return tuple(out)
+    return obj
+    # FIXME: Think about handling instances
+    # elif hasattr(obj, '__dict__'):
+    #     out = []
+    #     for k, v in obj.items():
+    #         vv = make_immutable(v)
+    #         out.append((k, vv))
+    #     return tuple(out)
+
 

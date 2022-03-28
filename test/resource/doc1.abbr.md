@@ -11,7 +11,7 @@
 # /ndewo/
 
 * title: "Ndewo, Colorado"
-* link-type/author: <.>  <!--- Note: Can't do </> because it doesn't seem to be handled by many Markdown engines --->
+* link-type/author: <.>  <!-- Note: Can't do </> because it doesn't seem to be handled by many Markdown engines -->
     * link/description: "Uche Ogbuji"
 * link-type/see-also: <http://www.goodreads.com/book/show/18714145-ndewo-colorado>
     * link/label: "Goodreads"

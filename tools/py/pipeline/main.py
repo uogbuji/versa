@@ -18,9 +18,8 @@ using patterns and declared rules.
 
 import json
 import itertools
-import functools
+# import functools
 from operator import itemgetter
-import logging
 # from enum import Enum #https://docs.python.org/3.4/library/enum.html
 from collections import defaultdict, OrderedDict
 from types import GeneratorType
@@ -28,6 +27,7 @@ from types import GeneratorType
 from amara3 import iri
 
 from versa import I, VERSA_BASEIRI, ORIGIN, RELATIONSHIP, TARGET, ATTRIBUTES, VTYPE_REL, VLABEL_REL
+from versa.terms import VFPRINT_REL
 from versa import util
 from versa.util import simple_lookup, OrderedJsonEncoder
 from versa.driver.memory import newmodel
@@ -121,7 +121,8 @@ def resource_id(etype, fprint=None, idgen=default_idgen(None), vocabbase=None):
         fprint_processed.append((k, v))
 
     if fprint_processed:
-        fprint_processed.append((VTYPE_REL, etype))
+        if (VTYPE_REL, etype) not in fprint_processed:
+            fprint_processed.append((VTYPE_REL, etype))
         fprint_processed.sort()
         plaintext = json.dumps(fprint_processed, separators=(',', ':'), cls=OrderedJsonEncoder)
         eid = idgen.send(plaintext)
@@ -314,7 +315,8 @@ class definition:
                             Ensures we capture additional entities created by
                             pipeline actions during this fingerprint phase
                             '''
-                            out_rids.add(eid)
+                            if out_rids is not None:
+                                out_rids.add(eid)
 
                         # None relationship here acts as a signal to actions
                         # such as materialize to not try to attach the newly created
@@ -331,6 +333,7 @@ class definition:
                         mains.update(main_ridouts), others.update(out_rids)
                         others -= mains
                         new_rids.update(out_rids)
+                        out_rids = None
         return new_rids
 
     def transform_by_rel_helper(self, rules, origins=None, handle_misses=None,

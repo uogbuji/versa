@@ -1,6 +1,6 @@
-<!--- Sample Versa literate model --->
+<!-- Sample Versa literate model -->
 
-<!--- Notice how the resource bases all end with / . Due to tricky IRI resolution rules, this is by far the path of least resistance --->
+<!-- Notice how the resource bases all end with / . Due to tricky IRI resolution rules, this is by far the path of least resistance -->
 
 # http://uche.ogbuji.net/ndewo/
 
@@ -13,5 +13,3 @@
 # http://uche.ogbuji.net/
 
 * <http://www.w3.org/TR/html5/link-type/see-also>: <http://uche.ogbuji.net/ndewo/>
-
-

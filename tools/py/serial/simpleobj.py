@@ -19,7 +19,7 @@ from itertools import chain, islice, repeat, starmap, takewhile
 from versa import I, VERSA_BASEIRI, ORIGIN, RELATIONSHIP, TARGET
 from versa.driver.memory import newmodel
 
-from .literate import parse as markdown_parse
+from .literate import parse as vlit_parse
 
 __all__ = ['parse', 'parse_iter', 'write',
     # Non-standard
@@ -30,7 +30,7 @@ def parse(objlist, vl_template, model, encoding='utf-8', nosy=None):
     for obj in objlist:
         vl_text = vl_template.render(_=obj, **obj)
         if nosy: nosy(vl_text)
-        markdown_parse(vl_text, model)
+        vlit_parse(vl_text, model)
 
 
 # FIXME: Seems to be massive cut & paste error
@@ -80,7 +80,7 @@ def parse_iter(csvfp, template_obj, model_fact=newmodel,
         else:
             vliterate_text = template_obj(row)
         model = model_fact()
-        markdown_parse(vliterate_text, model)
+        vlit_parse(vliterate_text, model)
         yield model
 
 
@@ -99,7 +99,7 @@ def do_parse(csvobj, adapted_keys, vliterate_template, model):
         for k, ad_k in adapted_keys.items():
             row[ad_k] = row[k]
         vliterate_text = vliterate_template.format(**row)
-        markdown_parse(vliterate_text, model)
+        vlit_parse(vliterate_text, model)
     return at_least_one_row
 
 

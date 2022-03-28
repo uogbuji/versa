@@ -1,7 +1,9 @@
-# versa.serial.literate
+# versa.serial.markdown
 
 """
 Serialize and deserialize between a Versa model and Versa Literate (Markdown)
+
+Using the old PyMarkdown-based parser
 
 see: doc/literate_format.md
 
@@ -15,8 +17,7 @@ from amara3 import iri
 from versa import I, VERSA_BASEIRI, ORIGIN, RELATIONSHIP, TARGET, VTYPE_REL
 from versa.util import all_origins, resourcetypes
 
-# from versa.serial.markdown_parse import parse
-from versa.serial.literate_pure_helper import parse
+from versa.serial.markdown_parse import parse
 
 TYPE_REL = I(iri.absolutize('type', VERSA_BASEIRI))
 
@@ -24,15 +25,6 @@ __all__ = ['parse', 'parse_iter', 'write',
     # Extras
     'longtext', 'md_escape',
 ]
-
-def md_escape(s):
-    # import warnings
-    # warnings.warn('md_escape is no longer needed, and will be removed soon', DeprecationWarning)
-    # Actually, one relevant case: the string starts & ends with </> & user forgot to wrap with quotes
-    stripped = s.strip()
-    if stripped and stripped[0] == '<' and stripped[-1] == '>':
-        s = '\"' + s.replace('"', '\\"') + '\"'
-    return s
 
 
 def longtext(t):
@@ -77,7 +69,7 @@ def value_format(val):
         return f'"{val}"'
 
 
-def write(model, out=sys.stdout, base=None, schema=None, shorteners=None, canonical=False):
+def write(model, out=sys.stdout, base=None, schema=None, shorteners=None):
     '''
     models - input Versa model from which output is generated
     '''
@@ -98,35 +90,57 @@ def write(model, out=sys.stdout, base=None, schema=None, shorteners=None, canoni
     out.write('\n\n')
 
     origin_space = set(all_origins(model))
-    if canonical:
-        origin_space = sorted(origin_space)
 
     for o in origin_space:
         # First type found
         # XXX: Maybe there could be a standard primary-type attribute
         # to flag the property with the type to highlight
-        first_type = next(iter(sorted(resourcetypes(model, o))), None)
+        first_type = next(resourcetypes(model, o), None)
         if first_type:
             first_type_str = abbreviate(first_type, all_schema)
             out.write(f'# {o} [{first_type_str}]\n\n')
         else:
             out.write(f'# {o}\n\n')
-        rels = model.match(o)
-        rels = [ (o_, r, t, sorted(a.items())) for (o_, r, t, a) in rels ]
-        if canonical:
-            rels = sorted(rels)
-        for o_, r, t, a in rels:
+        for o_, r, t, a in model.match(o):
             if (r, t) == (VTYPE_REL, first_type): continue
             rendered_r = abbreviate(r, all_schema)
             if isinstance(rendered_r, I):
                 rendered_r = f'<{rendered_r}>'
             value_format(t)
             out.write(f'* {rendered_r}: {value_format(t)}\n')
-            for k, v in a:
+            for k, v in a.items():
                 rendered_k = abbreviate(k, all_schema)
                 if isinstance(rendered_k, I):
                     rendered_r = f'<{rendered_k}>'
-                out.write(f'    * {rendered_k}: {value_format(v)}\n')
+                out.write(f'    * {rendered_k}: {value_format(t)}\n')
 
         out.write('\n')
     return
+
+
+# ESCAPE_MD_PAT = re.compile(r'([\\\`\*_\{\}\[\]\(\)\#\+\-\.\!])')
+# GENERAL_ESCAPE_PAT = re.compile(r'([\\]|)')
+
+# FIXME: Make < pattern stricter, to avoid false positives
+LINE_START_ESCAPE_PAT = re.compile(r'^(#|\*|-|=|<|_)')
+LINE_START_AFTER_SPACE_ESCAPE_PAT = re.compile(r'^(\s+)(\*|-)')
+
+def md_escape(t):
+    '''
+    Useful resources:
+      * https://wilsonmar.github.io/markdown-text-for-github-from-html/
+
+    >>> from versa.serial.literate import md_escape
+    >>> md_escape('*_\\ abc')
+    ... '\\*\\_\\\\ abc'
+    >>> md_escape(' * spam\n * eggs')
+    ... ' \\* spam  * eggs'
+    '''
+    # Super-simple wouldd be data = re.sub(r'([\\*_])', r'\\\1', data)
+    # subbed_t = ESCAPE_MD_PAT.sub(r'\\\1', t)
+    # Strip newlines, for now. Investigate escaping with more nuance
+    oneline_t = ' '.join(t.splitlines())
+    subbed_t = LINE_START_ESCAPE_PAT.sub(r'\\\1', oneline_t)
+    subbed_t = LINE_START_AFTER_SPACE_ESCAPE_PAT.sub(r'\1\\\2', subbed_t)
+    # subbed_t = ESCAPE_MD_PAT.sub(lambda m: '\\'+m.group(1))
+    return subbed_t
