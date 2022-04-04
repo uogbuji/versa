@@ -98,10 +98,8 @@ def test_mosdef_only(testresourcepath, expected_modout1):
     literate.write(modout)
     # import pprint; pprint.pprint(list(iter(modout)))
 
-    # FIXME: Parser bug omits 2 output links. Should be 17
-    assert len(modout) == 12
-    # FIXME: Uncomment
-    # assert len(list(util.all_origins(modout, only_types={SCH_NS('MusicAlbum')}))) == 1
+    assert len(modout) == 17
+    assert len(list(util.all_origins(modout, only_types={SCH_NS('MusicAlbum')}))) == 1
     assert len(list(util.all_origins(modout, only_types={SCH_NS('Person')}))) == 3
 
 

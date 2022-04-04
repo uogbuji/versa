@@ -8,14 +8,15 @@
     * @base: http://uche.ogbuji.net/
     * @schema: http://www.w3.org/TR/html5/
 
-# /ndewo/
+# /ndewo/ [#Document]
 
 * title: "Ndewo, Colorado"
-* link-type/author: <.>  <!-- Note: Can't do </> because it doesn't seem to be handled by many Markdown engines -->
-    * link/description: "Uche Ogbuji"
-* link-type/see-also: <http://www.goodreads.com/book/show/18714145-ndewo-colorado>
-    * link/label: "Goodreads"
+<!-- Figure out how to use e.g. link-type/author rather than <link-type/author> -->
+* <link-type/author>: <.>  <!-- Figure out handling </> & <.> Note: Can't do </> because it doesn't seem to be handled by many Markdown engines -->
+  * <link/description>: "Uche Ogbuji"
+* <link-type/see-also>: <http://www.goodreads.com/book/show/18714145-ndewo-colorado>
+  * <link/label>: "Goodreads"
 
-# http://uche.ogbuji.net/
+# http://uche.ogbuji.net/ [#Document]
 
-* link-type/see-also: <./ndewo/>
+* <link-type/see-also>: <./ndewo/>
