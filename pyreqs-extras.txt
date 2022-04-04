@@ -2,3 +2,4 @@ html5lib
 jinja2
 rdflib
 pytest-profiling
+pytest-clarity
