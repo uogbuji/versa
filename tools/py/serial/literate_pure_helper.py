@@ -120,7 +120,11 @@ resource_block  = Forward()
 resource_block  << Group(resource_header + White('\n').suppress() + Suppress(ZeroOrMore(blank_to_eol)) + propset)
 
 # Start symbol
-resource_seq    = OneOrMore(Suppress(ZeroOrMore(blank_to_eol)) + resource_block + White('\n').suppress() + Suppress(ZeroOrMore(blank_to_eol)))
+resource_seq    = OneOrMore(
+                    Suppress(ZeroOrMore(blank_to_eol)) + \
+                        resource_block + White('\n').suppress() + \
+                            Suppress(ZeroOrMore(blank_to_eol))
+                    )
 
 prop.setParseAction(make_tree)
 value_expr.setParseAction(make_value)
@@ -393,6 +397,18 @@ for s in [  '# resX\n  * a-b-c: <quick-brown-fox>\n    lang: en',
             ]:
     parsed = resource_block.parseString(s)
     print(s, '→', parsed)
+
+for s in [  '# res1\n<!-- COMMENT -->\n\n  * a-b-c: <quick-brown-fox>\n\n\n# res2\n\n  * d-e-f: <jumps-over>\n\n\n',
+            ]:
+    print(s, end='')
+    parsed = resource_block.parseString(s)
+    print('→', parsed)
+
+for s in [  '# res1\n<!-- COMMENT -->\n\n  * a-b-c: <quick-brown-fox>\n\n\n\n\n# res2\n\n  * d-e-f: <jumps-over>\n\n\n',
+            ]:
+    print(s, end='')
+    parsed = resource_seq.parseString(s)
+    print('→', parsed)
 
 '''
 
