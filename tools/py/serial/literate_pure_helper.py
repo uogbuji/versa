@@ -74,6 +74,7 @@ def make_tree(string, location, tokens):
 
 
 def make_value(string, location, tokens):
+    print(tokens)
     val = tokens[0]
     # Must check IRI first, since it is a subclass of str
     if isinstance(val, I):
@@ -168,7 +169,7 @@ def parse(vlit, model, encoding='utf-8', config=None):
     # Set up doc info
     doc = doc_info(iri=None, resbase=None, schemabase=None, rtbase=None, iris=None, interp=interp, lang={})
 
-    parsed = resource_seq.parseString(vlit)
+    parsed = resource_seq.parseString(vlit, parseAll=True)
 
     for resblock in parsed:
         process_resblock(resblock, model, doc)
@@ -369,48 +370,50 @@ for s in [  ' "quick-brown-fox"',
             ' <quick-brown-fox>\n',
             ' <quick-brown-fox> <!-- COMMENT -->',
             ' "quick-brown-fox" <!-- COMMENT -->',
+            '"\"1\""',
             ]:
-    parsed = value_expr.parseString(s)
+    parsed = value_expr.parseString(s, parseAll=True)
     print(s, '→', parsed)
 
 for s in [  '# resX\n<!-- COMMENT -->\n\n  * a-b-c: <quick-brown-fox>',
             ]:
     print(s, end='')
-    parsed = resource_block.parseString(s)
+    parsed = resource_block.parseString(s, parseAll=True)
     print('→', parsed)
 
 for s in [  '  * a-b-c: <quick-brown-fox>',
             '  * a-b-c:  quick brown fox',
             '  * a-b-c: " quick brown fox"',
             ]:
-    parsed = prop.parseString(s)
+    parsed = prop.parseString(s, parseAll=True)
     print(s, '→', parsed)
 
 for s in [  '# resX\n  * a-b-c: <quick-brown-fox>',
             '# resX [Person]\n  * a-b-c: <quick-brown-fox>',
             '# resX [Person]\n  * a-b-c: <quick-brown-fox>\n  * d-e-f: "lazy dog"',
             ]:
-    parsed = resource_block.parseString(s)
+    parsed = resource_block.parseString(s, parseAll=True)
     print(s, '→', parsed)
 
 for s in [  '# resX\n  * a-b-c: <quick-brown-fox>\n    lang: en',
             ]:
-    parsed = resource_block.parseString(s)
+    parsed = resource_block.parseString(s, parseAll=True)
     print(s, '→', parsed)
 
 for s in [  '# res1\n<!-- COMMENT -->\n\n  * a-b-c: <quick-brown-fox>\n\n\n# res2\n\n  * d-e-f: <jumps-over>\n\n\n',
             ]:
     print(s, end='')
-    parsed = resource_block.parseString(s)
+    parsed = resource_block.parseString(s, parseAll=True)
     print('→', parsed)
 
 for s in [  '# res1\n<!-- COMMENT -->\n\n  * a-b-c: <quick-brown-fox>\n\n\n\n\n# res2\n\n  * d-e-f: <jumps-over>\n\n\n',
             ]:
     print(s, end='')
-    parsed = resource_seq.parseString(s)
+    parsed = resource_seq.parseString(s, parseAll=True)
     print('→', parsed)
 
 '''
+
 
 '''
 
