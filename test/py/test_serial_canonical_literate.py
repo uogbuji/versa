@@ -1,11 +1,7 @@
 # -*- coding: utf-8 -*-
-# test_serial_simpleobj.py
+# test_serial_literate.py
 '''
 Test Literate writer in canonical mode
-
-pytest -s test/py/test_serial_canonical_literate.py
-
-or 
 
 pytest -s test/py/test_serial_canonical_literate.py
 

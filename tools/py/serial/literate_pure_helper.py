@@ -74,14 +74,15 @@ def make_tree(string, location, tokens):
 
 
 def make_value(string, location, tokens):
-    val = tokens[0].strip()
+    print(tokens)
+    val = tokens[0]
+    # Must check IRI first, since it is a subclass of str
     if isinstance(val, I):
         typeindic = RES_VAL
-    elif val[0] == val[-1] and val[0] in '"\'':
+    elif isinstance(val, LITERAL):
         typeindic = TEXT_VAL
-        val = val[1:-1]
-    #elif val[0] == '<' and val[-1] == '>':
-    else:
+    elif isinstance(val, str):
+        val = val.strip()
         typeindic = UNKNOWN_VAL
 
     return value_info(verbatim=val, typeindic=typeindic)
@@ -107,19 +108,24 @@ IRIREF          = Regex(r'[^<>"{}|^`\\\[\]%s]*' % "".join(
                     .setParseAction(iriref_parse_action)
 #REST_OF_LINE = rest_of_line.leave_whitespace()
 
-blank_line      = ZeroOrMore(COMMENT) + White('\n')
+blank_to_eol    = ZeroOrMore(COMMENT) + White('\n')
 explicit_iriref = Combine(Suppress("<") + IRIREF + Suppress(">")) \
                     .setParseAction(iriref_parse_action)
 
-value_expr      = Combine(explicit_iriref | QUOTED_STRING | rest_of_line).leaveWhitespace()
-prop            = Optional(White(' \t').leaveWhitespace(), '') + Suppress('*' + White()) + ( explicit_iriref | IDENT_KEY | IRIREF  ) + Suppress(':') + Optional(value_expr, None)
+value_expr      = ( explicit_iriref + Suppress(ZeroOrMore(COMMENT)) ) | ( QUOTED_STRING + Suppress(ZeroOrMore(COMMENT)) ) | rest_of_line
+prop            = Optional(White(' \t').leaveWhitespace(), '') + Suppress('*' + White()) + \
+                    ( explicit_iriref | IDENT_KEY | IRIREF ) + Suppress(':') + Optional(value_expr, None)
 propset         = Group(delimited_list(prop | COMMENT, delim='\n'))
 resource_header = Word('#') + Optional(IRIREF, None) + Optional(QuotedString('[', end_quote_char=']'), None)
 resource_block  = Forward()
-resource_block  << Group(resource_header + White('\n').suppress() + Suppress(ZeroOrMore(blank_line)) + propset)
+resource_block  << Group(resource_header + White('\n').suppress() + Suppress(ZeroOrMore(blank_to_eol)) + propset)
 
 # Start symbol
-resource_seq    = OneOrMore(Suppress(ZeroOrMore(blank_line)) + resource_block + White('\n').suppress() + Suppress(ZeroOrMore(blank_line)))
+resource_seq    = OneOrMore(
+                    Suppress(ZeroOrMore(blank_to_eol)) + \
+                        resource_block + White('\n').suppress() + \
+                            Suppress(ZeroOrMore(blank_to_eol))
+                    )
 
 prop.setParseAction(make_tree)
 value_expr.setParseAction(make_value)
@@ -163,7 +169,7 @@ def parse(vlit, model, encoding='utf-8', config=None):
     # Set up doc info
     doc = doc_info(iri=None, resbase=None, schemabase=None, rtbase=None, iris=None, interp=interp, lang={})
 
-    parsed = resource_seq.parseString(vlit)
+    parsed = resource_seq.parseString(vlit, parseAll=True)
 
     for resblock in parsed:
         process_resblock(resblock, model, doc)
@@ -247,11 +253,12 @@ def process_resblock(resblock, model, doc):
                 if typeindic == RES_VAL:
                     prop.value = expand_iri(prop.value, doc.rtbase, relcontext=prop.key)
                 elif typeindic == TEXT_VAL:
+                    prop.value = str(prop.value)
                     if '@lang' not in attrs and doc.lang:
                         attrs['@lang'] = doc.lang
                 elif typeindic == UNKNOWN_VAL:
                     if prop.key in doc.interp:
-                        prop.value = doc.interp[prop.key](prop.value, rid=rid, fullprop=current_outer_prop.key, base=doc.iri, model=model)
+                        prop.value = doc.interp[prop.key](str(prop.value), rid=rid, fullprop=current_outer_prop.key, base=doc.iri, model=model)
 
         else:
             aprop, aval, atype = prop.key, prop.value, UNKNOWN_VAL
@@ -266,13 +273,15 @@ def process_resblock(resblock, model, doc):
                 else:
                     attrs[fullaprop] = I(iri.absolutize(aval, doc.rtbase))
             elif atype == TEXT_VAL:
-                attrs[fullaprop] = aval
+                attrs[fullaprop] = str(aval)
             elif atype == UNKNOWN_VAL:
-                val_iri_match = URI_EXPLICIT_PAT.match(aval)
+                val_iri_match = URI_EXPLICIT_PAT.match(str(aval))
                 if val_iri_match:
                     aval = expand_iri(aval, doc.rtbase)
                 elif fullaprop in doc.interp:
-                    aval = doc.interp[fullaprop](aval, rid=rid, fullprop=fullaprop, base=base, model=model)
+                    aval = doc.interp[fullaprop](str(aval), rid=rid, fullprop=fullaprop, base=base, model=model)
+                else:
+                    aval = str(aval)
                 if aval is not None:
                     attrs[fullaprop] = aval
 
@@ -353,34 +362,60 @@ PREP_METHODS = {
     # next(m.match(None, 'http://uche.ogbuji.net/poems/updated', '2013-10-15'))
 '''
 
-
 '''
+
+for s in [  ' "quick-brown-fox"',
+            ' "quick-brown-fox"\n',
+            ' <quick-brown-fox>',
+            ' <quick-brown-fox>\n',
+            ' <quick-brown-fox> <!-- COMMENT -->',
+            ' "quick-brown-fox" <!-- COMMENT -->',
+            '"\"1\""',
+            ]:
+    parsed = value_expr.parseString(s, parseAll=True)
+    print(s, '→', parsed)
 
 for s in [  '# resX\n<!-- COMMENT -->\n\n  * a-b-c: <quick-brown-fox>',
             ]:
     print(s, end='')
-    parsed = resource_block.parseString(s)
+    parsed = resource_block.parseString(s, parseAll=True)
     print('→', parsed)
 
 for s in [  '  * a-b-c: <quick-brown-fox>',
             '  * a-b-c:  quick brown fox',
             '  * a-b-c: " quick brown fox"',
             ]:
-    parsed = prop.parseString(s)
+    parsed = prop.parseString(s, parseAll=True)
     print(s, '→', parsed)
 
 for s in [  '# resX\n  * a-b-c: <quick-brown-fox>',
             '# resX [Person]\n  * a-b-c: <quick-brown-fox>',
             '# resX [Person]\n  * a-b-c: <quick-brown-fox>\n  * d-e-f: "lazy dog"',
             ]:
-    parsed = resource_block.parseString(s)
+    parsed = resource_block.parseString(s, parseAll=True)
     print(s, '→', parsed)
 
-for s in [  '# resX\n  a-b-c: <quick-brown-fox>\n    lang: en',
+for s in [  '# resX\n  * a-b-c: <quick-brown-fox>\n    lang: en',
             ]:
-    parsed = resource_block.parseString(s)
+    parsed = resource_block.parseString(s, parseAll=True)
     print(s, '→', parsed)
 
+for s in [  '# res1\n<!-- COMMENT -->\n\n  * a-b-c: <quick-brown-fox>\n\n\n# res2\n\n  * d-e-f: <jumps-over>\n\n\n',
+            ]:
+    print(s, end='')
+    parsed = resource_block.parseString(s, parseAll=True)
+    print('→', parsed)
+
+for s in [  '# res1\n<!-- COMMENT -->\n\n  * a-b-c: <quick-brown-fox>\n\n\n\n\n# res2\n\n  * d-e-f: <jumps-over>\n\n\n',
+            ]:
+    print(s, end='')
+    parsed = resource_seq.parseString(s, parseAll=True)
+    print('→', parsed)
+
+'''
+
+
+'''
 
   a-b-c: <quick-brown-fox> → [prop_info(key='a-b-c', value=ParseResults([I(quick-brown-fox)], {}), children=[ParseResults([], {})])]
   a-b-c:  quick brown fox → [prop_info(key='a-b-c', value=ParseResults(['quick brown fox'], {}), children=[ParseResults([], {})])]
