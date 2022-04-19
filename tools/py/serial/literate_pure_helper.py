@@ -74,7 +74,6 @@ def make_tree(string, location, tokens):
 
 
 def make_value(string, location, tokens):
-    print(tokens)
     val = tokens[0]
     # Must check IRI first, since it is a subclass of str
     if isinstance(val, I):
